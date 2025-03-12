@@ -57,8 +57,6 @@ def setup_logging(verbose: bool):
     logger.addHandler(handler)
 
 
-
-
 ############################
 ###### SFTP Functions ######
 ############################
@@ -201,6 +199,7 @@ def download_files_from_sftp(file_list, sftp=None):
         logger.debug(f"Inserted metadata for {len(completed_files)} files into the database.")
     else:
         logger.debug("No files were downloaded or processed for metadata insertion.")
+
 
 ############################
 ###### SQL Functions #######
@@ -478,47 +477,61 @@ def create_show_record(show, show_info, db_file):
     if not "episodes" in show_info:
         show_info["episodes"] = None
 
-    conn = sqlite3.connect(db_file, detect_types=sqlite3.PARSE_DECLTYPES)
-    cursor = conn.cursor()
-    cursor.execute('''
-        INSERT INTO tv_shows (sys_name, sys_path, tvdb_name, tvdb_aliases, tvdb_id, tvdb_series_id, tvdb_year, tvdb_overview, fetched_at, regex_include, regex_exclude, episodes, status)
-        VALUES (:sys_name, :sys_path, :tvdb_name, :tvdb_aliases, :tvdb_id, :tvdb_object_id, :tvdb_year, :tvdb_overview, :fetched_at, :regex_include, :regex_exclude, :episodes, :status)
-    ''', {
-        "sys_name": show,
-        "sys_path": sys_path,
-        "tvdb_name": show_info["name"],
-        "tvdb_aliases": json.dumps(show_info["aliases"]),
-        "tvdb_id": show_info["tvdb_id"],
-        "tvdb_object_id": show_info["objectID"],
-        "tvdb_year": show_info["year"],
-        "tvdb_overview": show_info["overviews"]["eng"],
-        "fetched_at": datetime.datetime.now(),
-        "regex_include": "",
-        "regex_exclude": "",
-        "episodes": "",
-        "status": ""
-    })
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect(db_file, detect_types=sqlite3.PARSE_DECLTYPES)
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO tv_shows (sys_name, sys_path, tvdb_name, tvdb_aliases, tvdb_id, tvdb_series_id, tvdb_year, tvdb_overview, fetched_at, regex_include, regex_exclude, episodes, status)
+            VALUES (:sys_name, :sys_path, :tvdb_name, :tvdb_aliases, :tvdb_id, :tvdb_object_id, :tvdb_year, :tvdb_overview, :fetched_at, :regex_include, :regex_exclude, :episodes, :status)
+        ''', {
+            "sys_name": show,
+            "sys_path": sys_path,
+            "tvdb_name": show_info["name"],
+            "tvdb_aliases": json.dumps(show_info["aliases"]),
+            "tvdb_id": show_info["tvdb_id"],
+            "tvdb_object_id": show_info["objectID"],
+            "tvdb_year": show_info["year"],
+            "tvdb_overview": show_info["overviews"]["eng"],
+            "fetched_at": datetime.datetime.now(),
+            "regex_include": "",
+            "regex_exclude": "",
+            "episodes": "",
+            "status": ""
+        })
+        logger.debug(f"Conn Commit: {conn.total_changes} rows changed.")
+        conn.commit()
+    except sqlite3.Error as error:
+        logger.debug(f"Error inserting show record into table: {error}")
+        return False
+    finally:
+        if conn:
+            conn.close()
 
 def update_show_status_and_episodes(tvdb_id, ser, eps, db_file):
     status = ser["status"]['name']
     episodes = json.dumps(eps)
 
-    conn = sqlite3.connect(db_file, detect_types=sqlite3.PARSE_DECLTYPES)
-    cursor = conn.cursor()
-    cursor.execute('''
-        UPDATE tv_shows
-        SET status = :status,
-            episodes = :episodes
-        WHERE tvdb_id = :tvdb_id
-    ''', {
-        "tvdb_id": tvdb_id,
-        "status": status,
-        "episodes": episodes
-    })
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect(db_file, detect_types=sqlite3.PARSE_DECLTYPES)
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE tv_shows
+            SET status = :status,
+                episodes = :episodes
+            WHERE tvdb_id = :tvdb_id
+        ''', {
+            "tvdb_id": tvdb_id,
+            "status": status,
+            "episodes": episodes
+        })
+        logger.debug(f"Conn Commit: {conn.total_changes} rows changed.")
+        conn.commit()
+    except sqlite3.Error as error:
+        logger.debug(f"Error inserting show episodes and status into table: {error}")
+        return False
+    finally:
+        if conn:
+            conn.close()
 
 
 ############################
@@ -538,12 +551,11 @@ def fetch_show_info(show_name):
         None: If no results are found.
 
     """
-    #show_name_original = show_name.deepcopy()
-    #show_name = remove_years(show_name)
     search_results = tvdb.search(show_name)
     if search_results:
 
         if len(search_results) == 1:
+            logger.debug(f"Precise match found: {show_name}")
             return search_results[0]
 
         elif len(search_results) > 1:
@@ -560,13 +572,13 @@ def fetch_show_info(show_name):
                 ]
 
             if exact_name:
-                #print("Exact name found.")
+                logger.debug(f"Exact name found: {exact_name[0]}")
                 return exact_name[0]
             elif exact_trans:
-                #print("Exact translation found.")
+                logger.debug(f"Exact translation found: {exact_trans[0]}")
                 return exact_trans[0]
             else:
-                #print("No exact match found, proceeding to filter.")
+                logger.debug(f"Multiple results found for: {show_name}")
                 filtered_results = [
                 series for series in search_results
                 if series.get('country') == 'jpn'
@@ -579,17 +591,21 @@ def fetch_show_info(show_name):
                 else:
                     return search_results[0]
         else:
-            print(f"Search Results not working for: {show_name}")
+            logger.debug(f"Search Results not working for: {show_name}")
             return None
     else:
-        print(f"No results found for: {show_name}")
+        logger.debug(f"No results found for: {show_name}")
         return None
 
 def fetch_episode_info(tvdb_id):
-    data = tvdb.get_series_episodes(tvdb_id)
-    series = data['series']
-    episodes = data['episodes']
-    return series,episodes
+    try:
+        data = tvdb.get_series_episodes(tvdb_id)
+        series = data['series']
+        episodes = data['episodes']
+        return series, episodes
+    except Exception as e:
+        logger.debug(f"Error fetching episode info: {e}")
+        return None, None
 
 def determine_season_from_tvdb(show_name, episode):
     """Determine the season and episode number from the show database."""
@@ -653,19 +669,25 @@ def build_metadata(file_list):
 
             # Determine which regex matched based on non-None groups
             if groups[0]:  # First regex (non-season title) ... bracket_title_abseps_regex
-                title, year, episode = groups[0], groups[1] or "N/A", groups[2]
+                show_name, year, episode = groups[0], groups[1] or "N/A", groups[2]
                 season = "N/A"
             elif groups[3]:  # Second regex (season included) ... bracket_title_s_abseps_regex
-                title, season, episode = groups[3], groups[4], groups[5]
+                show_name, season, episode = groups[3], groups[4], groups[5]
                 year = "N/A"
             elif groups[6]:  # Third regex (SxxExx format) ... title_season_eps_regex
-                title, year, season, episode = groups[6], groups[7] or "N/A", groups[8], groups[9]
+                show_name, year, season, episode = groups[6], groups[7] or "N/A", groups[8], groups[9]
 
-        logger.debug(f"Processing ... Title: {title}, Year: {year}, Season: {season}, Episode: {episode}")
+        logger.debug(f"Processing ... Title: {show_name}, Year: {year}, Season: {season}, Episode: {episode}")
+
+        # Safeguard against None values
+        if not show_name:
+            logger.error(f"Unable to extract show name from filename: {filename}")
+            continue
 
         # Clean up the show name
         show_name = show_name.replace(".", " ").strip()
 
+        # Handle missing season and try to resolve from TVDB
         if not season or season == "N/A":
             season, new_episode = determine_season_from_tvdb(show_name, episode)
             if not new_episode:
@@ -685,8 +707,6 @@ def build_metadata(file_list):
             metadata.append(md)
 
     return metadata
-
-
 
 
 ############################
@@ -780,12 +800,11 @@ def file_router(metadata):
             # Move the file
             logger.debug(f"Moving {filename} to {new_path}")
             shutil.move(os.path.join(filepath, filename), os.path.join(new_path, filename))
-            print(f"Moved {filename} to {new_path}")
+            logger.debug(f"Moved {filename} to {new_path}")
 
         # If the show is not in the database, search TheTVDB for the show
         else:
             logger.debug(f"Show not found in metadata: {show_name}")
-
 
 
 ############################
@@ -801,16 +820,20 @@ def main():
 
     # Create Show
     if args.create_show:
-        # TODO: Check to see if show exists first before trying to create it
         show_name = args.create_show
-        show_info = fetch_show_info(show_name)
-        if show_info:
-            create_show_record(show_name, show_info, DB_FILE)
-            ser, eps = fetch_episode_info(show_info["tvdb_id"])
-            update_show_status_and_episodes(show_info["tvdb_id"], ser, eps, DB_FILE)
-            print(f"Show created: {show_name}")
+        show_already_exists = search_show_in_db(show_name, DB_FILE)
+        if not show_already_exists:
+            logger.debug(f"Fetching show info from TVDB: {show_name}")
+            show_info = fetch_show_info(show_name)
+            if show_info:
+                create_show_record(show_name, show_info, DB_FILE)
+                ser, eps = fetch_episode_info(show_info["tvdb_id"])
+                update_show_status_and_episodes(show_info["tvdb_id"], ser, eps, DB_FILE)
+                logger.debug(f"Show created: {show_name}")
+            else:
+                logger.debug(f"Show not found: {show_name}")
         else:
-            print(f"Show not found: {show_name}")
+            logger.debug(f"Show already exists: {show_name}")
 
     # 2. List/Download files on the SFTP server
     if args.full_sftp_table_refresh: # Performing a full database refresh of the SFTP server files
