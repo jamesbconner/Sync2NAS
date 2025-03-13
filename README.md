@@ -53,34 +53,48 @@ The argparse object includes options that are not fully implemented. These are p
 - `--update-all-episodes`: Automate the process to check for new episodes across all shows in the database.
 - Logging Level Customization: Enable setting logging levels via argparse for more control over output verbosity.
 
+Additionally the following items are under consideration:
+- Refactoring repetative code blocks for SFTP operations
+- Optimize the `list_sftp_files` function to reduce redundant file_attr processing
+- Better handing of database connections to ensure proper closures across connections
+- Validate configuration inputes and handle missing configs gracefully
+- Add type hints to functions
+- Make function style-guide comments consistent
+
 ## Usage Examples
 
 ### Basic File Download from SFTP
-
+Just download the new files from the SFTP server to the local Incoming directory without doing anything else.
 ```bash
 python sync_script.py -d
 ```
 
 ### Route Files from Incoming to NAS Filesystem
-
+Just route the files located in the Incoming directory to the destinations on the local NAS as defined in the database.
 ```bash
 python sync_script.py -r
 ```
 
-### Refresh the Entire SFTP Table
+### Most Common Usage - Download and Route Files
+Download new files to the Incoming directory, and route to the NAS afterwards.
+```bash
+python sync_script.py -d -r
+```
 
+### Refresh the Entire SFTP Table
+Baseline the database with the contents of the SFTP server.  This uses a recursive search on all directories in the SFTP server path, so it takes a considerable amount of time.  These files will not be downloaded as a result of this command, nor will these files be downloaded in the future.
 ```bash
 python sync_script.py --full-sftp-table-refresh
 ```
 
 ### Create a New Show Record Entry in DB and NAS Filesystem
-
+When a show does not exist in the database or on the NAS filesystem, it needs to be created first before it can be routed.  This is to ensure the proper directory name and show/episode information is available for routing properly.
 ```bash
-python sync_script.py --create-show "Show Name"
+python sync_script.py --create-show="Show Name"
 ```
 
 ### Verbose Output for Debugging
-
+Enable step by step verbose information printed out to the console.
 ```bash
 python sync_script.py -v
 ```
