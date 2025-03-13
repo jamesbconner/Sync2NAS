@@ -684,8 +684,10 @@ def build_metadata(file_list):
             logger.error(f"Unable to extract show name from filename: {filename}")
             continue
 
+        # Commenting out for the moment ... some show names have legitimate periods in the filename
+        # TODO: Pass the clean and dirty forms of the show name to resolve.
         # Clean up the show name
-        show_name = show_name.replace(".", " ").strip()
+        #show_name = show_name.replace(".", " ").strip()
 
         # Handle missing season and try to resolve from TVDB
         if not season or season == "N/A":
@@ -697,6 +699,11 @@ def build_metadata(file_list):
                 episode = new_episode
                 logger.debug(f"New episode found for {show_name} - {season} - {episode}")
 
+        # Ensure episode and season strings are zfill'd
+        episode = str(episode).zfill(2)
+        season = str(season).zfill(2)
+
+        logger.debug(f"Searching Database For Show: {show_name}")
         db_match = search_show_in_db(show_name, DB_FILE)
         if db_match:
             for m in db_match:
@@ -705,6 +712,9 @@ def build_metadata(file_list):
             md = (show_name, year, season, episode, filename, filepath, sys_name, sys_path, tvdb_id)
             logger.debug(f"Appending Metadata: {md}")
             metadata.append(md)
+        else:
+            logger.debug(f"Show not found in database: {show_name}")
+            continue
 
     return metadata
 
@@ -910,7 +920,6 @@ def main():
             file_router(enriched_file_metadata)
         else:
             logger.error("No files found to route.")
-
 
 
 if __name__ == "__main__":
