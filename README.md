@@ -33,13 +33,37 @@ The script requires a configuration file (`sync2nas_config.ini`) in the `config`
 
 - `incoming`: Path to the incoming directory where files are initially downloaded before routing.
 
+### Example sync2nas_config.ini
+```
+[SFTP]
+host = your.sftpserver.com
+port = 22
+username = whatsyourname
+ssh_key_path = ./ssh/your_sftpserver_rsa
+path = /path/to/remote/files/
+
+[SQLite]
+db_file = ./database/sync2nas.db
+
+[Transfers]
+incoming = ./incoming
+
+[TVDB]
+api_key = a1234567-b123-c123-d123-e12345678901
+
+[Routing]
+anime_tv_path = d:/anime_tv/
+tv_path = d:/tv/
+movie_path = d:/movies/
+```
+
 ## Obtaining a TVDB API Key
 
 To use the TVDB integration features, obtain an API key by registering an account with [TheTVDB](https://thetvdb.com/). This API key must be added to the configuration file under the `TVDB` section.
 
 ## TODOs in the Code
 
-- **Show Existence Check**: When using the `--create-show` option, the script should first check if the show already exists in the database to avoid duplication.
+- **~~Show Existence Check~~**: ~~When using the `--create-show` option, the script should first check if the show already exists in the database to avoid duplication.~~
 - **Enhanced Logging**: Refine logging output to provide more granular control and improve readability.
 - **Error Handling**: Strengthen exception handling to cover more edge cases, especially around network connectivity and API rate limits.
 
@@ -54,7 +78,7 @@ The argparse object includes options that are not fully implemented. These are p
 - Logging Level Customization: Enable setting logging levels via argparse for more control over output verbosity.
 
 Additionally the following items are under consideration:
-- Refactoring repetative code blocks for SFTP operations
+- Refactoring repetitive code blocks for SFTP operations
 - Optimize the `list_sftp_files` function to reduce redundant file_attr processing
 - Better handing of database connections to ensure proper closures across connections
 - Validate configuration inputes and handle missing configs gracefully
