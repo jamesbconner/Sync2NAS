@@ -359,9 +359,11 @@ def insert_sftp_files_metadata(files_list, db_file):
         False: Indicates that the files could not be inserted into the table.
     """
 
+    conn = None  # Initialize conn to avoid UnboundLocalError
+
     try:
         logger.debug(f"Inserting file data into table: {db_file}")
-        conn = sqlite3.connect(DB_FILE, detect_types=sqlite3.PARSE_DECLTYPES)
+        conn = sqlite3.connect(db_file, detect_types=sqlite3.PARSE_DECLTYPES)
         cursor = conn.cursor()
         cursor.executemany("""
             INSERT INTO sftp_files (name, size, modified_time, path, fetched_at, is_dir)
@@ -435,6 +437,8 @@ def insert_sftp_temp_files_metadata(file_list, db_file):
         if conn:
             conn.commit()
             conn.close()
+
+    return True
 
 def get_sftp_diffs(db_file):
     """Get the differences between the SFTP files table and the SFTP temp files table."""
