@@ -133,10 +133,10 @@ def list_sftp_files(remote_path, sftp=None, cuttime=5, cutsize=0, recursive=Fals
     finally:
         if not recursive:
             if sftp:
-                logger.debug("Closing SFTP connection for path: {remote_path}.")
+                logger.debug(f"Closing SFTP connection for path: {remote_path}.")
                 sftp.close()
             if transport:
-                logger.debug("Closing transport connection for path: {remote_path}.")
+                logger.debug(f"Closing transport connection for path: {remote_path}.")
                 transport.close()
 
     return file_list
@@ -147,7 +147,7 @@ def download_files_from_sftp(file_list, sftp=None):
     completed_files = []
 
     while file_list:
-        file = file_list.pop()
+        file = file_list.pop(0)
         # Convert remote path to local path using the appropriate OS separator
         local_path = os.path.join(TRANSFERS_INCOMING, file['path'].replace(SFTP_PATH, "").lstrip("/")).replace("/", os.sep)
         remote_path = file['path']
@@ -157,7 +157,7 @@ def download_files_from_sftp(file_list, sftp=None):
             if file['is_dir']:
                 if not os.path.exists(local_path):
                     logger.debug(f"Directory does not exist. Creating directory: {local_path}")
-                    os.makedirs(local_path)
+                    os.makedirs(local_path, exist_ok=True)
                     logger.debug(f"Directory created: {local_path}")
                 else:
                     logger.debug(f"Directory already exists: {local_path}")
@@ -165,6 +165,8 @@ def download_files_from_sftp(file_list, sftp=None):
 
             # Handle files
             else:
+                # Verify basename is created
+                os.makedirs(os.path.dirname(local_path), exist_ok=True)
                 if os.path.exists(local_path):
                     local_size = os.path.getsize(local_path)
                     remote_size = file['size']
@@ -443,6 +445,7 @@ def get_sftp_diffs(db_file):
         cursor.execute("""SELECT name, size, modified_time, path, is_dir FROM sftp_temp_files EXCEPT SELECT name, size, modified_time, path, is_dir FROM sftp_files""")
         diffs = cursor.fetchall()
         conn.close()
+        logger.debug(f"Number of Differences: {len(diffs)}")
     except sqlite3.Error as error:
         logger.debug(f"Error getting SFTP diffs: {error}")
         return []
@@ -685,9 +688,12 @@ def build_metadata(file_list):
             continue
 
         # Commenting out for the moment ... some show names have legitimate periods in the filename
-        # TODO: Pass the clean and dirty forms of the show name to resolve.
+        # Hacky fix ... if the filename has spaces in it, skip, else pass to period replacer
         # Clean up the show name
-        #show_name = show_name.replace(".", " ").strip()
+        if show_name.count(" ") > 0:
+            pass
+        else:
+            show_name = show_name.replace(".", " ").strip()
 
         # Handle missing season and try to resolve from TVDB
         if not season or season == "N/A":
