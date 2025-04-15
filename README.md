@@ -20,9 +20,9 @@ The script requires a configuration file (`sync2nas_config.ini`) in the `config`
 
 - `db_file`: Path to the SQLite database file used to store metadata and manage show information.
 
-### TVDB API Settings
+### TMDB API Settings
 
-- `api_key`: API key for authenticating with the TVDB API.
+- `api_key`: API key for authenticating with the TMDB API.
 
 ### Routing Settings
 
@@ -48,7 +48,7 @@ db_file = ./database/sync2nas.db
 [Transfers]
 incoming = ./incoming
 
-[TVDB]
+[TMDB]
 api_key = a1234567-b123-c123-d123-e12345678901
 
 [Routing]
