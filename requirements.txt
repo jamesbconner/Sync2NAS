@@ -1,3 +1,6 @@
 configparser
+coverage
 paramiko
-tvdb_v4_official
+tmdbsimple
+rich-click
+pytest-mock

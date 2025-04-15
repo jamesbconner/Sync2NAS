@@ -1,0 +1,13 @@
+name: Sync2NAS
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.12
+  - anaconda
+  - pip
+  - configparser
+  - coverage
+  - paramiko
+  - pip:
+    - tmdbsimple
+    - rich-click

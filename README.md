@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This Python script synchronizes files from an SFTP server to a NAS, integrates with the TVDB API for metadata enrichment, and manages the data using an SQLite database. It supports routing downloaded media files into organized directories, creating and managing show records, and updating episode information.
+This Python script synchronizes files from an SFTP server to a NAS, integrates with the TMDB API for metadata enrichment, and manages the data using an SQLite database. It supports routing downloaded media files into organized directories, creating and managing show records, and updating episode information.
 
 ## Configuration Requirements
 
@@ -57,70 +57,56 @@ tv_path = d:/tv/
 movie_path = d:/movies/
 ```
 
-## Obtaining a TVDB API Key
+## Obtaining a TMDB API Key
 
-To use the TVDB integration features, obtain an API key by registering an account with [TheTVDB](https://thetvdb.com/). This API key must be added to the configuration file under the `TVDB` section.
+To use the TMDB integration features, obtain an API key by registering an account with [The Movie Database](https://www.themoviedb.org/). This API key must be added to the configuration file under the `TMDB` section.
 
 ## TODOs in the Code
 
-- **~~Show Existence Check~~**: ~~When using the `--create-show` option, the script should first check if the show already exists in the database to avoid duplication.~~
-- **Enhanced Logging**: Refine logging output to provide more granular control and improve readability.
-- **Error Handling**: Strengthen exception handling to cover more edge cases, especially around network connectivity and API rate limits.
-
 ## Roadmap for Future Development
-
-The argparse object includes options that are not fully implemented. These are planned for future releases:
-
-- `--search-show`: Currently defined but not actively used. The future goal is to provide an interactive search feature.
-- `--update-show`: Allow updating existing show records by specifying local and TVDB IDs.
-- `--update-episodes`: Extend this functionality to fetch the latest episodes for a given series from TVDB.
-- `--update-all-episodes`: Automate the process to check for new episodes across all shows in the database.
-- Logging Level Customization: Enable setting logging levels via argparse for more control over output verbosity.
-
-Additionally the following items are under consideration:
-- Refactoring repetitive code blocks for SFTP operations
-- Optimize the `list_sftp_files` function to reduce redundant file_attr processing
-- Better handing of database connections to ensure proper closures across connections
-- Validate configuration inputes and handle missing configs gracefully
-- Add type hints to functions
-- Make function style-guide comments consistent
 
 ## Usage Examples
 
 ### Basic File Download from SFTP
-Just download the new files from the SFTP server to the local Incoming directory without doing anything else.
+Just download the new files from the SFTP server to the local Incoming directory with DEBUG log verbosity
 ```bash
-python sync_script.py -d
+python sync2nas.py -vv download-from-remote
 ```
 
 ### Route Files from Incoming to NAS Filesystem
-Just route the files located in the Incoming directory to the destinations on the local NAS as defined in the database.
+Route the files located in the Incoming directory to the destinations on the local NAS as defined in the database.  Also add any unknown shows by looking up the TMDB entry.
 ```bash
-python sync_script.py -r
+python python sync2nas.py route-files --auto-add 
 ```
 
-### Most Common Usage - Download and Route Files
-Download new files to the Incoming directory, and route to the NAS afterwards.
+### Add A New Show To The Database and NAS Filesystem Directory
+Creates an entry for the show in the database, adds the episode information, and creates the path for the show on the NAS.  If the --tmdb-id flag is provided, it uses the ID for an exact match, otherwise it uses the show name for a search and uses the first result.  Using the --override-dir flag tells the command to ues the show name provided as the name of the directory on the path, rather than using the name provided by TMDB.  Useful when the showname contains invalid characters.
 ```bash
-python sync_script.py -d -r
+python sync2nas.py add-show "Example Showname" --tmdb-id 000000 --override-dir
 ```
 
-### Refresh the Entire SFTP Table
-Baseline the database with the contents of the SFTP server.  This uses a recursive search on all directories in the SFTP server path, so it takes a considerable amount of time.  These files will not be downloaded as a result of this command, nor will these files be downloaded in the future.
+### Refresh the Downloads Table
+Baseline the downloads database with the contents of the SFTP server to the downloads table.  This uses a recursive search on all directories in the SFTP server path, so it takes a considerable amount of time.  These files will not be downloaded as a result of this command, nor will these files be downloaded in the future.
 ```bash
-python sync_script.py --full-sftp-table-refresh
+python sync2nas.py bootstrap-downloads
 ```
 
-### Create a New Show Record Entry in DB and NAS Filesystem
-When a show does not exist in the database or on the NAS filesystem, it needs to be created first before it can be routed.  This is to ensure the proper directory name and show/episode information is available for routing properly.
+### Fix a misclassified show in the database
+When a show gets added, either manually or via the --auto-add flag when routing files in the Incoming directory, the correct show might not be identified in the TMDB search results.  In that case, the show and episode information need to be corrected.  When using the fix-show CLI command, a show name argument is required in order to know what show to fix.  If the --tmdb-id flag is used, it will correct the given show name with the provided TMDB show ID.  If no --tmdb-id flag is provided, then an interactive session will appear in the terminal window with the top 20 results for the show.
 ```bash
-python sync_script.py --create-show="Show Name"
+python sync2nas.py fix-show "Show Name" --tmdb-id 000000
 ```
 
 ### Verbose Output for Debugging
-Enable step by step verbose information printed out to the console.
+Enable step by step verbose information printed out to the console.  Single -v is for INFO log level messages, -vv is for DEBUG level.
 ```bash
-python sync_script.py -v
+python sync2nas.py -vv
+```
+
+### Dry Running Commands
+Most commands have a --dry-run flag enabled, so you can see what actions will be taken before commiting to that plan of action.
+```bash
+python sync2nas.py route-files --auto-add --dry-run
 ```
 
 ## Contribution
