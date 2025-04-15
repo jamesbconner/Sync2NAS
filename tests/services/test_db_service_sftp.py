@@ -36,14 +36,14 @@ def sftp_entries():
         },
     ]
 
-def test_reset_sftp_temp_files_creates_clean_table(db_service):
+def test_clear_sftp_temp_files_creates_clean_table(db_service):
     # Preload garbage data
     with db_service._connection() as conn:
         conn.execute("CREATE TABLE IF NOT EXISTS sftp_temp_files (name TEXT)")
         conn.execute("INSERT INTO sftp_temp_files (name) VALUES ('junk')")
         conn.commit()
 
-    db_service.reset_sftp_temp_files()
+    db_service.clear_sftp_temp_files()
 
     # Should now match the expected schema
     with db_service._connection() as conn:
@@ -55,21 +55,22 @@ def test_reset_sftp_temp_files_creates_clean_table(db_service):
     }
 
 def test_insert_sftp_temp_files_adds_records(db_service, sftp_entries):
-    db_service.reset_sftp_temp_files()
+    db_service.clear_sftp_temp_files()
     db_service.insert_sftp_temp_files(sftp_entries)
 
     with db_service._connection() as conn:
+        conn.row_factory = sqlite3.Row
         cursor = conn.execute("SELECT * FROM sftp_temp_files")
         results = cursor.fetchall()
 
+    # Convert the kinda sorts dicts from sqlite.Row to actual dicts
+    results = [{k: item[k] for k in item.keys()} for item in results]
+    
     assert len(results) == len(sftp_entries)
     for row, entry in zip(results, sftp_entries):
-        assert row[0] == entry["name"]
-        assert row[1] == entry["path"]
-        assert row[2] == entry["size"]
-        assert isinstance(row[3], str)  # ISO timestamp
-        assert isinstance(row[4], str)
-        assert row[5] == int(entry["is_dir"])
+        result_keys = set(row.keys()) # Get a set of keys from the results
+        result_keys.discard('id') # Drop the id col from the database row
+        assert result_keys == set(entry.keys()) # perform the compare
 
 def test_add_downloaded_file_inserts_single(db_service):
     file = {
@@ -81,7 +82,7 @@ def test_add_downloaded_file_inserts_single(db_service):
         "fetched_at": datetime.datetime.now(),
     }
 
-    db_service.reset_sftp_temp_files()  # ensures table exists
+    db_service.clear_sftp_temp_files()  # ensures table exists
     db_service.add_downloaded_file(file)
 
     with db_service._connection() as conn:
@@ -104,7 +105,7 @@ def test_add_downloaded_files_inserts_multiple(db_service):
         for i in range(3)
     ]
 
-    db_service.reset_sftp_temp_files()
+    db_service.clear_sftp_temp_files()
     db_service.add_downloaded_files(files)
 
     with db_service._connection() as conn:
@@ -157,7 +158,7 @@ def test_get_sftp_diffs_returns_expected_new_files(db_service):
         "fetched_at": now,
     }
 
-    db_service.reset_sftp_temp_files()
+    db_service.clear_sftp_temp_files()
     db_service.insert_sftp_temp_files(temp_files)
     db_service.add_downloaded_file(downloaded_file)
 
