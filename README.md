@@ -76,7 +76,7 @@ python sync2nas.py -vv download-from-remote
 ### Route Files from Incoming to NAS Filesystem
 Route the files located in the Incoming directory to the destinations on the local NAS as defined in the database.  Also add any unknown shows by looking up the TMDB entry.
 ```bash
-python python sync2nas.py route-files --auto-add 
+python sync2nas.py route-files --auto-add 
 ```
 
 ### Add A New Show To The Database and NAS Filesystem Directory
