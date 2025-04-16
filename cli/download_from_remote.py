@@ -26,5 +26,6 @@ def download_from_remote(ctx, dry_run):
             incoming_path=incoming_path,
             dry_run=dry_run)
 
+    # ToDo: If dry-run is true without -vv then no file information is printed.  Should always print the files that would be downloaded.
     if dry_run:
         click.secho("✔️ Dry run complete. No files were downloaded or recorded.", fg="green")
