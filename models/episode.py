@@ -58,7 +58,11 @@ class Episode:
             return cls._from_production_groups(tmdb_id, tmdb_service, episode_groups)
         except Exception as e:
             logger.warning(f"Production episode group parsing failed for {tmdb_id}: {e}")
-            return cls._from_seasons(tmdb_id, tmdb_service, season_count)
+            try:
+                return cls._from_seasons(tmdb_id, tmdb_service, season_count)
+            except Exception as e:
+                logger.warning(f"Season parsing failed for {tmdb_id}: {e}")
+                return []
 
     @classmethod
     def _from_production_groups(cls, tmdb_id: int, tmdb_service: TMDBService, episode_groups_meta: list) -> List["Episode"]:
@@ -99,27 +103,36 @@ class Episode:
         abs_ep = 1
 
         for season_num in range(1, season_count + 1):
-            season_data = tmdb_service.get_show_season_details(tmdb_id, season_num)
-            if not season_data or not season_data.get("episodes"):
-                logger.warning(f"No data for season {season_num} of show {tmdb_id}")
-                continue
+            try:
+                season_data = tmdb_service.get_show_season_details(tmdb_id, season_num)
+                if not season_data or "episodes" not in season_data:
+                    continue
 
-            for ep in season_data["episodes"]:
-                try:
-                    episodes.append(cls(
-                        tmdb_id=tmdb_id,
-                        season=season_num,
-                        episode=ep.get("episode_number"),
-                        abs_episode=abs_ep,
-                        episode_type=ep.get("episode_type", "standard"),
-                        episode_id=ep.get("id"),
-                        air_date=cls._parse_date(ep.get("air_date")),
-                        fetched_at=datetime.datetime.now(),
-                        name=ep.get("name", ""),
-                        overview=ep.get("overview", "")
-                    ))
-                    abs_ep += 1
-                except Exception as e:
-                    logger.warning(f"Skipping episode in season {season_num} due to error: {e}")
+                for ep in season_data["episodes"]:
+                    # Skip episodes missing required fields
+                    if not all(key in ep for key in ["episode_number", "name", "id"]):
+                        continue
+
+                    try:
+                        episodes.append(cls(
+                            tmdb_id=tmdb_id,
+                            season=season_num,
+                            episode=ep["episode_number"],
+                            abs_episode=abs_ep,
+                            episode_type=ep.get("episode_type", "standard"),
+                            episode_id=ep["id"],
+                            air_date=cls._parse_date(ep.get("air_date")),
+                            fetched_at=datetime.datetime.now(),
+                            name=ep["name"],
+                            overview=ep.get("overview", "")
+                        ))
+                        abs_ep += 1
+                    except Exception as e:
+                        logger.warning(f"Skipping episode due to error: {e}")
+                        continue
+
+            except Exception as e:
+                logger.warning(f"Error processing season {season_num}: {e}")
+                continue
 
         return episodes

@@ -117,3 +117,220 @@ def test_episode_to_db_tuple_structure():
     tpl = ep.to_db_tuple()
     assert isinstance(tpl, tuple)
     assert len(tpl) == 10
+
+def test_from_production_groups_success(mock_tmdb_service):
+    # Mock the episode group details response
+    mock_tmdb_service.get_episode_group_details.return_value = {
+        "groups": [
+            {
+                "order": 1,
+                "episodes": [
+                    {
+                        "order": 0,
+                        "episode_number": 1,
+                        "episode_type": "standard",
+                        "id": 456,
+                        "air_date": "2023-01-01",
+                        "name": "Pilot",
+                        "overview": "First episode"
+                    }
+                ]
+            }
+        ]
+    }
+
+    episodes = Episode._from_production_groups(
+        tmdb_id=123,
+        tmdb_service=mock_tmdb_service,
+        episode_groups_meta=[{"type": 6, "id": "group1"}]
+    )
+
+    assert len(episodes) == 1
+    episode = episodes[0]
+    assert episode.tmdb_id == 123
+    assert episode.season == 1
+    assert episode.episode == 1
+    assert episode.abs_episode == 1
+    assert episode.episode_type == "standard"
+    assert episode.episode_id == 456
+    assert episode.air_date.isoformat() == "2023-01-01T00:00:00"
+    assert episode.name == "Pilot"
+    assert episode.overview == "First episode"
+
+def test_from_production_groups_no_groups():
+    with pytest.raises(ValueError, match="No production episode groups found"):
+        Episode._from_production_groups(
+            tmdb_id=123,
+            tmdb_service=None,
+            episode_groups_meta=[{"type": 5}]  # Not a production group
+        )
+
+def test_from_production_groups_empty_group_details(mock_tmdb_service):
+    mock_tmdb_service.get_episode_group_details.return_value = None
+
+    episodes = Episode._from_production_groups(
+        tmdb_id=123,
+        tmdb_service=mock_tmdb_service,
+        episode_groups_meta=[{"type": 6, "id": "group1"}]
+    )
+
+    assert episodes == []
+
+def test_from_production_groups_invalid_episode_data(mock_tmdb_service):
+    mock_tmdb_service.get_episode_group_details.return_value = {
+        "groups": [
+            {
+                "order": 1,
+                "episodes": [
+                    {
+                        "order": "invalid",  # Invalid order type
+                        "episode_number": "invalid",  # Invalid episode number
+                        "episode_type": "standard",
+                        "id": 456,
+                        "air_date": "not-a-date",  # Invalid date
+                        "name": "Pilot",
+                        "overview": "First episode"
+                    }
+                ]
+            }
+        ]
+    }
+
+    episodes = Episode._from_production_groups(
+        tmdb_id=123,
+        tmdb_service=mock_tmdb_service,
+        episode_groups_meta=[{"type": 6, "id": "group1"}]
+    )
+
+    assert episodes == []
+
+def test_parse_from_tmdb_exception_handling(mock_tmdb_service):
+    # Make both production groups and seasons fail
+    mock_tmdb_service.get_episode_group_details.side_effect = Exception("Test error")
+    mock_tmdb_service.get_show_season_details.side_effect = Exception("Test error")
+
+    episodes = Episode.parse_from_tmdb(
+        tmdb_id=123,
+        tmdb_service=mock_tmdb_service,
+        episode_groups=[{"type": 6, "id": "group1"}],
+        season_count=1
+    )
+
+    assert episodes == []
+
+def test_parse_from_tmdb_with_production_groups(mock_tmdb_service):
+    # Mock the episode group details response
+    mock_tmdb_service.get_episode_group_details.return_value = {
+        "groups": [
+            {
+                "order": 1,
+                "episodes": [
+                    {
+                        "order": 0,
+                        "episode_number": 1,
+                        "episode_type": "standard",
+                        "id": 456,
+                        "air_date": "2023-01-01",
+                        "name": "Pilot",
+                        "overview": "First episode"
+                    }
+                ]
+            }
+        ]
+    }
+
+    episodes = Episode.parse_from_tmdb(
+        tmdb_id=123,
+        tmdb_service=mock_tmdb_service,
+        episode_groups=[{"type": 6, "id": "group1"}],
+        season_count=1
+    )
+
+    assert len(episodes) == 1
+    episode = episodes[0]
+    assert episode.tmdb_id == 123
+    assert episode.season == 1
+    assert episode.episode == 1
+    assert episode.abs_episode == 1
+    assert episode.episode_type == "standard"
+    assert episode.episode_id == 456
+    assert episode.air_date.isoformat() == "2023-01-01T00:00:00"
+    assert episode.name == "Pilot"
+    assert episode.overview == "First episode"
+
+def test_parse_from_tmdb_with_seasons(mock_tmdb_service):
+    # Mock the season details response
+    mock_tmdb_service.get_show_season_details.return_value = {
+        "episodes": [
+            {
+                "episode_number": 1,
+                "name": "Season Episode 1",
+                "overview": "First episode of season",
+                "air_date": "2023-01-01",
+                "id": 456
+            }
+        ]
+    }
+
+    episodes = Episode.parse_from_tmdb(
+        tmdb_id=123,
+        tmdb_service=mock_tmdb_service,
+        episode_groups=[],  # No production groups to trigger fallback
+        season_count=1
+    )
+
+    assert len(episodes) == 1
+    episode = episodes[0]
+    assert episode.tmdb_id == 123
+    assert episode.season == 1
+    assert episode.episode == 1
+    assert episode.abs_episode == 1
+    assert episode.episode_type == "standard"
+    assert episode.episode_id == 456
+    assert episode.air_date.isoformat() == "2023-01-01T00:00:00"
+    assert episode.name == "Season Episode 1"
+    assert episode.overview == "First episode of season"
+
+def test_parse_from_tmdb_with_invalid_json(mock_tmdb_service):
+    # Test handling of invalid JSON in episode_groups
+    episodes = Episode.parse_from_tmdb(
+        tmdb_id=123,
+        tmdb_service=mock_tmdb_service,
+        episode_groups="invalid_json",  # Invalid JSON string
+        season_count=1
+    )
+
+    # Should fall back to seasons
+    assert len(episodes) > 0
+
+def test_parse_from_tmdb_with_empty_season_count(mock_tmdb_service):
+    # Test handling of None or 0 season_count
+    episodes = Episode.parse_from_tmdb(
+        tmdb_id=123,
+        tmdb_service=mock_tmdb_service,
+        episode_groups=[],
+        season_count=0
+    )
+
+    assert episodes == []
+
+def test_parse_from_tmdb_with_missing_episode_data(mock_tmdb_service):
+    # Mock season details with missing required fields
+    mock_tmdb_service.get_show_season_details.return_value = {
+        "episodes": [
+            {
+                # Missing episode_number
+                "name": "Invalid Episode",
+                "overview": "This episode is missing required fields"
+            }
+        ]
+    }
+
+    episodes = Episode.parse_from_tmdb(
+        tmdb_id=123,
+        tmdb_service=mock_tmdb_service,
+        episode_groups=[],
+        season_count=1
+    )
+
+    assert episodes == []
