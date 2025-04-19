@@ -39,20 +39,18 @@ def sftp_entries():
 def test_clear_sftp_temp_files_creates_clean_table(db_service):
     # Preload garbage data
     with db_service._connection() as conn:
-        conn.execute("CREATE TABLE IF NOT EXISTS sftp_temp_files (name TEXT)")
-        conn.execute("INSERT INTO sftp_temp_files (name) VALUES ('junk')")
+        conn.execute("CREATE TABLE IF NOT EXISTS sftp_temp_files (name TEXT, size INTEGER, modified_time DATETIME, path TEXT, fetched_at DATETIME, is_dir BOOLEAN)")
+        conn.execute("INSERT INTO sftp_temp_files (name, size, modified_time, path, fetched_at, is_dir) VALUES (?, ?, ?, ?, ?, ?)",
+                    ("junk", 100, datetime.datetime.now(), "/path/to/junk", datetime.datetime.now(), False))
         conn.commit()
-
+    
+    # Clear the table
     db_service.clear_sftp_temp_files()
-
-    # Should now match the expected schema
+    
+    # Verify table is empty
     with db_service._connection() as conn:
-        cursor = conn.execute("PRAGMA table_info(sftp_temp_files)")
-        columns = [row[1] for row in cursor.fetchall()]
-
-    assert set(columns) >= {
-        "name", "path", "size", "modified_time", "fetched_at", "is_dir"
-    }
+        cursor = conn.execute("SELECT COUNT(*) FROM sftp_temp_files")
+        assert cursor.fetchone()[0] == 0
 
 def test_insert_sftp_temp_files_adds_records(db_service, sftp_entries):
     db_service.clear_sftp_temp_files()

@@ -36,6 +36,7 @@ class DBService:
         except sqlite3.Error as e:
             logger.error(f"Error in database operation: {e}")
             conn.rollback()
+            raise  # Re-raise the error
         finally:
             conn.close()
 

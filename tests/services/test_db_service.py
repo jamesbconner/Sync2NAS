@@ -1,7 +1,10 @@
 import pytest
 from models.show import Show
 from models.episode import Episode
+from services.db_service import DBService
 import datetime
+import os
+import sqlite3
 
 def test_add_show_and_query(db_service):
     show = Show(
@@ -65,3 +68,132 @@ def test_delete_nonexistent_show_and_episodes(db_service):
 def test_get_episodes_by_nonexistent_show_name(db_service):
     episodes = db_service.get_episodes_by_show_name("DoesNotExist")
     assert episodes == []
+
+def test_sqlite_adapter_registration_error(tmp_path, monkeypatch):
+    """Test SQLite adapter registration error handling"""
+    def mock_register_adapter(*args, **kwargs):
+        raise sqlite3.ProgrammingError("Adapter registration failed")
+    
+    monkeypatch.setattr(sqlite3, "register_adapter", mock_register_adapter)
+    db_service = DBService(os.path.join(tmp_path, "test.db"))
+    # Should not raise, just log error
+
+def test_connection_error_handling(tmp_path, monkeypatch):
+    """Test connection error handling"""
+    def mock_connect(*args, **kwargs):
+        raise sqlite3.Error("Connection failed")
+    
+    db_service = DBService(os.path.join(tmp_path, "test.db"))
+    monkeypatch.setattr(sqlite3, "connect", mock_connect)
+    
+    with pytest.raises(sqlite3.Error):
+        with db_service._connection():
+            pass
+
+def test_add_inventory_files(db_service):
+    """Test adding inventory files"""
+    files = [
+        {
+            "name": "file1.txt",
+            "size": 100,
+            "modified_time": datetime.datetime.now(),
+            "path": "/path/to/file1.txt",
+            "fetched_at": datetime.datetime.now(),
+            "is_dir": False
+        }
+    ]
+    db_service.add_inventory_files(files)
+    inventory = db_service.get_inventory_files()
+    assert len(inventory) == 1
+    assert inventory[0]["name"] == "file1.txt"
+
+def test_add_downloaded_files(db_service):
+    """Test adding downloaded files"""
+    files = [
+        {
+            "name": "downloaded1.txt",
+            "size": 200,
+            "modified_time": datetime.datetime.now(),
+            "path": "/path/to/downloaded1.txt",
+            "fetched_at": datetime.datetime.now(),
+            "is_dir": False
+        }
+    ]
+    db_service.add_downloaded_files(files)
+    downloaded = db_service.get_downloaded_files()
+    assert len(downloaded) == 1
+    assert downloaded[0]["name"] == "downloaded1.txt"
+
+def test_get_show_by_sys_name(db_service):
+    """Test getting show by system name"""
+    show = Show(
+        sys_name="TestShow",
+        sys_path="/fake/path/TestShow",
+        tmdb_name="Test Show",
+        tmdb_aliases="",
+        tmdb_id=1,
+        tmdb_first_aired=datetime.datetime.now(),
+        tmdb_last_aired=datetime.datetime.now(),
+        tmdb_year=2020,
+        tmdb_overview="Overview",
+        tmdb_season_count=1,
+        tmdb_episode_count=3,
+        tmdb_episode_groups="[]",
+        tmdb_episodes_fetched_at=datetime.datetime.now(),
+        tmdb_status="Ended",
+        tmdb_external_ids="{}",
+        fetched_at=datetime.datetime.now()
+    )
+    db_service.add_show(show)
+    result = db_service.get_show_by_sys_name("TestShow")
+    assert result is not None
+    assert result["sys_name"] == "TestShow"
+
+def test_get_show_by_alias(db_service):
+    """Test getting show by alias"""
+    # First, clear all existing shows
+    all_shows = db_service.get_all_shows()
+    for show in all_shows:
+        db_service.delete_show_and_episodes(show["tmdb_id"])
+    
+    show = Show(
+        sys_name="TestShow",
+        sys_path="/fake/path/TestShow",
+        tmdb_name="Test Show",
+        tmdb_aliases="alias1, alias2",
+        tmdb_id=1,
+        tmdb_first_aired=datetime.datetime.now(),
+        tmdb_last_aired=datetime.datetime.now(),
+        tmdb_year=2020,
+        tmdb_overview="Overview",
+        tmdb_season_count=1,
+        tmdb_episode_count=3,
+        tmdb_episode_groups="[]",
+        tmdb_episodes_fetched_at=datetime.datetime.now(),
+        tmdb_status="Ended",
+        tmdb_external_ids="{}",
+        fetched_at=datetime.datetime.now()
+    )
+    db_service.add_show(show)
+    result = db_service.get_show_by_alias("alias2")
+    assert result is not None
+    assert result["tmdb_name"] == "Test Show"
+
+def test_get_episode_by_absolute_number(db_service):
+    """Test getting episode by absolute number"""
+    episode = Episode(
+        tmdb_id=1,
+        season=1,
+        episode=1,
+        abs_episode=1,
+        episode_type="standard",
+        episode_id=101,
+        air_date=datetime.datetime.now(),
+        fetched_at=datetime.datetime.now(),
+        name="Ep 1",
+        overview="Ep overview"
+    )
+    db_service.add_episode(episode)
+    result = db_service.get_episode_by_absolute_number(1, 1)
+    assert result is not None
+    assert result["abs_episode"] == 1
