@@ -56,6 +56,8 @@ def bootstrap_tv_shows(ctx, dry_run):
             failed.append(sys_name)
 
     duration = time.time() - start_time
+    if dry_run:
+        click.echo(f"\n📦 [DRY RUN] Summary (Duration: {duration:.2f}s)")
     click.echo(f"\n📦 Summary (Duration: {duration:.2f}s)")
     click.secho(f"✅ Added: {len(added)}", fg="green")
     click.secho(f"⏭️ Skipped: {len(skipped)}", fg="yellow")

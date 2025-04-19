@@ -7,6 +7,8 @@ from models.show import Show
 from services.db_service import DBService
 from utils.sync2nas_config import load_configuration
 from utils.sync2nas_config import write_temp_config
+from unittest.mock import patch, MagicMock
+from cli.bootstrap_tv_shows import bootstrap_tv_shows
 
 
 def create_temp_config(tmp_path) -> str:
@@ -155,4 +157,127 @@ def test_bootstrap_tv_shows_dir_names(monkeypatch, cli_runner, cli, tmp_path, fo
 
     assert result.exit_code == 0, f"CLI failed for folder: {folder_name}"
     assert "✅ Added" in result.output, f"Show not added for: {folder_name}"
+
+@pytest.fixture
+def mock_db():
+    db = MagicMock()
+    db.show_exists.return_value = False
+    return db
+
+@pytest.fixture
+def mock_tmdb():
+    tmdb = MagicMock()
+    tmdb.search_show.return_value = {
+        "results": [{"id": 123, "name": "Test Show"}]
+    }
+    tmdb.get_show_details.return_value = {
+        "info": {
+            "name": "Test Show",
+            "id": 123,
+            "first_air_date": "2020-01-01",
+            "last_air_date": "2021-01-01",
+            "overview": "Test overview",
+            "status": "Ended",
+            "number_of_seasons": 1,
+            "number_of_episodes": 10
+        },
+        "episode_groups": {
+            "results": []
+        },
+        "alternative_titles": {
+            "results": []
+        },
+        "external_ids": {
+            "imdb_id": "tt1234567",
+            "tvdb_id": "123456",
+            "tvrage_id": "123456"
+        }
+    }
+    return tmdb
+
+@pytest.fixture
+def mock_anime_tv_path(tmp_path):
+    # Create a test directory with some folders
+    os.makedirs(tmp_path / "Test Show 1")
+    os.makedirs(tmp_path / "Test Show 2")
+    return str(tmp_path)
+
+@pytest.fixture
+def runner():
+    return CliRunner()
+
+def test_dry_run(runner, mock_db, mock_tmdb, mock_anime_tv_path):
+    """Test dry run mode where no changes are made to the database."""
+    result = runner.invoke(
+        bootstrap_tv_shows,
+        ["--dry-run"],
+        obj={"db": mock_db, "tmdb": mock_tmdb, "anime_tv_path": mock_anime_tv_path}
+    )
+    
+    assert result.exit_code == 0
+    assert "DRY RUN" in result.output
+    mock_db.add_show.assert_not_called()
+
+def test_add_new_show(runner, mock_db, mock_tmdb, mock_anime_tv_path):
+    """Test adding a new show successfully."""
+    result = runner.invoke(
+        bootstrap_tv_shows,
+        obj={"db": mock_db, "tmdb": mock_tmdb, "anime_tv_path": mock_anime_tv_path}
+    )
+    
+    assert result.exit_code == 0
+    assert "Added: 2" in result.output
+    assert mock_db.add_show.call_count == 2
+
+def test_skip_existing_show(runner, mock_db, mock_tmdb, mock_anime_tv_path):
+    """Test skipping a show that already exists in the database."""
+    mock_db.show_exists.return_value = True
+    
+    result = runner.invoke(
+        bootstrap_tv_shows,
+        obj={"db": mock_db, "tmdb": mock_tmdb, "anime_tv_path": mock_anime_tv_path}
+    )
+    
+    assert result.exit_code == 0
+    assert "Skipped: 2" in result.output
+    mock_db.add_show.assert_not_called()
+
+def test_tmdb_search_failure(runner, mock_db, mock_tmdb, mock_anime_tv_path):
+    """Test handling TMDB search failures."""
+    mock_tmdb.search_show.return_value = {"results": []}
+    
+    result = runner.invoke(
+        bootstrap_tv_shows,
+        obj={"db": mock_db, "tmdb": mock_tmdb, "anime_tv_path": mock_anime_tv_path}
+    )
+    
+    assert result.exit_code == 0
+    assert "Failed: 2" in result.output
+    mock_db.add_show.assert_not_called()
+
+def test_tmdb_details_failure(runner, mock_db, mock_tmdb, mock_anime_tv_path):
+    """Test handling TMDB details failures."""
+    mock_tmdb.get_show_details.return_value = {}
+    
+    result = runner.invoke(
+        bootstrap_tv_shows,
+        obj={"db": mock_db, "tmdb": mock_tmdb, "anime_tv_path": mock_anime_tv_path}
+    )
+    
+    assert result.exit_code == 0
+    assert "Failed: 2" in result.output
+    mock_db.add_show.assert_not_called()
+
+def test_error_handling(runner, mock_db, mock_tmdb, mock_anime_tv_path):
+    """Test error handling during show processing."""
+    mock_tmdb.search_show.side_effect = Exception("Test error")
+    
+    result = runner.invoke(
+        bootstrap_tv_shows,
+        obj={"db": mock_db, "tmdb": mock_tmdb, "anime_tv_path": mock_anime_tv_path}
+    )
+    
+    assert result.exit_code == 0
+    assert "Failed: 2" in result.output
+    mock_db.add_show.assert_not_called()
 
