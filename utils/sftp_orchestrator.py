@@ -53,7 +53,6 @@ def process_sftp_diffs(
         except Exception as e:
             logger.error(f"Failed to download {entry_type} {remote_path}: {e}")
 
-
 def download_from_remote(sftp, db, remote_path: str, incoming_path: str, dry_run: bool = False):
     """
     Orchestrates remote file download:
@@ -105,7 +104,6 @@ def list_remote_files(sftp_service, remote_path: str) -> List[Dict]:
     raw_files = sftp_service.list_remote_dir(remote_path)
 
     filtered = []
-    #now = datetime.datetime.now(datetime.UTC)
     now = datetime.datetime.now()
 
     for entry in raw_files:

@@ -5,6 +5,7 @@ import stat
 from pathlib import Path
 from datetime import datetime
 from datetime import timedelta
+from utils.file_filters import is_valid_media_file, EXCLUDED_KEYWORDS
 
 logger = logging.getLogger(__name__)
 
@@ -15,22 +16,37 @@ class SFTPService:
         self.username = username
         self.ssh_key_path = ssh_key_path
         self.client = None
+        self.transport = None
 
     def __enter__(self):
-        key = paramiko.RSAKey.from_private_key_file(self.ssh_key_path)
-        transport = paramiko.Transport((self.host, self.port))
-        transport.connect(username=self.username, pkey=key)
-        self.client = paramiko.SFTPClient.from_transport(transport)
-        return self
+        try:
+            key = paramiko.RSAKey.from_private_key_file(self.ssh_key_path)
+            self.transport = paramiko.Transport((self.host, self.port))
+            self.transport.connect(username=self.username, pkey=key)
+            self.client = paramiko.SFTPClient.from_transport(self.transport)
+            return self
+        except Exception as e:
+            logger.error(f"Error establishing SFTP connection: {e}")
+            self.__exit__(None, None, None)
+            raise
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.client:
-            self.client.close()
+        try:
+            if self.client:
+                self.client.close()
+                self.client = None
+        except Exception as e:
+            logger.error(f"Error closing SFTP client: {e}")
+        
+        try:
+            if self.transport:
+                self.transport.close()
+                self.transport = None
+        except Exception as e:
+            logger.error(f"Error closing transport: {e}")
 
     def list_remote_dir(self, remote_path):
         """List contents of a remote directory, filtering by exclusion rules."""
-        excluded_extensions = {"jpg", "jpeg", "png", "gif", "bmp", "nfo", "sfv"}
-        excluded_keywords = {"screens", "sample", "Thumbs.db", ".DS_Store"}
         cutoff_time = datetime.now() - timedelta(minutes=1)
         fetched_at = datetime.now()
 
@@ -39,16 +55,16 @@ class SFTPService:
             name = attr.filename
             path = os.path.join(remote_path, name)
             is_dir = stat.S_ISDIR(attr.st_mode)
-            ext = os.path.splitext(name)[1][1:].lower()
-            lower_name = name.lower()
             modified_time = datetime.fromtimestamp(attr.st_mtime)
 
-            # Apply filters
-            if ext in excluded_extensions:
-                continue
-            if any(keyword in lower_name for keyword in excluded_keywords):
-                continue
+            # Skip files modified in the last minute
             if modified_time > cutoff_time:
+                continue
+
+            # Skip invalid media files and directories with excluded keywords
+            if not is_dir and not is_valid_media_file(name):
+                continue
+            if is_dir and any(kw in name.lower() for kw in EXCLUDED_KEYWORDS):
                 continue
 
             entries.append({
@@ -61,7 +77,7 @@ class SFTPService:
             })
 
         return entries
-    
+
     def list_remote_files(self, remote_path):
         """Return a list of recursively listed files from the remote path."""
         excluded_extensions = {"jpg", "jpeg", "png", "gif", "bmp", "nfo", "sfv"}
@@ -93,6 +109,49 @@ class SFTPService:
                 "fetched_at": fetched_at
             })
 
+        return entries
+
+    def _list_remote_files_recursive_helper(self, remote_path, entries):
+        """Helper method for recursive file listing."""
+        cutoff_time = datetime.now() - timedelta(minutes=1)
+        fetched_at = datetime.now()
+
+        for attr in self.client.listdir_attr(remote_path):
+            name = attr.filename
+            path = os.path.join(remote_path, name)
+            is_dir = stat.S_ISDIR(attr.st_mode)
+            modified_time = datetime.fromtimestamp(attr.st_mtime)
+
+            # Skip files modified in the last minute
+            if modified_time > cutoff_time:
+                continue
+
+            # For directories, recurse
+            if is_dir:
+                self._list_remote_files_recursive_helper(path, entries)
+                continue
+
+            # Skip invalid media files
+            if not is_valid_media_file(name):
+                continue
+
+            entries.append({
+                "name": name,
+                "path": path,
+                "size": attr.st_size,
+                "modified_time": modified_time,
+                "is_dir": False,
+                "fetched_at": fetched_at
+            })
+
+    def list_remote_files_recursive(self, remote_path):
+        """Return a list of recursively listed files from the remote path.
+        
+        This method will list all files and directories within the given path,
+        except those excluded by is_valid_media_file().
+        """
+        entries = []
+        self._list_remote_files_recursive_helper(remote_path, entries)
         return entries
 
     def download_file(self, remote_path, local_path):

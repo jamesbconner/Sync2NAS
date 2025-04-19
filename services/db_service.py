@@ -212,8 +212,8 @@ class DBService:
                     entry["name"],
                     entry["path"],
                     entry["size"],
-                    entry["modified_time"].isoformat(),
-                    entry["fetched_at"].isoformat(),
+                    entry["modified_time"] if isinstance(entry["modified_time"], str) else entry["modified_time"].isoformat(),
+                    entry["fetched_at"] if isinstance(entry["fetched_at"], str) else entry["fetched_at"].isoformat(),
                     int(entry["is_dir"])
                 )
                 for entry in entries
@@ -508,3 +508,33 @@ class DBService:
             conn.commit()
 
             logger.info(f"Deleted {deleted_episodes} episodes and {deleted_shows} show(s) for tmdb_id={tmdb_id}")
+
+    def get_inventory_files(self) -> List[dict]:
+        """
+        Return a list of all files in the anime_tv_inventory table.
+        """
+        with self._connection() as conn:
+            conn.row_factory = sqlite3.Row  # Enables dict-like access
+            query = """
+                SELECT name, size, modified_time, path, is_dir
+                FROM anime_tv_inventory
+            """
+            cursor = conn.execute(query)
+            files = [dict(row) for row in cursor.fetchall()]
+            logger.debug(f"Retrieved {len(files)} files from anime_tv_inventory.")
+            return files
+    
+    def get_downloaded_files(self) -> List[dict]:
+        """
+        Return a list of all files in the downloaded_files table.
+        """
+        with self._connection() as conn:
+            conn.row_factory = sqlite3.Row  # Enables dict-like access
+            query = """
+                SELECT name, size, modified_time, path, is_dir
+                FROM downloaded_files
+            """
+            cursor = conn.execute(query)
+            files = [dict(row) for row in cursor.fetchall()]
+            logger.debug(f"Retrieved {len(files)} files from downloaded_files.")
+            return files

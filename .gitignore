@@ -80,3 +80,6 @@ ssh_test/
 
 # Future Work
 next_step.py
+
+# VSCode Counter
+.VSCodeCounter/

@@ -145,7 +145,9 @@ def mock_tmdb_service(mocker):
 @pytest.fixture
 def mock_sftp_service(mocker):
     """Mocked SFTPService instance with stubbed return values."""
-    mock = mocker.Mock(spec=SFTPService)
+    # Create a MagicMock with the spec
+    mock = mocker.MagicMock(spec=SFTPService)
+    
     mock.list_remote_dir.return_value = [
         {
             "name": "file1.mkv",
@@ -165,8 +167,38 @@ def mock_sftp_service(mocker):
         }
     ]
     
+    mock.list_remote_files_recursive.return_value = [
+        {
+            "name": "file1.mkv",
+            "path": "/path/to/file1.mkv",
+            "size": 100,
+            "modified_time": "2020-01-01 12:00:00",
+            "is_dir": False,
+            "fetched_at": "2020-01-01 12:00:00"
+        },
+        {
+            "name": "file2.mkv",
+            "path": "/path/to/file2.mkv",
+            "size": 200,
+            "modified_time": "2020-01-01 12:00:01",
+            "is_dir": False,
+            "fetched_at": "2020-01-01 12:00:01"
+        },
+        {
+            "name": "subdir/file3.mkv",
+            "path": "/path/to/subdir/file3.mkv",
+            "size": 300,
+            "modified_time": "2020-01-01 12:00:02",
+            "is_dir": False,
+            "fetched_at": "2020-01-01 12:00:02"
+        }
+    ]
+    
     mock.download_file.return_value = True
     mock.download_dir.return_value = False
+    
+    # Set up context manager behavior
+    mock.__enter__.return_value = mock
     
     return mock
 
