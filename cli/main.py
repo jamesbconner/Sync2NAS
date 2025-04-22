@@ -5,7 +5,7 @@ import logging
 import rich_click as rclick
 from utils.sync2nas_config import load_configuration
 from utils.logging_config import setup_logging
-from services.db_service import DBService
+from services.db_factory import create_db_service
 from services.sftp_service import SFTPService
 from services.tmdb_service import TMDBService
 
@@ -27,7 +27,7 @@ def sync2nas_cli(ctx, verbose, logfile, config):
     cfg = load_configuration(config)
     ctx.obj = {
         "config": cfg,
-        "db": DBService(cfg["SQLite"]["db_file"]),
+        "db": create_db_service(cfg),
         "sftp": SFTPService(cfg["SFTP"]["host"], int(cfg["SFTP"]["port"]), cfg["SFTP"]["username"], cfg["SFTP"]["ssh_key_path"]),
         "tmdb": TMDBService(cfg["TMDB"]["api_key"]),
         "anime_tv_path": cfg["Routing"]["anime_tv_path"],
