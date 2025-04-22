@@ -31,6 +31,7 @@ def test_config_path():
     config_path = temp_dir / "test_sync2nas_config.ini"
     config = configparser.ConfigParser()
 
+    config["Database"] = {"type": "sqlite"}
     config["SQLite"] = {"db_file": str(temp_dir / "test.db")}
     config["Routing"] = {"anime_tv_path": str(temp_dir / "anime_tv_path")}
     config["Transfers"] = {"incoming": str(temp_dir / "incoming")}
