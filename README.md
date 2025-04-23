@@ -14,7 +14,7 @@ The script requires a configuration file (`sync2nas_config.ini`) in the `config`
 - `port`: SFTP server port.
 - `username`: Username for SFTP authentication.
 - `ssh_key_path`: Path to the SSH private key for authentication.
-- `path`: Remote path on the SFTP server to synchronize files from.
+- `paths`: Comma-separated list of remote paths on the SFTP server to synchronize files from.
 
 ### SQLite Settings
 
@@ -40,7 +40,7 @@ host = your.sftpserver.com
 port = 22
 username = whatsyourname
 ssh_key_path = ./ssh/your_sftpserver_rsa
-path = /path/to/remote/files/
+paths = /path/to/remote/files/,/another/remote/path/,/third/remote/path/
 
 [SQLite]
 db_file = ./database/sync2nas.db
@@ -68,7 +68,7 @@ To use the TMDB integration features, obtain an API key by registering an accoun
 ## Usage Examples
 
 ### Basic File Download from SFTP
-Just download the new files from the SFTP server to the local Incoming directory with DEBUG log verbosity
+Download new files from all configured SFTP paths to the local Incoming directory with DEBUG log verbosity. The command will process each path defined in the configuration file's `paths` setting.
 ```bash
 python sync2nas.py -vv download-from-remote
 ```
@@ -86,7 +86,7 @@ python sync2nas.py add-show "Example Showname" --tmdb-id 000000 --override-dir
 ```
 
 ### Refresh the Downloads Table
-Baseline the downloads database with the contents of the SFTP server to the downloads table.  This uses a recursive search on all directories in the SFTP server path, so it takes a considerable amount of time.  These files will not be downloaded as a result of this command, nor will these files be downloaded in the future.
+Baseline the downloads database with the contents of the SFTP server to the downloads table. This command will process all configured SFTP paths in the configuration file. It uses a recursive search on all directories in each SFTP server path, so it may take a considerable amount of time depending on the number and size of configured paths. These files will not be downloaded as a result of this command, nor will these files be downloaded in the future.
 ```bash
 python sync2nas.py bootstrap-downloads
 ```
