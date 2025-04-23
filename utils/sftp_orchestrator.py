@@ -53,7 +53,7 @@ def process_sftp_diffs(
         except Exception as e:
             logger.error(f"Failed to download {entry_type} {remote_path}: {e}")
 
-def download_from_remote(sftp, db, remote_path: str, incoming_path: str, dry_run: bool = False):
+def download_from_remote(sftp, db, remote_paths: List[str], incoming_path: str, dry_run: bool = False):
     """
     Orchestrates remote file download:
     - List and store files in sftp_temp_files
@@ -61,25 +61,27 @@ def download_from_remote(sftp, db, remote_path: str, incoming_path: str, dry_run
     - Download missing files
     - Record downloads
     """
+    for remote_path in remote_paths:
+        logger.info(f"Processing remote path: {remote_path}")
 
-    # Step 1: List files and populate sftp_temp_files
-    remote_files = list_remote_files(sftp, remote_path)
-    db.clear_sftp_temp_files()
-    db.insert_sftp_temp_files(remote_files)
+        # Step 1: List files and populate sftp_temp_files
+        remote_files = list_remote_files(sftp, remote_path)
+        db.clear_sftp_temp_files()
+        db.insert_sftp_temp_files(remote_files)
 
-    # Step 2: Diff against already downloaded files
-    diffs = db.get_sftp_diffs()
-    logger.info(f"{len(diffs)} new file(s)/dir(s) to download.")
+        # Step 2: Diff against already downloaded files
+        diffs = db.get_sftp_diffs()
+        logger.info(f"{len(diffs)} new file(s)/dir(s) to download.")
 
-    # Step 3: Delegate to processor
-    process_sftp_diffs(
-        sftp_service=sftp,
-        db_service=db,
-        diffs=diffs,
-        remote_base=remote_path,
-        local_base=incoming_path,
-        dry_run=dry_run,
-    )
+        # Step 3: Delegate to processor
+        process_sftp_diffs(
+            sftp_service=sftp,
+            db_service=db,
+            diffs=diffs,
+            remote_base=remote_path,
+            local_base=incoming_path,
+            dry_run=dry_run,
+        )
 
 def list_remote_files(sftp_service, remote_path: str) -> List[Dict]:
     """
@@ -139,15 +141,16 @@ def list_remote_files(sftp_service, remote_path: str) -> List[Dict]:
 
     return filtered
 
-def bootstrap_downloaded_files(sftp: SFTPService, db: DBService, remote_path: str):
+def bootstrap_downloaded_files(sftp: SFTPService, db: DBService, remote_paths: List[str]):
     """
     Populate the `downloaded_files` table from the current remote SFTP listing.
 
     This clears and repopulates the `sftp_temp_files` table first, then copies it into `downloaded_files`.
     """
-    files = list_remote_files(sftp, remote_path)
-    db.clear_sftp_temp_files()
-    db.clear_downloaded_files()
-    db.insert_sftp_temp_files(files)
-    db.copy_sftp_temp_to_downloaded()
-    logger.info(f"Bootstrapped {len(files)} entries into downloaded_files from remote path.")
+    for remote_path in remote_paths:
+        files = list_remote_files(sftp, remote_path)
+        db.clear_sftp_temp_files()
+        db.clear_downloaded_files()
+        db.insert_sftp_temp_files(files)
+        db.copy_sftp_temp_to_downloaded()
+        logger.info(f"Bootstrapped {len(files)} entries into downloaded_files from remote path.")

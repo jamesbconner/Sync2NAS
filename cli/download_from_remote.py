@@ -1,4 +1,5 @@
 import click
+from utils.sync2nas_config import parse_sftp_paths
 from utils.sftp_orchestrator import download_from_remote as downloader
 
 @click.command("download-from-remote")
@@ -12,17 +13,22 @@ def download_from_remote(ctx, dry_run):
     config = ctx.obj["config"]
     sftp = ctx.obj["sftp"]
     db = ctx.obj["db"]
-    remote_path = config["SFTP"]["path"]
     incoming_path = config["Transfers"]["incoming"]
 
-    click.secho(f"📡 Starting remote scan from: {remote_path}", fg="cyan")
+    remote_paths = parse_sftp_paths(config)
+
+    if not remote_paths:
+        click.secho("❌ No SFTP paths defined in config [SFTP] section (key: 'paths').", fg="red")
+        ctx.exit(1)
+        
+    click.secho(f"📡 Starting remote scan from: {remote_paths}", fg="cyan")
     click.secho(f"📥 Incoming destination: {incoming_path}", fg="cyan")
 
     with sftp as s:
         downloader(
             sftp=s,
             db=db,
-            remote_path=remote_path,
+            remote_paths=remote_paths,
             incoming_path=incoming_path,
             dry_run=dry_run)
 

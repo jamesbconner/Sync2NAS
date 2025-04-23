@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 from click.testing import CliRunner
 from cli.main import sync2nas_cli
 from services.db_service import DBService
-from utils.sync2nas_config import load_configuration, write_temp_config
+from utils.sync2nas_config import parse_sftp_paths, load_configuration, write_temp_config
 from pathlib import Path
 
 def create_temp_config(tmp_path) -> str:
@@ -27,7 +27,7 @@ def create_temp_config(tmp_path) -> str:
         "port": "22",
         "username": "testuser",
         "ssh_key_path": str(tmp_path / "dummy_key"),
-        "path": str(tmp_path / "remote")
+        "paths": str(tmp_path / "remote")
     }
     parser["TMDB"] = {"api_key": "dummy"}
 
@@ -49,8 +49,10 @@ def test_download_from_remote_dry_run(tmp_path, mock_tmdb_service, mock_sftp_ser
 
     db = db_service
     db.initialize()
-
-    remote_path = config["SFTP"]["path"]
+    
+    remote_paths = parse_sftp_paths(config)
+    remote_path = remote_paths[0]
+    
     incoming_path = config["Transfers"]["incoming"]
     os.makedirs(remote_path, exist_ok=True)
     os.makedirs(incoming_path, exist_ok=True)
@@ -93,8 +95,10 @@ def test_download_from_remote_insert(tmp_path, mock_tmdb_service, mock_sftp_serv
 
     db = db_service
     db.initialize()
+    
+    remote_paths = parse_sftp_paths(config)
+    remote_path = remote_paths[0]
 
-    remote_path = config["SFTP"]["path"]
     incoming_path = config["Transfers"]["incoming"]
     os.makedirs(remote_path, exist_ok=True)
     os.makedirs(incoming_path, exist_ok=True)

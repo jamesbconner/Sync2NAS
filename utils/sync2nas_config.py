@@ -2,9 +2,15 @@ import configparser
 from pathlib import Path
 
 def load_configuration(path: str) -> configparser.ConfigParser:
+    """Load the configuration file."""
     parser = configparser.ConfigParser()
     parser.read(path)
     return parser
+
+def parse_sftp_paths(config):
+    """Parse the SFTP paths from the config file. Returns a list of paths."""
+    raw_paths = config.get("SFTP", "paths", fallback="")
+    return [p.strip() for p in raw_paths.split(",") if p.strip()]
 
 def write_temp_config(config_dict, tmp_path):
     """

@@ -1,4 +1,5 @@
 import click
+from utils.sync2nas_config import parse_sftp_paths
 from utils.sftp_orchestrator import bootstrap_downloaded_files
 
 @click.command("bootstrap-downloads")
@@ -8,13 +9,14 @@ def bootstrap_downloads(ctx, dry_run):
     """Bootstrap the downloaded_files table from the current SFTP remote listing."""
     sftp = ctx.obj["sftp"]
     db = ctx.obj["db"]
-    remote_path = ctx.obj["config"]["SFTP"]["path"]
+    remote_paths = parse_sftp_paths(ctx.obj["config"])
 
     if dry_run:
         click.secho("[DRY RUN] Would baseline downloaded_files from SFTP listing.", fg="yellow")
         return
 
     with sftp as s:
-        bootstrap_downloaded_files(s, db, remote_path)
+        for remote_path in remote_paths:
+            bootstrap_downloaded_files(s, db, remote_path)
         
     click.secho("✅ Bootstrapped downloaded_files from remote listing", fg="green")
