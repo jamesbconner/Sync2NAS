@@ -4,6 +4,7 @@ paramiko
 tmdbsimple
 rich-click
 pytest-mock
+pytest-cov
 uv
 pymilvus
 psycopg2
