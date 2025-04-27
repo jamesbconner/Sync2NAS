@@ -8,9 +8,9 @@
 This Python script synchronizes files from an SFTP server to a NAS, integrates with the TMDB API for metadata enrichment, and manages the data using an SQLite database. It supports routing downloaded media files into organized directories, creating and managing show records, and updating episode information.
 
 ## Testing Philosphies
-[SFTP Testing Philosophy](docs/SFTP_Test_Philosophy.md)
-[Database Testing Philosophy](docs/Database_Test_Philosophy.md)
-[TMDB Testing Philosophy](docs/TMDB_Test_Philosophy.md)
+- [SFTP Testing Philosophy](docs/SFTP_Test_Philosophy.md)
+- [Database Testing Philosophy](docs/Database_Test_Philosophy.md)
+- [TMDB Testing Philosophy](docs/TMDB_Test_Philosophy.md)
 
 ## Service Testing Matrix
 [Service Tests Coverage Matrix](docs/Services_Test_Coverage_Matrix.md)
