@@ -6,7 +6,7 @@ import logging
 from typing import List, Dict, Any, Optional, Tuple, Union
 from contextlib import contextmanager
 from models.episode import Episode
-from db_implementations.db_interface import DatabaseInterface
+from services.db_implementations.db_interface import DatabaseInterface
 
 logger = logging.getLogger(__name__)
 

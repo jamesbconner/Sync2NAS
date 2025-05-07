@@ -2,7 +2,7 @@ import os
 import re
 import shutil
 from typing import Optional, Tuple, List, Dict
-from services.db_service import DBService
+from services.db_implementations.db_interface import DatabaseInterface
 from models.episode import Episode
 from models.show import Show
 import logging
@@ -70,12 +70,17 @@ def parse_filename(filename: str) -> Tuple[Optional[str], Optional[str], Optiona
         year = groups[7].strip() if groups[7] else None
         season = groups[8].strip() if groups[8] else None
         episode = groups[9].strip() if groups[9] else None
+        show_name = groups[6].replace(".", " ").replace("-", " ").strip()
+        year = groups[7].strip() if groups[7] else None
+        season = groups[8].strip() if groups[8] else None
+        episode = groups[9].strip() if groups[9] else None
         logger.debug(f"Method 3: Parsed filename: Show:{show_name}, Episode:{episode}, Season:{season}, Year:{year}")
         return show_name, episode, season, year
     
     # Match group 4: Show Name - 101 [abc123]
     elif groups[10]:
         show_name = groups[10].strip()
+        episode = groups[11].strip() if groups[11] else None
         episode = groups[11].strip() if groups[11] else None
         season = None  # Will fall back to absolute lookup
         year = None
@@ -114,7 +119,7 @@ def parse_filename(filename: str) -> Tuple[Optional[str], Optional[str], Optiona
         return None, None, None, None
 
 
-def file_routing(incoming_path: str, anime_tv_path: str, db: DBService, dry_run: bool = False) -> List[Dict[str, str]]:
+def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, dry_run: bool = False) -> List[Dict[str, str]]:
     """
     Scan the incoming directory, identify files to route, and move them to their destination paths.
 
@@ -129,51 +134,73 @@ def file_routing(incoming_path: str, anime_tv_path: str, db: DBService, dry_run:
     logger.info(f"utils/file_routing.py::file_routing - Starting file routing")
     routed_files = []
 
+    # Walk the incoming path and route files to their destination paths
     for root, _, files in os.walk(incoming_path):
         for filename in files:
+            # Get the full path to the source file
             source_path = os.path.join(root, filename)
-
+            
+            # Parse the filename to extract show metadata
             show_name, episode_str, season_str, _ = parse_filename(filename)
+            
+            # If the filename does not contain show metadata, skip the file
             if not show_name:
                 logger.debug(f"utils/file_routing.py::file_routing - Skipping file due to unrecognized name: {filename}")
                 continue
 
+            # Get the show from the DB
             matched_show_row = db.get_show_by_name_or_alias(show_name)
+            # No matching show found in DB, skip the file
             if not matched_show_row:
                 logger.debug(f"utils/file_routing.py::file_routing - No matching show found in DB for: {show_name}")
                 continue
 
+            # Create a Show object from the DB record
             show = Show.from_db_record(matched_show_row)
 
+            # If the filename contains season and episode metadata, format the season and episode strings
             if season_str and episode_str:
                 logger.debug(f"utils/file_routing.py::file_routing - Season and episode found in filename: {season_str}, {episode_str}")
                 season_str = f"{int(season_str):02}"
                 episode_str = f"{int(episode_str):02}"
+            # If the filename contains only episode metadata, it's an absolute episode number
+            # Get the season and episode from the DB
             elif episode_str:
                 abs_episode = int(episode_str)
                 logger.debug(f"utils/file_routing.py::file_routing - Episode found in filename: {episode_str}")
                 matched_episode = db.get_episode_by_absolute_number(show.tmdb_id, abs_episode)
+                # If the episode is found in the DB, set the season and episode strings
                 if matched_episode:
                     logger.debug(f"Found episode in DB for TMDB ID {show.tmdb_id} ep {abs_episode}: {matched_episode}")
                     season_str = f"{int(matched_episode['season']):02}"
                     episode_str = f"{int(matched_episode['episode']):02}"
+                # If the episode is not found in the DB, skip the file
                 else:
                     logger.debug(f"utils/file_routing.py::file_routing - No episode match in DB for TMDB ID {show.tmdb_id} ep {abs_episode}")
                     continue
+            # If the filename has no usable episode metadata, skip the file
             else:
                 logger.debug(f"utils/file_routing.py::file_routing - File has no usable episode metadata: {filename}")
                 continue
 
+            # Create the season directory path variable
             season_dir = os.path.join(show.sys_path, f"Season {season_str}")
+            # Create the target path variable   
             target_path = os.path.join(season_dir, filename)
 
+            # If the dry run flag is set, print the move operation without performing it
             if dry_run:
                 logger.info(f"[DRY RUN] Would move {source_path} to {target_path}")
+            # If the dry run flag is not set, perform the move operation
             else:
+                # Create the season directory if it doesn't exist
                 os.makedirs(season_dir, exist_ok=True)
+                # Move the file to the target path
                 shutil.move(source_path, target_path)
+                # Log the move operation
                 logger.info(f"Moved {source_path} to {target_path}")
 
+            # Add the routed file to the list of routed files
             routed_files.append({
                 "original_path": source_path,
                 "routed_path": target_path,

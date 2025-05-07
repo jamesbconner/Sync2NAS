@@ -3,7 +3,7 @@ import logging
 import datetime
 from typing import List, Dict
 from services.sftp_service import SFTPService
-from services.db_service import DBService
+from services.db_implementations.db_interface import DatabaseInterface
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +141,7 @@ def list_remote_files(sftp_service, remote_path: str) -> List[Dict]:
 
     return filtered
 
-def bootstrap_downloaded_files(sftp: SFTPService, db: DBService, remote_paths: List[str]):
+def bootstrap_downloaded_files(sftp: SFTPService, db: DatabaseInterface, remote_paths: List[str]):
     """
     Populate the `downloaded_files` table from the current remote SFTP listing.
 

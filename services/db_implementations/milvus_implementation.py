@@ -10,7 +10,7 @@ from pymilvus import (
     DataType,
     Collection,
 )
-from db_implementations.db_interface import DatabaseInterface
+from services.db_implementations.db_interface import DatabaseInterface
 
 logger = logging.getLogger(__name__)
 

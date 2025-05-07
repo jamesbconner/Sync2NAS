@@ -1,8 +1,8 @@
 from typing import Dict, Any
-from db_implementations.db_interface import DatabaseInterface
-from db_implementations.sqlite_implementation import SQLiteDBService
-from db_implementations.postgres_implementation import PostgresDBService
-from db_implementations.milvus_implementation import MilvusDBService
+from services.db_implementations.db_interface import DatabaseInterface
+from services.db_implementations.sqlite_implementation import SQLiteDBService
+from services.db_implementations.postgres_implementation import PostgresDBService
+from services.db_implementations.milvus_implementation import MilvusDBService
 
 def create_db_service(config: Dict[str, Any]) -> DatabaseInterface:
     """Create and return the appropriate database service based on configuration.

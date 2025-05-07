@@ -4,7 +4,7 @@ import pytest
 from pathlib import Path
 from click.testing import CliRunner
 from cli.main import sync2nas_cli
-from services.db_service import DBService
+from services.db_implementations.sqlite_implementation import SQLiteDBService
 from utils.sync2nas_config import load_configuration, write_temp_config
 
 
@@ -51,7 +51,7 @@ def test_route_files_basic(tmp_path, test_config_path, cli_runner, cli, mock_rou
     os.makedirs(config["Transfers"]["incoming"], exist_ok=True)
     
     # Create the DB object
-    db = DBService(config["SQLite"]["db_file"])
+    db = SQLiteDBService(config["SQLite"]["db_file"])
     db.initialize()
     
     # Create the context object
@@ -91,7 +91,7 @@ def test_route_files_dry_run(tmp_path, test_config_path, cli_runner, cli, mock_t
     config = load_configuration(config_path)
 
     # Create the DB object
-    db = DBService(config["SQLite"]["db_file"])
+    db = SQLiteDBService(config["SQLite"]["db_file"])
     db.initialize()
     
     # Create the context object
@@ -129,7 +129,7 @@ def test_route_files_auto_add(tmp_path, test_config_path, cli_runner, cli, mock_
     assert os.path.exists(incoming_file), "Incoming file should have been created"
 
     # Set up DB
-    db = DBService(config["SQLite"]["db_file"])
+    db = SQLiteDBService(config["SQLite"]["db_file"])
     db.initialize()
 
     # Construct context

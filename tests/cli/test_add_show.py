@@ -5,7 +5,7 @@ import pytest
 from click.testing import CliRunner
 from cli.main import sync2nas_cli
 from models.episode import Episode
-from services.db_service import DBService
+from services.db_implementations.sqlite_implementation import SQLiteDBService
 from utils.sync2nas_config import load_configuration
 
 
@@ -25,7 +25,7 @@ def test_add_show_via_name(tmp_path, test_config_path, mock_tmdb_service, mock_s
         parser.write(f)
 
     # Initialize DB and directories
-    db = DBService(str(unique_db_path))
+    db = SQLiteDBService(str(unique_db_path))
     db.initialize()
 
     anime_tv_path = tmp_path / "anime_tv_path"
@@ -77,7 +77,7 @@ def test_add_show_dry_run(tmp_path, test_config_path, mock_tmdb_service, mock_sf
         parser.read_dict(config)
         parser.write(f)
 
-    db = DBService(str(unique_db_path))
+    db = SQLiteDBService(str(unique_db_path))
 
     # Create context object for CLI
     obj = {

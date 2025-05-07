@@ -1,8 +1,19 @@
 # SFTP to NAS Synchronization Script
+![Service Test Coverage](https://img.shields.io/badge/Service%20Test%20Coverage-100%25-success?style=flat-square&logo=pytest&logoColor=white)
+
+
 
 ## Introduction
 
 This Python script synchronizes files from an SFTP server to a NAS, integrates with the TMDB API for metadata enrichment, and manages the data using an SQLite database. It supports routing downloaded media files into organized directories, creating and managing show records, and updating episode information.
+
+## Service Test Coverage
+
+| Service  | Coverage Matrix | Testing Philosophy |
+|:---------|:----------------|:-------------------|
+| SFTP     | [SFTP Service Matrix](docs/Services_Test_Coverage_Matrix.md#sftpservice-tests) | [SFTP Testing Philosophy](docs/SFTP_Test_Philosophy.md) |
+| Database | [DB Service Matrix](docs/Services_Test_Coverage_Matrix.md#dbservice-tests) | [DB Testing Philosophy](docs/Database_Test_Philosophy.md) |
+| TMDB     | [TMDB Service Matrix](docs/Services_Test_Coverage_Matrix.md#tmdbservice-tests) | [TMDB Testing Philosophy](docs/TMDB_Test_Philosophy.md) |
 
 ## Configuration Requirements
 
@@ -26,7 +37,6 @@ The script requires a configuration file (`sync2nas_config.ini`) in the `config`
 
 ### Routing Settings
 
-- `tv_path`: Path to the main TV show directory on the NAS.
 - `anime_tv_path`: Path to the anime TV directory on the NAS.
 
 ### Transfer Settings
@@ -53,7 +63,6 @@ api_key = a1234567-b123-c123-d123-e12345678901
 
 [Routing]
 anime_tv_path = d:/anime_tv/
-tv_path = d:/tv/
 movie_path = d:/movies/
 ```
 

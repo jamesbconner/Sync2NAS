@@ -4,7 +4,7 @@ from rich.console import Console
 from rich.table import Table
 from models.show import Show
 from models.episode import Episode
-from services.db_service import DBService
+from services.db_implementations.db_interface import DatabaseInterface
 from services.tmdb_service import TMDBService
 
 
@@ -19,7 +19,7 @@ def fix_show(ctx, show_name, tmdb_id, dry_run):
     # ToDo: add an audit log for show corrections
 
     logger = logging.getLogger(__name__)
-    db: DBService = ctx.obj["db"]
+    db: DatabaseInterface = ctx.obj["db"]
     tmdb: TMDBService = ctx.obj["tmdb"]
     anime_tv_path = ctx.obj["anime_tv_path"]
     console = Console()

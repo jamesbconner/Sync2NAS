@@ -1,5 +1,5 @@
 import click
-from services.db_service import DBService
+from services.db_implementations.db_interface import DatabaseInterface
 
 @click.command()
 @click.pass_context

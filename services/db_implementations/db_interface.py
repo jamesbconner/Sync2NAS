@@ -1,4 +1,3 @@
-# db_abstraction.py
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional, Tuple, Union
 import datetime

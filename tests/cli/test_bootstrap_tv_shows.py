@@ -4,7 +4,7 @@ import configparser
 from click.testing import CliRunner
 from cli.main import sync2nas_cli
 from models.show import Show
-from services.db_service import DBService
+from services.db_implementations.sqlite_implementation import SQLiteDBService
 from utils.sync2nas_config import load_configuration
 from utils.sync2nas_config import write_temp_config
 from unittest.mock import patch, MagicMock
@@ -45,7 +45,7 @@ def test_bootstrap_tv_shows_adds_show(tmp_path, mock_tmdb_service, mock_sftp_ser
     show_name = "Mock_Show"
     os.makedirs(os.path.join(anime_tv_path, show_name), exist_ok=True)
 
-    db = DBService(config["SQLite"]["db_file"])
+    db = SQLiteDBService(config["SQLite"]["db_file"])
     db.initialize()
 
     obj = {
@@ -73,7 +73,7 @@ def test_bootstrap_tv_shows_skips_existing(tmp_path, mock_tmdb_service, mock_sft
     sys_path = os.path.join(anime_tv_path, show_name)
     os.makedirs(sys_path, exist_ok=True)
 
-    db = DBService(config["SQLite"]["db_file"])
+    db = SQLiteDBService(config["SQLite"]["db_file"])
     db.initialize()
 
     details = mock_tmdb_service.get_show_details(123)
@@ -141,7 +141,7 @@ def test_bootstrap_tv_shows_dir_names(monkeypatch, cli_runner, cli, tmp_path, fo
     }
     config_path = write_temp_config(config, tmp_path)
 
-    db = DBService(str(db_path))
+    db = SQLiteDBService(str(db_path))
     db.initialize()
 
     obj = {

@@ -1,7 +1,9 @@
 import os
 import click
+from click.testing import CliRunner
+from pathlib import Path
 from utils.file_routing import file_routing, parse_filename
-from utils.show_adder import add_show_interactively
+from cli.add_show import add_show
 
 @click.command("route-files")
 @click.option("--dry-run", is_flag=True, default=False, help="Print what would be routed without actually moving files.")
@@ -22,6 +24,8 @@ def route_files(ctx, dry_run, auto_add):
 
     if auto_add:
         seen = set()
+        runner = CliRunner()
+
         for root, _, filenames in os.walk(incoming_path):
             for fname in filenames:
                 if fname in ignore_files:
@@ -39,11 +43,17 @@ def route_files(ctx, dry_run, auto_add):
 
                 if not db.show_exists(show_name):
                     click.secho(f"📥 Auto-adding show: {show_name}", fg="yellow")
-                    try:
-                        result = add_show_interactively(show_name, None, db, tmdb, anime_tv_path, dry_run=dry_run)
-                        click.secho(f"✅ Auto-added: {result['tmdb_name']}", fg="green")
-                    except Exception as e:
-                        click.secho(f"❌ Failed to add show '{show_name}': {e}", fg="red")
+
+                    add_show_args = [show_name]
+                    if dry_run:
+                        add_show_args.append("--dry-run")
+
+                    add_show_result = runner.invoke(add_show, add_show_args, obj=ctx.obj)
+
+                    if add_show_result.exit_code == 0:
+                        click.secho(f"✅ Auto-added: {show_name}", fg="green")
+                    else:
+                        click.secho(f"❌ Failed to add show '{show_name}': {add_show_result.output.strip()}", fg="red")
 
     routed = file_routing(incoming_path, anime_tv_path, db, dry_run=dry_run)
 
