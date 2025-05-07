@@ -31,11 +31,14 @@ def parse_filename(filename: str) -> Tuple[Optional[str], Optional[str], Optiona
     # 3. Show.Name.2000.S01E01
     # 4. Show Name - 101 [abc123]
     pattern = re.compile(
-        r'(?:\[.*?\]\s*(?!.*\bS\d+\b)(.*?)(?:\s*\((\d{4})\))?\s*-\s*(\d+))|'    # group 1
-        r'(?:\[.*?\]\s*(.*?)\sS(\d+)\s*-\s*(\d+))|'                             # group 2
-        r'(?:^(.*?)(?:[.\-](\d{4}))?[.\-]S(\d{2})[.\-]?E(\d{2}))|'              # group 3:
-        r'^(.*?)\s*-\s*(\d{1,4})(?:\s*\[.*?\])?'                                # group 4: Show Name - 101 [abc123] 
-    )
+        r'(?:\[.*?\]\s*(?!.*\bS\d+\b)(.*?)(?:\s*\((\d{4})\))?\s*-\s*(\d+))|'     # group 1: [Group] Name (Year) - 12
+        r'(?:\[.*?\]\s*(.*?)\s*-\s*S(\d{2})E(\d{2}))|'                           # group 2: [Group] Name - SxxEyy
+        r'(?:^(.*?)(?:[.\-\s](\d{4}))?[.\-\s]S(\d{2})[.\-\s]?E(\d{2}))|'         # group 3: Name.SxxEyy
+        r'(?:^(.*?)\s*-\s*(\d{1,4})(?:\s*\[.*?\])?)|'                            # group 4: Name - 12
+        r'(?:^\[.*?\]_(.*?)-_(\d{2})-_)|'                                        # group 5: underscore -_01_- separator
+        r'(?:^\[.*?\]\s*(.*?)\s+(\d{1,3})\s*\[.*)|'                              # group 6: Name 12 [something]
+        r'(?:^\[.*?\]_(.*?)_(\d{1,3})_\()'                                       # group 7: underscore + number + (
+    )                                                       
 
     match = pattern.search(filename)
     if not match:
@@ -45,40 +48,67 @@ def parse_filename(filename: str) -> Tuple[Optional[str], Optional[str], Optiona
 
     # Match group 1: [Group] Show Name (Year) - Episode
     if groups[0]:
-        show_name = groups[0]
-        year = groups[1]
-        episode = groups[2]
+        show_name = groups[0].strip()
+        year = groups[1].strip() if groups[1] else None
+        episode = groups[2].strip() if groups[2] else None
         season = None  # Do not default season, will fall back to absolute lookup
         logger.debug(f"Method 1: Parsed filename: Show:{show_name}, Episode:{episode}, Season:{season}, Year:{year}")
         return show_name, episode, season, year
 
     # Match group 2: [Group] Show Name S01 - 01
     elif groups[3]:
-        show_name = groups[3]
-        season = groups[4]
-        episode = groups[5]
+        show_name = groups[3].strip()
+        season = groups[4].strip()
+        episode = groups[5].strip()
         year = None
         logger.debug(f"Method 2: Parsed filename: Show:{show_name}, Episode:{episode}, Season:{season}, Year:{year}")
         return show_name, episode, season, year
 
     # Match group 3: Show.Name.2000.S01E01
     elif groups[6]:
-        show_name = groups[6].replace(".", " ").replace("-", " ")
-        year = groups[7]
-        season = groups[8]
-        episode = groups[9]
+        show_name = groups[6].replace(".", " ").replace("-", " ").strip()
+        year = groups[7].strip() if groups[7] else None
+        season = groups[8].strip() if groups[8] else None
+        episode = groups[9].strip() if groups[9] else None
         logger.debug(f"Method 3: Parsed filename: Show:{show_name}, Episode:{episode}, Season:{season}, Year:{year}")
         return show_name, episode, season, year
     
     # Match group 4: Show Name - 101 [abc123]
     elif groups[10]:
         show_name = groups[10].strip()
-        episode = groups[11]
+        episode = groups[11].strip() if groups[11] else None
         season = None  # Will fall back to absolute lookup
         year = None
         logger.debug(f"Method 4: Parsed filename: Show:{show_name}, Episode:{episode}, Season:{season}, Year:{year}")
         return show_name, episode, season, None
     
+    # Match group 5: underscore -_01_- separator
+    elif groups[12]:
+        show_name = groups[12].strip()
+        episode = groups[13].strip() if groups[13] else None
+        season = None
+        year = None
+        logger.debug(f"Method 5: Parsed filename: Show:{show_name}, Episode:{episode}, Season:{season}, Year:{year}")
+        return show_name, episode, season, None
+    
+    # Match group 6: Name 12 [something]
+    elif groups[14]:
+        show_name = groups[14].strip()
+        episode = groups[15].strip() if groups[15] else None
+        season = None
+        year = None
+        logger.debug(f"Method 6: Parsed filename: Show:{show_name}, Episode:{episode}, Season:{season}, Year:{year}")   
+        return show_name, episode, season, None
+    
+    # Match group 7: underscore + number + (
+    elif groups[16]:
+        show_name = groups[16].strip()
+        episode = groups[17].strip() if groups[17] else None
+        season = None
+        year = None
+        logger.debug(f"Method 7: Parsed filename: Show:{show_name}, Episode:{episode}, Season:{season}, Year:{year}")
+        return show_name, episode, season, None
+
     else:
         logger.debug(f"Unexpected filename format: {filename}")
         return None, None, None, None
