@@ -3,11 +3,11 @@ import click
 import logging
 from models.show import Show
 from models.episode import Episode
-from services.db_service import DBService
+from services.db_implementations.db_interface import DatabaseInterface
 from services.tmdb_service import TMDBService
 from utils.file_filters import sanitize_filename
 
-def add_show_interactively(show_name, tmdb_id, db: DBService, tmdb: TMDBService, anime_tv_path: str, dry_run: bool = False, override_dir: bool = False):
+def add_show_interactively(show_name, tmdb_id, db: DatabaseInterface, tmdb: TMDBService, anime_tv_path: str, dry_run: bool = False, override_dir: bool = False):
     logger = logging.getLogger(__name__)
     if tmdb_id:
         details = tmdb.get_show_details(tmdb_id)

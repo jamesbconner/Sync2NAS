@@ -3,7 +3,7 @@ import json
 import click
 import logging
 from models.episode import Episode
-from services.db_service import DBService
+from services.db_implementations.db_interface import DatabaseInterface
 from services.tmdb_service import TMDBService
 from rich import print as rprint
 
@@ -15,7 +15,7 @@ def bootstrap_episodes(ctx, dry_run):
     """Populate episodes for all shows in the tv_shows table."""
 
     logger = logging.getLogger(__name__)
-    db: DBService = ctx.obj["db"]
+    db: DatabaseInterface = ctx.obj["db"]
     tmdb: TMDBService = ctx.obj["tmdb"]
 
     added, skipped, failed = [], [], []

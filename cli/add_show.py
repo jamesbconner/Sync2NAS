@@ -1,5 +1,5 @@
 import click
-from services.db_service import DBService
+from services.db_implementations.db_interface import DatabaseInterface
 from services.tmdb_service import TMDBService
 from utils.show_adder import add_show_interactively
 
@@ -9,18 +9,30 @@ from utils.show_adder import add_show_interactively
 @click.option("--override-dir", is_flag=True, help="Use the provided show_name directly for the folder name.")
 @click.option("--dry-run", is_flag=True, help="Simulate without writing to database or creating directory")
 @click.pass_context
-def add_show(ctx, show_name, tmdb_id, dry_run, override_dir):
+def add_show(ctx, show_name, tmdb_id, override_dir, dry_run):
     """Add a show to the tv_shows table by searching TMDB or using TMDB ID."""
-    db: DBService = ctx.obj["db"]
+    db: DatabaseInterface = ctx.obj["db"]
     tmdb: TMDBService = ctx.obj["tmdb"]
     anime_tv_path = ctx.obj["anime_tv_path"]
 
+    if not show_name and not tmdb_id:
+        click.secho("❌ You must provide either a SHOW_NAME or --tmdb-id.", fg="red", bold=True)
+        ctx.exit(1)
+
     try:
-        result = add_show_interactively(show_name, tmdb_id, db, tmdb, anime_tv_path, dry_run, override_dir)
+        result = add_show_interactively(
+            show_name=show_name,
+            tmdb_id=tmdb_id,
+            db=db,
+            tmdb=tmdb,
+            anime_tv_path=anime_tv_path,
+            dry_run=dry_run,
+            override_dir=override_dir,
+        )
     except Exception as e:
         click.secho("❌ Failed to add show", fg="red", bold=True)
         click.secho(f"Reason: {e}", fg="red")
-        return
+        ctx.exit(1)
 
     click.echo()
     click.secho("📦 Show Addition Summary", fg="cyan", bold=True)
@@ -32,3 +44,4 @@ def add_show(ctx, show_name, tmdb_id, dry_run, override_dir):
         click.secho(f"✅ Show added: {result['tmdb_name']}", fg="green")
         click.secho(f"📂 Directory created at: {result['sys_path']}", fg="blue")
         click.secho(f"🎞️ Episodes added: {result['episode_count']}", fg="green")
+

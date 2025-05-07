@@ -1,6 +1,7 @@
 import logging
 import sys
 import os
+
 def setup_logging(verbosity: int = 0, logfile: str = None):
     """Configure logging level and optional file output."""
     if verbosity == 0:

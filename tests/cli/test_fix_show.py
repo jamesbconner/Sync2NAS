@@ -6,7 +6,7 @@ from cli.main import sync2nas_cli
 from models.show import Show
 from models.episode import Episode
 from utils.sync2nas_config import load_configuration, write_temp_config
-from services.db_service import DBService
+from services.db_implementations.sqlite_implementation import SQLiteDBService
 from services.tmdb_service import TMDBService
 from cli.fix_show import fix_show
 from unittest.mock import Mock, patch
@@ -83,7 +83,7 @@ def dummy_episodes():
 
 @pytest.fixture
 def mock_db():
-    return Mock(spec=DBService)
+    return Mock(spec=SQLiteDBService)
 
 
 @pytest.fixture

@@ -4,7 +4,7 @@ import datetime
 import configparser
 from click.testing import CliRunner
 from cli.main import sync2nas_cli
-from services.db_service import DBService
+from services.db_implementations.sqlite_implementation import SQLiteDBService
 from utils.sync2nas_config import load_configuration, write_temp_config, parse_sftp_paths
 from unittest.mock import MagicMock
 
@@ -38,7 +38,7 @@ def db_path(tmp_path):
 
 @pytest.fixture
 def db_service(db_path):
-    db = DBService(str(db_path))
+    db = SQLiteDBService(str(db_path))
     db.initialize()
     return db
 

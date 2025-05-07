@@ -2,7 +2,7 @@ import os
 import time
 import click
 import logging
-from services.db_service import DBService
+from services.db_implementations.db_interface import DatabaseInterface
 from services.tmdb_service import TMDBService
 from models.show import Show
 
@@ -13,7 +13,7 @@ def bootstrap_tv_shows(ctx, dry_run):
     """One-time population of tv_shows table from anime_tv_path."""
     
     logger = logging.getLogger(__name__)
-    db: DBService = ctx.obj["db"]
+    db: DatabaseInterface = ctx.obj["db"]
     tmdb: TMDBService = ctx.obj["tmdb"]
     anime_tv_path = ctx.obj["anime_tv_path"]
 

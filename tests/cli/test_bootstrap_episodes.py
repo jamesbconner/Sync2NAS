@@ -6,7 +6,7 @@ from click.testing import CliRunner
 from cli.main import sync2nas_cli
 from models.show import Show
 from models.episode import Episode
-from services.db_service import DBService
+from services.db_implementations.sqlite_implementation import SQLiteDBService
 from utils.sync2nas_config import load_configuration, write_temp_config
 
 
@@ -39,7 +39,7 @@ def test_bootstrap_episodes_adds_records(tmp_path, mock_tmdb_service, mock_sftp_
     config = load_configuration(config_path)
 
     db_path = config["SQLite"]["db_file"]
-    db = DBService(db_path)
+    db = SQLiteDBService(db_path)
     db.initialize()
 
     anime_tv_path = config["Routing"]["anime_tv_path"]
@@ -75,7 +75,7 @@ def test_bootstrap_episodes_skips_existing(tmp_path, mock_tmdb_service, mock_sft
     config = load_configuration(config_path)
 
     db_path = config["SQLite"]["db_file"]
-    db = DBService(db_path)
+    db = SQLiteDBService(db_path)
     db.initialize()
 
     anime_tv_path = config["Routing"]["anime_tv_path"]
