@@ -40,20 +40,20 @@ def parse_filename(filename: str) -> dict:
         r"(?P<name>.*?)[\s\-]+(?P<season>\d{1,2})(?:st|nd|rd|th)?[\s\-]+Season[\s\-]+(?P<episode>\d{1,3})",
         r"(?P<name>.*?)[\s\-]+[Ss](?P<season>\d{1,2})[Ee](?P<episode>\d{1,3})",
         r"(?P<name>.*?)[\s\-]+[Ss](?P<season>\d{1,2})[\s\-]+(?P<episode>\d{1,3})",
-        r"(?P<name>.*?)[\s\-]+[Ee](?P<episode>\d{1,3})",
+        r"(?P<name>.*?)(?:[\s\-]+[Ss](?P<season>\d{1,2}).*)?[\s\-]+[Ee](?P<episode>\d{1,3})",
         r"(?P<name>.*?)[\s\-]+(?P<episode>\d{1,3})(?:v\d)?\b",
         r"(?P<name>.*?)[\s\-]+(?P<episode>\d{1,3})$",
         r"(?P<name>.*?)\s+[Ss](?P<season>\d{1,2})[Ee](?P<episode>\d{1,3})"
     ]
 
-    for pattern in patterns:
+    for index, pattern in enumerate(patterns):
         match = re.search(pattern, cleaned, re.IGNORECASE)
         if match:
             groups = match.groupdict()
             show_name = groups.get("name", "").strip(" -_")
             season = int(groups["season"]) if groups.get("season") else None
             episode = int(groups["episode"]) if groups.get("episode") else None
-            logger.debug(f"Parsed: Show={show_name}, Season={season}, Episode={episode}")
+            logger.debug(f"Parsed: Show={show_name}, Season={season}, Episode={episode} - Pattern {index}")
             return {"show_name": show_name, "season": season, "episode": episode}
 
     logger.debug(f"No match found; fallback name: {cleaned}")
