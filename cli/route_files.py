@@ -8,7 +8,7 @@ from cli.add_show import add_show
 from utils.file_filters import EXCLUDED_FILENAMES
 
 
-@click.command("route-files")
+@click.command("route-files", help="Scan the incoming path and move files to the appropriate show directories.")
 @click.option("--dry-run", is_flag=True, default=False, help="Print what would be routed without actually moving files.")
 @click.option("--auto-add", is_flag=True, default=False, help="Attempt to add missing shows automatically before routing.")
 @pass_sync2nas_context
