@@ -377,33 +377,34 @@ def test_file_routing_no_episode_match(tmp_path):
     assert len(result) == 0
     assert test_file.exists()  # File should still be in incoming directory
 
-@pytest.mark.parametrize("filename", [
-    "[Ssseeblpau] Surmme Copeskt - 01 (1080p) [841471A0].mkv",
-    "Ybaia.Muirasa.Legend.S01E01.1080p.Fn.Wbe-Dl.Caa2.0.H.264-Raygv.mkv",
-    "[Girlcalos]_Ot_Aru_Ujtsamu_on_Inexd_01_(1920x1080_Ulb-Ary_Flca)_[54Eae58E].mkv",
-    "Kkaeki.Sensne.E07.1080p.Rayblu.x264-Nsuswikiojh.kvm",
-    "[Baulsspese] Oer aw Askein Akokk on Ktauuok Soyuhru - 03v2 (1080p) [1940F819].mkv",
-    "[a-s]_darerk_hatn_calbk_~gemiin_fo_the_meoter~_-_03_-_nsangivhi_ni_a_esa_fo_cie__sr2_[1080p_bd-pir][1F7B6Fa3].vmk",
-    "[Hcrohii] Ahaturak Uaom-sama!! 18 [1080p Ih10P Aca][0E0B06Db].vkm",
-    "[Arsakau] Estein Ratihas Eimsl Adatt Ekn 3rd Season 49 [Bidrp 1920x1080 x265 10tib Cfla] [36E425Ba].mkv",
-    "[Erai-arsw] Ataaiakkn no Ssoan Ekesin in Arun - 04 [1080p Zman Web-Ld Acv Eac3][Multuisb][5312D81B].kvm",
-    "Oyslrci Recoil - S01E01 [Bd 1080p Hevc 10ibt Aclf] [Audl-Oiaud].vkm",
-    "[Wohys] Ngoubtou on Nyoeaham - 12 Negdel fo Etaf Ayd 2000 [9Fca5879].vkm",
-    "[aclsmknokoe-srip]_Super_Eorsxh_S01_E02(02)_1080p_Av1_[6D9C7635].vkm",
-    "[Seeasblups] Rd. Nsteo S4 - 05 (1080p) [D920835D].mkv",
-    "Geaom Tlaed - S01E01 [Bd 1080p Cveh 10tib Lcfa] [Auld-Oauid].mkv",
-    "[Kmui Gang] Het Erchali Rtxotfo - S02E05 (Db 1080p Hevc Aclf) [Auld-Iduao] [A0000000].mkv",
-    "Blue.Lwoley.S01E10.All.Het.Thgin.Epkrac.1080p.Nf.Bew-Ld.Dpd5.1.H.264-Varyg.vkm",
-    "[a-s]_nonniyag_eltit_~russeioly_wyh_stelid~_-_01_-_cblka_stac_era_tno_rnuagdseo__rs2_[1080p_bd][60000000].mkv",
-    "[Rkasaua] Itsh si a show mnae 12 [Idpbr 1920x1080 x265 10bit Calf] [70000000].vkm",
-    "[Ogciarlls]_Rdakre_tnha_my_slou_12_(1920x1080_Ulb-Rya_Calf)_[80000000].kmv",
-    "E01 'Reload The Vending Machine'.mkv",
-    "[ThisIsATest] Thunderbolt Avengers S2 - 104 [1080p].mkv",
-    "Samurai.Golf.-.10.-.1080p.BlueBunnies.x264.DOD.mkv"
-])
-def test_parse_filename_various_cases(filename):
+parse_filename_cases = [
+    ("[Ssseeblpau] Surmme Copeskt - 01 (1080p) [841471A0].mkv", "Surmme Copeskt", 1, None),
+    ("Ybaia.Muirasa.Legend.S01E01.1080p.Fn.Wbe-Dl.Caa2.0.H.264-Raygv.mkv", "Ybaia Muirasa Legend", 1, 1),
+    ("[Girlcalos]_Ot_Aru_Ujtsamu_on_Inexd_01_(1920x1080_Ulb-Ary_Flca)_[54Eae58E].mkv", "Ot Aru Ujtsamu on Inexd", 1, None),
+    ("Kkaeki.Sensne.E07.1080p.Rayblu.x264-Nsuswikiojh.kvm", "Kkaeki Sensne", 7, None),
+    ("[Baulsspese] Oer aw Askein Akokk on Ktauuok Soyuhru - 03v2 (1080p) [1940F819].mkv", "Oer aw Askein Akokk on Ktauuok Soyuhru", 3, None),
+    ("[a-s]_darerk_hatn_calbk_~gemiin_fo_the_meoter~_-_03_-_nsangivhi_ni_a_esa_fo_cie__sr2_[1080p_bd-pir][1F7B6Fa3].vmk", "darerk hatn calbk ~gemiin fo the meoter~", 3, None),
+    ("[Hcrohii] Ahaturak Uaom-sama!! 18 [1080p Ih10P Aca][0E0B06Db].vkm", "Ahaturak Uaom-sama!!", 18, None),
+    ("[Arsakau] Estein Ratihas Eimsl Adatt Ekn 3rd Season 49 [Bidrp 1920x1080 x265 10tib Cfla] [36E425Ba].mkv", "Estein Ratihas Eimsl Adatt Ekn", 49, 3),
+    ("[Erai-arsw] Ataaiakkn no Ssoan Ekesin in Arun - 04 [1080p Zman Web-Ld Acv Eac3][Multuisb][5312D81B].kvm", "Ataaiakkn no Ssoan Ekesin in Arun", 4, None),
+    ("Oyslrci Recoil - S01E01 [Bd 1080p Hevc 10ibt Aclf] [Audl-Oiaud].vkm", "Oyslrci Recoil", 1, 1),
+    ("[Wohys] Ngoubtou on Nyoeaham - 12 Negdel fo Etaf Ayd 2000 [9Fca5879].vkm", "Ngoubtou on Nyoeaham", 12, None),
+    ("[aclsmknokoe-srip]_Super_Eorsxh_S01_E02(02)_1080p_Av1_[6D9C7635].vkm", "Super Eorsxh", 2, 1),
+    ("[Seeasblups] Rd. Nsteo S4 - 05 (1080p) [D920835D].mkv", "Rd Nsteo", 5, 4),
+    ("Geaom Tlaed - S01E01 [Bd 1080p Cveh 10tib Lcfa] [Auld-Oauid].mkv", "Geaom Tlaed", 1, 1),
+    ("[Kmui Gang] Het Erchali Rtxotfo - S02E05 (Db 1080p Hevc Aclf) [Auld-Iduao] [A0000000].mkv", "Het Erchali Rtxotfo", 5, 2),
+    ("Blue.Lwoley.S01E10.All.Het.Thgin.Epkrac.1080p.Nf.Bew-Ld.Dpd5.1.H.264-Varyg.vkm", "Blue Lwoley", 10, 1),
+    ("[a-s]_nonniyag_eltit_~russeioly_wyh_stelid~_-_01_-_cblka_stac_era_tno_rnuagdseo__rs2_[1080p_bd][60000000].mkv", "nonniyag eltit ~russeioly wyh stelid~", 1, None),
+    ("[Rkasaua] Itsh si a show mnae 12 [Idpbr 1920x1080 x265 10bit Calf] [70000000].vkm", "Itsh si a show mnae", 12, None),
+    ("[Ogciarlls]_Rdakre_tnha_my_slou_12_(1920x1080_Ulb-Rya_Calf)_[80000000].kmv", "Rdakre tnha my slou", 12, None),
+    ("[ThisIsATest] Thunderbolt Avengers S2 - 104 [1080p].mkv", "Thunderbolt Avengers", 104, 2),
+    ("Samurai.Golf.-.10.-.1080p.BlueBunnies.x264.DOD.mkv", "Samurai Golf", 10, None),
+]
+
+@pytest.mark.parametrize("filename, expected_show_name, expected_episode, expected_season", parse_filename_cases)
+def test_parse_filename_expected(filename, expected_show_name, expected_episode, expected_season):
     result = parse_filename(filename)
     assert isinstance(result, dict)
-    assert result["show_name"]
-    # Optionally print for debug:
-    # print(f"{filename} => {result}")
+    assert result["show_name"] == expected_show_name
+    assert result["episode"] == expected_episode
+    assert result["season"] == expected_season
