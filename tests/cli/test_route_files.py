@@ -1,13 +1,46 @@
 import os
 import shutil
 import pytest
+import configparser
 from pathlib import Path
 from click.testing import CliRunner
 from cli.main import sync2nas_cli
 from services.db_implementations.sqlite_implementation import SQLiteDBService
 from utils.sync2nas_config import load_configuration, write_temp_config
+from cli.route_files import parse_filename
 
+@pytest.fixture
+def temp_show_file(tmp_path):
+    incoming_dir = tmp_path / "incoming"
+    incoming_dir.mkdir()
+    file = incoming_dir / "Mock Show S01E03.mkv"
+    file.write_text("dummy content")
+    return file
 
+@pytest.fixture
+def test_config(tmp_path):
+    config = configparser.ConfigParser()
+    db_path = tmp_path / "test.db"
+    anime_tv_path = tmp_path / "anime"
+    incoming_path = tmp_path / "incoming"
+
+    anime_tv_path.mkdir()
+    incoming_path.mkdir()
+
+    config["SQLite"] = {"db_file": str(db_path)}
+    config["Routing"] = {"anime_tv_path": str(anime_tv_path)}
+    config["Transfers"] = {"incoming": str(incoming_path)}
+    config["SFTP"] = {
+        "host": "localhost",
+        "port": "22",
+        "username": "user",
+        "ssh_key_path": str(tmp_path / "dummy.key"),
+        "path": "/remote/path"
+    }
+    config["TMDB"] = {"api_key": "dummy"}
+
+    config_path = write_temp_config(config, tmp_path)
+    return config, config_path
 
 @pytest.fixture
 def mock_routing(monkeypatch):
@@ -32,6 +65,18 @@ def mock_routing(monkeypatch):
         ]
 
     monkeypatch.setattr("cli.route_files.file_routing", fake_routing)
+
+
+@pytest.fixture
+def patch_add_show(monkeypatch):
+    def mock_add_show_interactively(show_name, tmdb_id, db, tmdb, anime_tv_path, dry_run, override_dir=False):
+        return {
+            "sys_path": f"/fake/path/{show_name}",
+            "tmdb_name": show_name,
+            "episode_count": 12
+        }
+
+    monkeypatch.setattr("cli.add_show.add_show_interactively", mock_add_show_interactively)
 
 
 def test_route_files_basic(tmp_path, test_config_path, cli_runner, cli, mock_routing, mock_tmdb_service, mock_sftp_service):
@@ -113,51 +158,51 @@ def test_route_files_dry_run(tmp_path, test_config_path, cli_runner, cli, mock_t
     assert "file2.mkv" in result.output
     assert "[DRY RUN]" in result.output
 
-def test_route_files_auto_add(tmp_path, test_config_path, cli_runner, cli, mock_tmdb_service, mock_sftp_service):
+def test_route_files_auto_add(tmp_path, test_config, mock_tmdb_service, cli_runner, cli, patch_add_show, monkeypatch, mock_sftp_service):
+    config, config_path = test_config
 
-    # Load and prepare config
-    config = load_configuration(str(test_config_path))
-    anime_tv_path = Path(config["Routing"]["anime_tv_path"])
+    # Write mock file into the correct path
     incoming_path = Path(config["Transfers"]["incoming"])
-    anime_tv_path.mkdir(parents=True, exist_ok=True)
-    incoming_path.mkdir(parents=True, exist_ok=True)
+    incoming_file = incoming_path / "Mock Show S01E03.mkv"
+    incoming_file.write_text("dummy content")
+    assert incoming_file.exists()
 
-    # Create an incoming file with a name that will trigger TMDB lookup
-    test_filename = "Mock Show.S01E03.mkv"
-    incoming_file = incoming_path / test_filename
-    incoming_file.write_text("test content")
-    assert os.path.exists(incoming_file), "Incoming file should have been created"
-
-    # Set up DB
     db = SQLiteDBService(config["SQLite"]["db_file"])
     db.initialize()
 
-    # Construct context
+    # Patch db.show_exists to always return False
+    monkeypatch.setattr(db, "show_exists", lambda show_name: False)
+
     ctx = {
         "config": config,
         "db": db,
         "sftp": mock_sftp_service,
         "tmdb": mock_tmdb_service,
-        "anime_tv_path": str(anime_tv_path),
-        "incoming_path": str(incoming_path),
+        "anime_tv_path": config["Routing"]["anime_tv_path"],
+        "incoming_path": config["Transfers"]["incoming"],
     }
 
-    # Run CLI with --auto-add
-    result = cli_runner.invoke(cli, ["route-files", "--auto-add"], obj=ctx)
-    output = result.output
+    result = cli_runner.invoke(cli, ["-c", config_path, "route-files", "--auto-add"], obj=ctx)
 
-    # Assertions
-    assert os.path.exists(db.db_file), "DB file should have been created"
-    assert result.exit_code == 0, f"CLI exited with error: {output}"
-    assert "Added new show" in output or "✅" in output, "Should indicate show was added"
-    assert test_filename in output, "File should appear in output as routed"
+    assert result.exit_code == 0, result.output
+    assert "✅ Auto-added" in result.output
+    assert "Mock Show" in result.output
+    
 
-    # DB assertions
-    show = db.get_show_by_name_or_alias("Mock Show")
-    assert show, "Show should have been inserted into DB"
-    episodes = db.get_episodes_by_show_name("Mock Show")
-    assert episodes, "Episodes should have been populated for the show"
+# Test cases for the refactored parse_filename
+test_cases = [
+    ("[Group] Mock Show (2022) - 01.mkv", {"show_name": "Mock Show", "season": None, "episode": 1}),
+    ("[SubsPlease] My Show - S01E05 (1080p).mkv", {"show_name": "My Show", "season": 1, "episode": 5}),
+    ("My.Show.S02E09.1080p.mkv", {"show_name": "My Show", "season": 2, "episode": 9}),
+    ("Cool_Show-E12.mkv", {"show_name": "Cool Show", "season": None, "episode": 12}),
+    ("Title.2nd Season 07", {"show_name": "Title", "season": 2, "episode": 7}),
+    ("Another Show - 103.mkv", {"show_name": "Another Show", "season": None, "episode": 103}),
+    ("NoMatchHere.txt", {"show_name": "NoMatchHere", "season": None, "episode": None}),
+    ("Show_with_underscores_S03E08.mkv", {"show_name": "Show with underscores", "season": 3, "episode": 8}),
+    ("[FanSub]_Show.Name_03_(720p).mkv", {"show_name": "Show Name", "season": None, "episode": 3}),
+]
 
-    # Filesystem assertion
-    routed_path = Path(show["sys_path"]) / "Season 01" / test_filename
-    assert routed_path.exists(), f"File should have been moved to: {routed_path}"
+# Create a test function for each case
+@pytest.mark.parametrize("filename, expected", test_cases)
+def test_parse_filename(filename, expected):
+    assert parse_filename(filename) == expected

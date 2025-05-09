@@ -9,114 +9,55 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def parse_filename(filename: str) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+def parse_filename(filename: str) -> dict:
     """
-    Parse a filename to extract show metadata.
+    Extract show metadata from a filename.
 
     Args:
-        filename: The filename to parse
+        filename (str): Raw filename (e.g., "Show.Name.S01E01.1080p.mkv")
 
     Returns:
-        A tuple of:
-            - show_name: Name of the show (str or None)
-            - episode: Episode number (str or None)
-            - season: Season number (str or None)
-            - year: Year (str or None)
+        dict: {
+            "show_name": str,
+            "season": int | None,
+            "episode": int | None
+        }
     """
-    filename = os.path.basename(filename)
+    logger.debug(f"Parsing filename: {filename}")
 
-    # Regex patterns:
-    # 1. [Group] Show Name (Year) - Episode
-    # 2. [Group] Show Name S01 - 01
-    # 3. Show.Name.2000.S01E01
-    # 4. Show Name - 101 [abc123]
-    pattern = re.compile(
-        r'(?:\[.*?\]\s*(?!.*\bS\d+\b)(.*?)(?:\s*\((\d{4})\))?\s*-\s*(\d+))|'     # group 1: [Group] Name (Year) - 12
-        r'(?:\[.*?\]\s*(.*?)\s*-\s*S(\d{2})E(\d{2}))|'                           # group 2: [Group] Name - SxxEyy
-        r'(?:^(.*?)(?:[.\-\s](\d{4}))?[.\-\s]S(\d{2})[.\-\s]?E(\d{2}))|'         # group 3: Name.SxxEyy
-        r'(?:^(.*?)\s*-\s*(\d{1,4})(?:\s*\[.*?\])?)|'                            # group 4: Name - 12
-        r'(?:^\[.*?\]_(.*?)-_(\d{2})-_)|'                                        # group 5: underscore -_01_- separator
-        r'(?:^\[.*?\]\s*(.*?)\s+(\d{1,3})\s*\[.*)|'                              # group 6: Name 12 [something]
-        r'(?:^\[.*?\]_(.*?)_(\d{1,3})_\()'                                       # group 7: underscore + number + (
-    )                                                       
+    # Remove file extension
+    base = re.sub(r"\.[a-z0-9]{2,4}$", "", filename, flags=re.IGNORECASE)
 
-    match = pattern.search(filename)
-    if not match:
-        return None, None, None, None
+    # Remove all [tags] and (metadata)
+    cleaned = re.sub(r"[\[\(].*?[\]\)]", "", base)
 
-    groups = match.groups()
+    # Normalize delimiters
+    cleaned = re.sub(r"[_.]", " ", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
 
-    # Match group 1: [Group] Show Name (Year) - Episode
-    if groups[0]:
-        show_name = groups[0].strip()
-        year = groups[1].strip() if groups[1] else None
-        episode = groups[2].strip() if groups[2] else None
-        season = None  # Do not default season, will fall back to absolute lookup
-        logger.debug(f"Method 1: Parsed filename: Show:{show_name}, Episode:{episode}, Season:{season}, Year:{year}")
-        return show_name, episode, season, year
+    # Patterns to match the show name, season, and episode
+    patterns = [
+        r"(?P<name>.*?)[\s\-]+(?P<season>\d{1,2})(?:st|nd|rd|th)?[\s\-]+Season[\s\-]+(?P<episode>\d{1,3})",
+        r"(?P<name>.*?)[\s\-]+[Ss](?P<season>\d{1,2})[Ee](?P<episode>\d{1,3})",
+        r"(?P<name>.*?)[\s\-]+[Ss](?P<season>\d{1,2})[\s\-]+(?P<episode>\d{1,3})",
+        r"(?P<name>.*?)[\s\-]+[Ee](?P<episode>\d{1,3})",
+        r"(?P<name>.*?)[\s\-]+(?P<episode>\d{1,3})(?:v\d)?\b",
+        r"(?P<name>.*?)[\s\-]+(?P<episode>\d{1,3})$",
+        r"(?P<name>.*?)\s+[Ss](?P<season>\d{1,2})[Ee](?P<episode>\d{1,3})"
+    ]
 
-    # Match group 2: [Group] Show Name S01 - 01
-    elif groups[3]:
-        show_name = groups[3].strip()
-        season = groups[4].strip()
-        episode = groups[5].strip()
-        year = None
-        logger.debug(f"Method 2: Parsed filename: Show:{show_name}, Episode:{episode}, Season:{season}, Year:{year}")
-        return show_name, episode, season, year
+    for pattern in patterns:
+        match = re.search(pattern, cleaned, re.IGNORECASE)
+        if match:
+            groups = match.groupdict()
+            show_name = groups.get("name", "").strip(" -_")
+            season = int(groups["season"]) if groups.get("season") else None
+            episode = int(groups["episode"]) if groups.get("episode") else None
+            logger.debug(f"Parsed: Show={show_name}, Season={season}, Episode={episode}")
+            return {"show_name": show_name, "season": season, "episode": episode}
 
-    # Match group 3: Show.Name.2000.S01E01
-    elif groups[6]:
-        show_name = groups[6].replace(".", " ").replace("-", " ").strip()
-        year = groups[7].strip() if groups[7] else None
-        season = groups[8].strip() if groups[8] else None
-        episode = groups[9].strip() if groups[9] else None
-        show_name = groups[6].replace(".", " ").replace("-", " ").strip()
-        year = groups[7].strip() if groups[7] else None
-        season = groups[8].strip() if groups[8] else None
-        episode = groups[9].strip() if groups[9] else None
-        logger.debug(f"Method 3: Parsed filename: Show:{show_name}, Episode:{episode}, Season:{season}, Year:{year}")
-        return show_name, episode, season, year
-    
-    # Match group 4: Show Name - 101 [abc123]
-    elif groups[10]:
-        show_name = groups[10].strip()
-        episode = groups[11].strip() if groups[11] else None
-        episode = groups[11].strip() if groups[11] else None
-        season = None  # Will fall back to absolute lookup
-        year = None
-        logger.debug(f"Method 4: Parsed filename: Show:{show_name}, Episode:{episode}, Season:{season}, Year:{year}")
-        return show_name, episode, season, None
-    
-    # Match group 5: underscore -_01_- separator
-    elif groups[12]:
-        show_name = groups[12].strip()
-        episode = groups[13].strip() if groups[13] else None
-        season = None
-        year = None
-        logger.debug(f"Method 5: Parsed filename: Show:{show_name}, Episode:{episode}, Season:{season}, Year:{year}")
-        return show_name, episode, season, None
-    
-    # Match group 6: Name 12 [something]
-    elif groups[14]:
-        show_name = groups[14].strip()
-        episode = groups[15].strip() if groups[15] else None
-        season = None
-        year = None
-        logger.debug(f"Method 6: Parsed filename: Show:{show_name}, Episode:{episode}, Season:{season}, Year:{year}")   
-        return show_name, episode, season, None
-    
-    # Match group 7: underscore + number + (
-    elif groups[16]:
-        show_name = groups[16].strip()
-        episode = groups[17].strip() if groups[17] else None
-        season = None
-        year = None
-        logger.debug(f"Method 7: Parsed filename: Show:{show_name}, Episode:{episode}, Season:{season}, Year:{year}")
-        return show_name, episode, season, None
-
-    else:
-        logger.debug(f"Unexpected filename format: {filename}")
-        return None, None, None, None
+    logger.debug(f"No match found; fallback name: {cleaned}")
+    return {"show_name": cleaned, "season": None, "episode": None}
 
 
 def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, dry_run: bool = False) -> List[Dict[str, str]]:
@@ -125,82 +66,75 @@ def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, 
 
     Args:
         incoming_path: The directory to scan for files
-        db: Instance of DBService to access show metadata
-        dry_run: If True, only simulate routing without performing any filesystem operations
+        anime_tv_path: Base directory where shows should be routed
+        db: Database interface for show and episode lookup
+        dry_run: If True, simulate actions without moving files
 
     Returns:
-        A list of dicts containing information about routed files
+        List of dicts describing routed files
     """
-    logger.info(f"utils/file_routing.py::file_routing - Starting file routing")
+    logger.info("utils/file_routing.py::file_routing - Starting file routing")
     routed_files = []
 
-    # Walk the incoming path and route files to their destination paths
+    # Walk the incoming directory tree
     for root, _, files in os.walk(incoming_path):
         for filename in files:
-            # Get the full path to the source file
+            # Build the full source path
             source_path = os.path.join(root, filename)
-            
-            # Parse the filename to extract show metadata
-            show_name, episode_str, season_str, _ = parse_filename(filename)
-            
-            # If the filename does not contain show metadata, skip the file
+
+            # Parse metadata from the filename
+            metadata = parse_filename(filename)
+            show_name = metadata["show_name"]
+            season = metadata["season"]
+            episode = metadata["episode"]
+
+            # Skip files that don't contain a usable show name
             if not show_name:
-                logger.debug(f"utils/file_routing.py::file_routing - Skipping file due to unrecognized name: {filename}")
+                logger.debug(f"Skipping file due to missing show name: {filename}")
                 continue
 
-            # Get the show from the DB
+            # Lookup the show in the database by sys_name or aliases
             matched_show_row = db.get_show_by_name_or_alias(show_name)
-            # No matching show found in DB, skip the file
             if not matched_show_row:
-                logger.debug(f"utils/file_routing.py::file_routing - No matching show found in DB for: {show_name}")
+                logger.debug(f"No matching show in DB for: {show_name}")
                 continue
 
-            # Create a Show object from the DB record
+            # Convert DB record into Show object
             show = Show.from_db_record(matched_show_row)
 
-            # If the filename contains season and episode metadata, format the season and episode strings
-            if season_str and episode_str:
-                logger.debug(f"utils/file_routing.py::file_routing - Season and episode found in filename: {season_str}, {episode_str}")
-                season_str = f"{int(season_str):02}"
-                episode_str = f"{int(episode_str):02}"
-            # If the filename contains only episode metadata, it's an absolute episode number
-            # Get the season and episode from the DB
-            elif episode_str:
-                abs_episode = int(episode_str)
-                logger.debug(f"utils/file_routing.py::file_routing - Episode found in filename: {episode_str}")
-                matched_episode = db.get_episode_by_absolute_number(show.tmdb_id, abs_episode)
-                # If the episode is found in the DB, set the season and episode strings
-                if matched_episode:
-                    logger.debug(f"Found episode in DB for TMDB ID {show.tmdb_id} ep {abs_episode}: {matched_episode}")
-                    season_str = f"{int(matched_episode['season']):02}"
-                    episode_str = f"{int(matched_episode['episode']):02}"
-                # If the episode is not found in the DB, skip the file
+            # If season and episode are both found, format them
+            if season is not None and episode is not None:
+                season_str = f"{season:02}"
+                episode_str = f"{episode:02}"
+
+            # If only episode is found, use absolute episode lookup
+            elif episode is not None:
+                matched_ep = db.get_episode_by_absolute_number(show.tmdb_id, episode)
+                if matched_ep:
+                    season_str = f"{int(matched_ep['season']):02}"
+                    episode_str = f"{int(matched_ep['episode']):02}"
                 else:
-                    logger.debug(f"utils/file_routing.py::file_routing - No episode match in DB for TMDB ID {show.tmdb_id} ep {abs_episode}")
+                    logger.debug(f"No episode match in DB for TMDB ID {show.tmdb_id}, absolute {episode}")
                     continue
-            # If the filename has no usable episode metadata, skip the file
+
+            # If neither is available, skip this file
             else:
-                logger.debug(f"utils/file_routing.py::file_routing - File has no usable episode metadata: {filename}")
+                logger.debug(f"Insufficient episode metadata for file: {filename}")
                 continue
 
-            # Create the season directory path variable
+            # Construct destination path using the show's sys_path and season folder
             season_dir = os.path.join(show.sys_path, f"Season {season_str}")
-            # Create the target path variable   
             target_path = os.path.join(season_dir, filename)
 
-            # If the dry run flag is set, print the move operation without performing it
+            # Perform or simulate the move operation
             if dry_run:
                 logger.info(f"[DRY RUN] Would move {source_path} to {target_path}")
-            # If the dry run flag is not set, perform the move operation
             else:
-                # Create the season directory if it doesn't exist
                 os.makedirs(season_dir, exist_ok=True)
-                # Move the file to the target path
                 shutil.move(source_path, target_path)
-                # Log the move operation
                 logger.info(f"Moved {source_path} to {target_path}")
 
-            # Add the routed file to the list of routed files
+            # Track successful routing operation
             routed_files.append({
                 "original_path": source_path,
                 "routed_path": target_path,

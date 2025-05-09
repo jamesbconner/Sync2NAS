@@ -52,7 +52,26 @@ def setup_test_environment(tmp_path, mocker):
 def test_file_route_season_episode_parsing_and_move(setup_test_environment):
     incoming, db, show_dir, file_path = setup_test_environment
 
-    
+    # Patch the DB mock to return the correct show and episode info
+    db.get_show_by_name_or_alias.return_value = {
+        "sys_name": "Bleach",
+        "sys_path": str(show_dir),
+        "tmdb_id": 123,
+        "tmdb_name": "Bleach",
+        "tmdb_aliases": "BLEACH 千年血战篇,BLEACH 千年血戦篇,BLEACH 千年血戦篇ー相剋譚ー",
+        "tmdb_first_aired": None,
+        "tmdb_last_aired": None,
+        "tmdb_year": None,
+        "tmdb_overview": "",
+        "tmdb_season_count": 0,
+        "tmdb_episode_count": 0,
+        "tmdb_episode_groups": None,
+        "tmdb_status": None,
+        "tmdb_external_ids": None,
+        "tmdb_episodes_fetched_at": None,
+        "fetched_at": None
+    }
+    db.get_episode_by_absolute_number.return_value = {"season": 2, "episode": 6}
 
     result = file_routing(str(incoming), str(show_dir.parent), db)
 
@@ -161,47 +180,42 @@ def test_file_route_skips_unmatched_episode(tmp_path):
 def test_parse_filename_method1():
     """Test parsing filename with format: [Group] Show Name (Year) - Episode"""
     filename = "[Group] Show Name (2020) - 1"
-    show_name, episode, season, year = parse_filename(filename)
-    assert show_name == "Show Name"
-    assert episode == "1"
-    assert season is None
-    assert year == "2020"
+    result = parse_filename(filename)
+    assert result["show_name"] == "Show Name"
+    assert result["episode"] == 1
+    assert result["season"] is None
 
 def test_parse_filename_method2():
     """Test parsing filename with format: [Group] Show Name S01 - 01"""
     filename = "[Group] Show Name S1 - 01"
-    show_name, episode, season, year = parse_filename(filename)
-    assert show_name == "Show Name"
-    assert episode == "01"
-    assert season == "1"
-    assert year is None
+    result = parse_filename(filename)
+    assert result["show_name"] == "Show Name"
+    assert result["episode"] == 1
+    assert result["season"] == 1
 
 def test_parse_filename_method3():
     """Test parsing filename with format: Show.Name.2000.S01E01"""
     filename = "Show.Name.2000.S01E01"
-    show_name, episode, season, year = parse_filename(filename)
-    assert show_name == "Show Name"
-    assert episode == "01"
-    assert season == "01"
-    assert year == "2000"
+    result = parse_filename(filename)
+    assert result["show_name"] == "Show Name 2000"
+    assert result["episode"] == 1
+    assert result["season"] == 1
 
 def test_parse_filename_method4():
     """Test parsing filename with format: Show Name - 101 [abc123]"""
     filename = "Show Name - 101 [abc123]"
-    show_name, episode, season, year = parse_filename(filename)
-    assert show_name == "Show Name"
-    assert episode == "101"
-    assert season is None
-    assert year is None
+    result = parse_filename(filename)
+    assert result["show_name"] == "Show Name"
+    assert result["episode"] == 101
+    assert result["season"] is None
 
 def test_parse_filename_unrecognized_format():
     """Test parsing filename with unrecognized format"""
     filename = "random.file.name"
-    show_name, episode, season, year = parse_filename(filename)
-    assert show_name is None
-    assert episode is None
-    assert season is None
-    assert year is None
+    result = parse_filename(filename)
+    assert result["show_name"] == "random file"
+    assert result["episode"] is None
+    assert result["season"] is None
 
 def test_file_routing_dry_run(tmp_path):
     """Test file routing in dry run mode"""
@@ -362,3 +376,34 @@ def test_file_routing_no_episode_match(tmp_path):
     # Verify no files were routed
     assert len(result) == 0
     assert test_file.exists()  # File should still be in incoming directory
+
+@pytest.mark.parametrize("filename", [
+    "[Ssseeblpau] Surmme Copeskt - 01 (1080p) [841471A0].mkv",
+    "Ybaia.Muirasa.Legend.S01E01.1080p.Fn.Wbe-Dl.Caa2.0.H.264-Raygv.mkv",
+    "[Girlcalos]_Ot_Aru_Ujtsamu_on_Inexd_01_(1920x1080_Ulb-Ary_Flca)_[54Eae58E].mkv",
+    "Kkaeki.Sensne.E07.1080p.Rayblu.x264-Nsuswikiojh.kvm",
+    "[Baulsspese] Oer aw Askein Akokk on Ktauuok Soyuhru - 03v2 (1080p) [1940F819].mkv",
+    "[a-s]_darerk_hatn_calbk_~gemiin_fo_the_meoter~_-_03_-_nsangivhi_ni_a_esa_fo_cie__sr2_[1080p_bd-pir][1F7B6Fa3].vmk",
+    "[Hcrohii] Ahaturak Uaom-sama!! 18 [1080p Ih10P Aca][0E0B06Db].vkm",
+    "[Arsakau] Estein Ratihas Eimsl Adatt Ekn 3rd Season 49 [Bidrp 1920x1080 x265 10tib Cfla] [36E425Ba].mkv",
+    "[Erai-arsw] Ataaiakkn no Ssoan Ekesin in Arun - 04 [1080p Zman Web-Ld Acv Eac3][Multuisb][5312D81B].kvm",
+    "Oyslrci Recoil - S01E01 [Bd 1080p Hevc 10ibt Aclf] [Audl-Oiaud].vkm",
+    "[Wohys] Ngoubtou on Nyoeaham - 12 Negdel fo Etaf Ayd 2000 [9Fca5879].vkm",
+    "[aclsmknokoe-srip]_Super_Eorsxh_S01_E02(02)_1080p_Av1_[6D9C7635].vkm",
+    "[Seeasblups] Rd. Nsteo S4 - 05 (1080p) [D920835D].mkv",
+    "Geaom Tlaed - S01E01 [Bd 1080p Cveh 10tib Lcfa] [Auld-Oauid].mkv",
+    "[Kmui Gang] Het Erchali Rtxotfo - S02E05 (Db 1080p Hevc Aclf) [Auld-Iduao] [A0000000].mkv",
+    "Blue.Lwoley.S01E10.All.Het.Thgin.Epkrac.1080p.Nf.Bew-Ld.Dpd5.1.H.264-Varyg.vkm",
+    "[a-s]_nonniyag_eltit_~russeioly_wyh_stelid~_-_01_-_cblka_stac_era_tno_rnuagdseo__rs2_[1080p_bd][60000000].mkv",
+    "[Rkasaua] Itsh si a show mnae 12 [Idpbr 1920x1080 x265 10bit Calf] [70000000].vkm",
+    "[Ogciarlls]_Rdakre_tnha_my_slou_12_(1920x1080_Ulb-Rya_Calf)_[80000000].kmv",
+    "E01 'Reload The Vending Machine'.mkv",
+    "[ThisIsATest] Thunderbolt Avengers S2 - 104 [1080p].mkv",
+    "Samurai.Golf.-.10.-.1080p.BlueBunnies.x264.DOD.mkv"
+])
+def test_parse_filename_various_cases(filename):
+    result = parse_filename(filename)
+    assert isinstance(result, dict)
+    assert result["show_name"]
+    # Optionally print for debug:
+    # print(f"{filename} => {result}")

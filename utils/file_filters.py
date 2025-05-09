@@ -5,6 +5,7 @@ import re
 # Always ensure that the constants are lowercase.  Using a set comprehension to ensure uniqueness and lowercasing.
 EXCLUDED_EXTENSIONS = {ext.lower() for ext in {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".nfo", ".sfv"}}
 EXCLUDED_KEYWORDS = {kw.lower() for kw in {"sample", "screens", "thumbs.db", ".ds_store"}}
+EXCLUDED_FILENAMES = {fn.lower() for fn in {"desktop.ini", "thumbs.db", ".DS_Store", "screens", "screenshots", "sample", "samples"}}
 
 # Regex for Illegal characters in file/directory names
 ILLEGAL_CHARS_REGEX = re.compile(r'[<>:"/\\|?*]+')
