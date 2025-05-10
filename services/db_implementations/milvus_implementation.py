@@ -211,6 +211,19 @@ class MilvusDBService(DatabaseInterface):
             
         return None
 
+    def get_show_by_tmdb_id(self, tmdb_id: int) -> Optional[Dict[str, Any]]:
+        """Retrieve a show record by TMDB ID."""
+        collection = Collection("tv_shows")
+        expr = f'tmdb_id == {tmdb_id}'
+        results = collection.query(expr=expr)
+        if results:
+            record = results[0]  # Milvus returns dict-like records
+            logger.info(f"Show {record.get('tmdb_name', '')} found in database. (TMDB ID Match)")
+            return record
+        else:
+            logger.info(f"No show found in database for TMDB ID {tmdb_id}")
+            return None
+
     def get_all_shows(self) -> List[Dict[str, Any]]:
         """Get all shows from the database."""
         collection = Collection("tv_shows")

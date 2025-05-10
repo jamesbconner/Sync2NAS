@@ -258,6 +258,21 @@ class SQLiteDBService(DatabaseInterface):
 
         return None
 
+    def get_show_by_tmdb_id(self, tmdb_id: int) -> Optional[Dict[str, Any]]:
+        """Retrieve a show record by TMDB ID."""
+        with self._connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute("SELECT * FROM tv_shows WHERE tmdb_id = ?", (tmdb_id,))
+            row = cursor.fetchone()
+            
+            if row:
+                logger.info(f"Show {row['tmdb_name']} found in database. (TMDB ID Match)")
+                return dict(row)
+            else:
+                logger.info(f"No show found in database for TMDB ID {tmdb_id}")
+                return None
+
+
     def get_all_shows(self) -> List[Dict[str, Any]]:
         """Return all shows from the tv_shows table."""
         with self._connection() as conn:

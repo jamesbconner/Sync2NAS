@@ -47,6 +47,11 @@ class DatabaseInterface(ABC):
         pass
     
     @abstractmethod
+    def get_show_by_tmdb_id(self, tmdb_id: int) -> Optional[dict]:
+        """Fetch a show record by TMDB ID."""
+        pass    
+    
+    @abstractmethod
     def get_all_shows(self) -> List[Dict[str, Any]]:
         """Get all shows from the database."""
         pass
