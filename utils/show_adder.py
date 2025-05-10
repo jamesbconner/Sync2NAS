@@ -36,10 +36,17 @@ def add_show_interactively(show_name, tmdb_id, db: DatabaseInterface, tmdb: TMDB
         sys_path = os.path.join(anime_tv_path, sanitize_filename(sys_name))
         logger.info(f"Using sanitized derived sys_name for the folder name: {sys_path}")
 
+    # If the show already exists and we're not overriding the directory, raise an error
+    #   If we're overriding the directory, assume we know what we're doing and continue
+    #   Why does this scenario exist:  Remakes like Rurouni Kenshin and Ranma 1/2
+    # TODO:  This is a hack and needs to be refactored with better logic
     if db.show_exists(sys_name):
-        raise FileExistsError(f"Show already exists in DB: {sys_name}")
-
-    # ToDo:  Decisioning about sys_name and sys_path for show instantiation is less than ideal.
+        if not override_dir:
+            raise FileExistsError(f"Show already exists in DB: {sys_name}")
+        else:
+            logger.info(f"Show already exists in DB: {sys_name}, but overriding directory.  Likely a remake.")
+    
+    # TODO:  Decisioning about sys_name and sys_path for show instantiation is less than ideal.
     show = Show.from_tmdb(show_details=details, sys_name=sys_name, sys_path=sys_path)
     episode_groups = details.get("episode_groups", {}).get("results", [])
     season_count = details["info"].get("number_of_seasons", 0)

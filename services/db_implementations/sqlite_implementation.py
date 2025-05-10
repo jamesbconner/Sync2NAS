@@ -123,6 +123,7 @@ class SQLiteDBService(DatabaseInterface):
                                 fetched_at DATETIME, 
                                 name TEXT, 
                                 overview TEXT, 
+                                UNIQUE (tmdb_id, season, episode) ON CONFLICT REPLACE,
                                 CONSTRAINT FK_episodes_tv_shows FOREIGN KEY (tmdb_id) REFERENCES tv_shows(tmdb_id))''')
             # Rest of table definitions...
             conn.execute('''CREATE TABLE IF NOT EXISTS downloaded_files (
@@ -183,17 +184,45 @@ class SQLiteDBService(DatabaseInterface):
             conn.commit()
             logger.info(f"Inserted episode S{episode.season:02d}E{episode.episode:04d} - {episode.name}")
 
-    def add_episodes(self, episodes: List["Episode"]) -> None:
-        """Insert multiple episodes into the episodes table."""
+    def add_episodes(self, episodes: List["Episode"]) -> None:            
+        """Insert or update episodes in the database."""
+        if not episodes:
+            return
+
+        query = """
+            INSERT INTO episodes (
+                tmdb_id, season, episode, abs_episode,
+                episode_type, episode_id, air_date, fetched_at,
+                name, overview
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(tmdb_id, season, episode) DO UPDATE SET
+                abs_episode = excluded.abs_episode,
+                episode_type = excluded.episode_type,
+                episode_id = excluded.episode_id,
+                air_date = excluded.air_date,
+                fetched_at = excluded.fetched_at,
+                name = excluded.name,
+                overview = excluded.overview;
+        """
+
+        params = [ep.to_db_tuple() for ep in episodes]
+
         with self._connection() as conn:
-            conn.executemany('''
-                INSERT INTO episodes (
-                    tmdb_id, season, episode, abs_episode, episode_type,
-                    episode_id, air_date, fetched_at, name, overview
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', [ep.to_db_tuple() for ep in episodes])
-            conn.commit()
+            conn.executemany(query, params)
+            conn.commit() 
             logger.info(f"Inserted {len(episodes)} episodes.")
+            
+        # """Insert multiple episodes into the episodes table."""
+        # with self._connection() as conn:
+        #     conn.executemany('''
+        #         INSERT INTO episodes (
+        #             tmdb_id, season, episode, abs_episode, episode_type,
+        #             episode_id, air_date, fetched_at, name, overview
+        #         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        #     ''', [ep.to_db_tuple() for ep in episodes])
+        #     conn.commit()
+        #     logger.info(f"Inserted {len(episodes)} episodes.")
 
     def show_exists(self, name: str) -> bool:
         """Check if a show exists based on sys_name, tmdb_name, or aliases."""
@@ -271,7 +300,6 @@ class SQLiteDBService(DatabaseInterface):
             else:
                 logger.info(f"No show found in database for TMDB ID {tmdb_id}")
                 return None
-
 
     def get_all_shows(self) -> List[Dict[str, Any]]:
         """Return all shows from the tv_shows table."""

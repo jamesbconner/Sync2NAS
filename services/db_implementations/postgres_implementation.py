@@ -104,6 +104,8 @@ class PostgresDBService(DatabaseInterface):
                 fetched_at TIMESTAMP NOT NULL,
                 is_dir BOOLEAN NOT NULL
             )''')
+            
+            cursor.execute('''CREATE UNIQUE INDEX idx_episodes_unique ON episodes (tmdb_id, season, episode)''')
             conn.commit()
             logger.info("Database initialized successfully")
 
@@ -137,17 +139,34 @@ class PostgresDBService(DatabaseInterface):
             logger.info(f"Inserted episode S{episode.season:02d}E{episode.episode:04d} - {episode.name}")
 
     def add_episodes(self, episodes: List[Any]) -> None:
-        """Add multiple episodes to the database."""
+        """Insert or update episodes in the database."""
+        if not episodes:
+            return
+
+        query = """
+            INSERT INTO episodes (
+                tmdb_id, season, episode, abs_episode,
+                episode_type, episode_id, air_date, fetched_at,
+                name, overview
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (tmdb_id, season, episode) DO UPDATE SET
+                abs_episode = EXCLUDED.abs_episode,
+                episode_type = EXCLUDED.episode_type,
+                episode_id = EXCLUDED.episode_id,
+                air_date = EXCLUDED.air_date,
+                fetched_at = EXCLUDED.fetched_at,
+                name = EXCLUDED.name,
+                overview = EXCLUDED.overview;
+        """
+
+        params = [ep.to_db_tuple() for ep in episodes]
+
         with self._connection() as conn:
-            cursor = conn.cursor()
-            cursor.executemany('''
-                INSERT INTO episodes (
-                    tmdb_id, season, episode, abs_episode, episode_type,
-                    episode_id, air_date, fetched_at, name, overview
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ''', [ep.to_db_tuple() for ep in episodes])
-            conn.commit()
-            logger.info(f"Inserted {len(episodes)} episodes.")
+            with conn.cursor() as cursor:
+                cursor.executemany(query, params)
+                conn.commit()
+                logger.info(f"Inserted {len(episodes)} episodes.")
 
     def show_exists(self, name: str) -> bool:
         """Check if a show exists based on name or aliases."""
