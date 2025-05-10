@@ -1,13 +1,20 @@
 import pytest
-from pathlib import Path
+import sqlite3
 import configparser
+import datetime as dt
+from click.testing import CliRunner
 from services.db_implementations.sqlite_implementation import SQLiteDBService
 from cli.main import sync2nas_cli
 from models.show import Show
-from models.episode import Episode
+from datetime import datetime
+from pathlib import Path
 from utils.sync2nas_config import write_temp_config
+from models.episode import Episode
+from models.show import Show
 
-
+# -------------------------------
+# Fixtures
+# -------------------------------
 @pytest.fixture
 def test_config(tmp_path):
     """
@@ -38,10 +45,15 @@ def test_config(tmp_path):
     return config, config_path
 
 
-def create_realistic_show():
-    """
-    Returns a fully populated Show object compatible with DB schema.
-    """
+@pytest.fixture
+def test_db(test_config):
+    config, _ = test_config
+    db = SQLiteDBService(config["SQLite"]["db_file"])
+    db.initialize()
+    return db
+
+@pytest.fixture
+def dummy_show():
     return Show(
         sys_name="Bleach",
         sys_path="a:/anime tv/Bleach",
@@ -55,12 +67,11 @@ def create_realistic_show():
         tmdb_season_count=2,
         tmdb_episode_count=406,
         tmdb_episode_groups='{"description": "Order of episodes according to TVDB.", "episode_count": 410, "group_count": 18, "id": "663fb548c10d4be3e80b2f6d", "name": "TVDB Order", "network": null, "type": 1}',
-        tmdb_episodes_fetched_at="2025-04-13T15:48:42.154007",
+        tmdb_episodes_fetched_at=str(dt.datetime.now(dt.UTC)),
         tmdb_status="Returning Series",
         tmdb_external_ids='{"id": 30984, "imdb_id": "tt0434665", "tvdb_id": 74796}',
-        fetched_at="2025-04-13T15:48:42.154007"
+        fetched_at=str(dt.datetime.now(dt.UTC))
     )
-
 
 def create_dummy_episodes():
     """
@@ -93,8 +104,140 @@ def create_dummy_episodes():
         )
     ]
 
+# -------------------------------
+# Edge & Defensive Tests
+# -------------------------------
 
-def test_update_by_show_name(test_config, cli_runner, cli, mock_tmdb_service, mock_sftp_service, monkeypatch):
+def test_update_show_not_found(test_config, test_db, cli_runner, mock_tmdb_service, mock_sftp_service):
+    config, config_path = test_config
+    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "update-episodes", "Missing Show"], obj={
+        "config": config,
+        "db": test_db,
+        "tmdb": mock_tmdb_service,
+        "sftp": mock_sftp_service,
+        "anime_tv_path": config["Routing"]["anime_tv_path"],
+        "incoming_path": config["Transfers"]["incoming"]
+    })
+    assert result.exit_code == 0
+    assert "No show found in DB for show name" in result.output
+
+def test_tmdb_failure(monkeypatch, test_config, test_db, cli_runner, dummy_show, mock_tmdb_service, mock_sftp_service):
+    config, config_path = test_config
+    test_db.add_show(dummy_show)
+
+    def fail(*args, **kwargs):
+        raise Exception("TMDB error")
+
+    monkeypatch.setattr(mock_tmdb_service, "get_show_details", fail)
+
+    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "update-episodes", "Bleach"], obj={
+        "config": config,
+        "db": test_db,
+        "tmdb": mock_tmdb_service,
+        "sftp": mock_sftp_service,
+        "anime_tv_path": config["Routing"]["anime_tv_path"],
+        "incoming_path": config["Transfers"]["incoming"]
+    })
+    assert result.exit_code != 0
+
+def test_no_episodes(monkeypatch, test_config, test_db, cli_runner, dummy_show, mock_tmdb_service, mock_sftp_service):
+    config, config_path = test_config
+    test_db.add_show(dummy_show)
+
+    mock_tmdb_service.get_show_details.return_value = {"info": {"number_of_seasons": 2}, "episode_groups": {"results": []}}
+    monkeypatch.setattr("models.episode.Episode.parse_from_tmdb", lambda *a, **k: [])
+
+    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "update-episodes", "Bleach"], obj={
+        "config": config,
+        "db": test_db,
+        "tmdb": mock_tmdb_service,
+        "sftp": mock_sftp_service,
+        "anime_tv_path": config["Routing"]["anime_tv_path"],
+        "incoming_path": config["Transfers"]["incoming"]
+    })
+
+    assert result.exit_code == 0
+    assert "Fetched 0 episodes from TMDB" in result.output
+
+def test_dry_run(monkeypatch, test_config, test_db, cli_runner, dummy_show, mock_tmdb_service, mock_sftp_service):
+    config, config_path = test_config
+    test_db.add_show(dummy_show)
+
+    mock_tmdb_service.get_show_details.return_value = {"info": {"number_of_seasons": 2}, "episode_groups": {"results": []}}
+    dummy_episodes = [dummy_show]  # just any object to avoid None
+    monkeypatch.setattr("models.episode.Episode.parse_from_tmdb", lambda *a, **k: dummy_episodes)
+
+    monkeypatch.setattr(test_db, "add_episodes", pytest.fail)
+
+    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "update-episodes", "Bleach", "--dry-run"], obj={
+        "config": config,
+        "db": test_db,
+        "tmdb": mock_tmdb_service,
+        "sftp": mock_sftp_service,
+        "anime_tv_path": config["Routing"]["anime_tv_path"],
+        "incoming_path": config["Transfers"]["incoming"]
+    })
+
+    assert result.exit_code == 0
+    assert "[DRY RUN]" in result.output
+
+def test_db_failure(monkeypatch, test_config, cli_runner, mock_tmdb_service, mock_sftp_service):
+    config, config_path = test_config
+    broken_db = SQLiteDBService(config["SQLite"]["db_file"])
+    broken_db.initialize()
+    monkeypatch.setattr(broken_db, "get_show_by_name_or_alias", lambda *a, **k: (_ for _ in ()).throw(sqlite3.OperationalError("Mock DB error")))
+
+    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "update-episodes", "Bleach"], obj={
+        "config": config,
+        "db": broken_db,
+        "tmdb": mock_tmdb_service,
+        "sftp": mock_sftp_service,
+        "anime_tv_path": config["Routing"]["anime_tv_path"],
+        "incoming_path": config["Transfers"]["incoming"]
+    })
+    assert result.exit_code != 0
+
+def test_unicode_show_name(test_config, test_db, cli_runner, mock_tmdb_service, mock_sftp_service):
+    config, config_path = test_config
+    unicode_show = Show(
+        sys_name="名探偵コナン",
+        sys_path="/anime/名探偵コナン",
+        tmdb_name="名探偵コナン",
+        tmdb_aliases="Detective Conan",
+        tmdb_id=9999,
+        tmdb_first_aired="1996-01-01T00:00:00",
+        tmdb_last_aired="2025-01-01T00:00:00",
+        tmdb_year=1996,
+        tmdb_overview="Japanese mystery anime",
+        tmdb_season_count=30,
+        tmdb_episode_count=1100,
+        tmdb_episode_groups="[]",
+        tmdb_episodes_fetched_at=str(dt.datetime.now(dt.UTC)),
+        tmdb_status="Returning Series",
+        tmdb_external_ids="{}",
+        fetched_at=str(dt.datetime.now(dt.UTC))
+    )
+    test_db.add_show(unicode_show)
+
+    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "update-episodes", "名探偵コナン"], obj={
+        "config": config,
+        "db": test_db,
+        "tmdb": mock_tmdb_service,
+        "sftp": mock_sftp_service,
+        "anime_tv_path": config["Routing"]["anime_tv_path"],
+        "incoming_path": config["Transfers"]["incoming"]
+    })
+
+    assert result.exit_code == 0
+    assert "名探偵コナン" in result.output
+
+def test_invalid_tmdb_id(test_config, cli_runner):
+    config, config_path = test_config
+    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "update-episodes", "--tmdb-id", "abc"])
+    assert result.exit_code != 0
+
+
+def test_update_by_show_name(test_config, cli_runner, cli, mock_tmdb_service, mock_sftp_service, monkeypatch, dummy_show):
     """
     Validate update-episodes works when providing show_name.
     """
@@ -103,7 +246,7 @@ def test_update_by_show_name(test_config, cli_runner, cli, mock_tmdb_service, mo
     db.initialize()
 
     # Add test show
-    db.add_show(create_realistic_show())
+    db.add_show(dummy_show)
 
     # Patch TMDB responses
     mock_tmdb_service.get_show_details.return_value = {
@@ -131,7 +274,7 @@ def test_update_by_show_name(test_config, cli_runner, cli, mock_tmdb_service, mo
     assert "✅ 2 episodes added/updated for Bleach" in result.output
 
 
-def test_update_by_tmdb_id(test_config, cli_runner, cli, mock_tmdb_service, mock_sftp_service, monkeypatch):
+def test_update_by_tmdb_id(test_config, cli_runner, cli, mock_tmdb_service, mock_sftp_service, monkeypatch, dummy_show):
     """
     Validate update-episodes works when providing tmdb_id.
     """
@@ -140,7 +283,7 @@ def test_update_by_tmdb_id(test_config, cli_runner, cli, mock_tmdb_service, mock
     db.initialize()
 
     # Add test show
-    db.add_show(create_realistic_show())
+    db.add_show(dummy_show)
 
     # Patch TMDB responses
     mock_tmdb_service.get_show_details.return_value = {
@@ -166,3 +309,4 @@ def test_update_by_tmdb_id(test_config, cli_runner, cli, mock_tmdb_service, mock
     assert result.exit_code == 0, result.output
     assert "🎞️ Fetched 2 episodes from TMDB" in result.output
     assert "✅ 2 episodes added/updated for Bleach" in result.output
+
