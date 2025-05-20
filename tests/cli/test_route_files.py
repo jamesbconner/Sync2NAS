@@ -44,7 +44,7 @@ def test_config(tmp_path):
 
 @pytest.fixture
 def mock_routing(monkeypatch):
-    def fake_routing(incoming_path, anime_tv_path, db, dry_run=False, auto_add=False, tmdb=None):
+    def fake_routing(incoming_path, anime_tv_path, db, tmdb, dry_run=False, auto_add=False):
         print(f"fake_routing - incoming_path: {incoming_path}")
         print(f"fake_routing - anime_tv_path: {anime_tv_path}")
         return [

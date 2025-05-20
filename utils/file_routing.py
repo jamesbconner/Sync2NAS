@@ -6,6 +6,7 @@ from services.db_implementations.db_interface import DatabaseInterface
 from models.episode import Episode
 from models.show import Show
 import logging
+from utils.episode_updater import refresh_episodes_for_show
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,7 @@ def parse_filename(filename: str) -> dict:
     return {"show_name": cleaned, "season": None, "episode": None}
 
 
-def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, dry_run: bool = False) -> List[Dict[str, str]]:
+def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, tmdb, dry_run: bool = False) -> List[Dict[str, str]]:
     """
     Scan the incoming directory, identify files to route, and move them to their destination paths.
 
@@ -68,6 +69,7 @@ def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, 
         incoming_path: The directory to scan for files
         anime_tv_path: Base directory where shows should be routed
         db: Database interface for show and episode lookup
+        tmdb: TMDB object for episode refreshing
         dry_run: If True, simulate actions without moving files
 
     Returns:
@@ -110,12 +112,21 @@ def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, 
             # If only episode is found, use absolute episode lookup
             elif episode is not None:
                 matched_ep = db.get_episode_by_absolute_number(show.tmdb_id, episode)
-                if matched_ep:
+                if not matched_ep:
+                    logger.debug(f"No episode match in DB for TMDB ID {show.tmdb_id}, absolute {episode}. Attempting to refresh episodes from TMDB.")
+                    refresh_episodes_for_show(db, tmdb, show, dry_run)
+                    matched_ep = db.get_episode_by_absolute_number(show.tmdb_id, episode)
+                    if not matched_ep:
+                        logger.error(f"No episode info found for show '{show.sys_name}' (TMDB ID {show.tmdb_id}), absolute episode {episode} after TMDB refresh.")
+                        # Continue routing, but leave season/episode as None
+                        season_str = None
+                        episode_str = None
+                    else:
+                        season_str = f"{int(matched_ep['season']):02}"
+                        episode_str = f"{int(matched_ep['episode']):02}"
+                else:
                     season_str = f"{int(matched_ep['season']):02}"
                     episode_str = f"{int(matched_ep['episode']):02}"
-                else:
-                    logger.debug(f"No episode match in DB for TMDB ID {show.tmdb_id}, absolute {episode}")
-                    continue
 
             # If neither is available, skip this file
             else:
@@ -123,7 +134,10 @@ def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, 
                 continue
 
             # Construct destination path using the show's sys_path and season folder
-            season_dir = os.path.join(show.sys_path, f"Season {season_str}")
+            if season_str is not None:
+                season_dir = os.path.join(show.sys_path, f"Season {season_str}")
+            else:
+                season_dir = show.sys_path
             target_path = os.path.join(season_dir, filename)
 
             # Perform or simulate the move operation

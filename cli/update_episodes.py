@@ -3,6 +3,7 @@ import logging
 from utils.cli_helpers import pass_sync2nas_context
 from models.episode import Episode
 from models.show import Show
+from utils.episode_updater import refresh_episodes_for_show
 
 logger = logging.getLogger(__name__)
 
@@ -49,28 +50,13 @@ def update_episodes(ctx, show_name, tmdb_id, dry_run):
     click.secho(f"🔎 Found show: {show.sys_name} (TMDB ID {show.tmdb_id})", fg="cyan")
 
     # Step 2: Fetch fresh episode data from TMDB
-    logger.debug(f"cli/update_episodes.py::update_episodes - Calling tmdb.get_show_details({show.tmdb_id})")
-    details = tmdb.get_show_details(show.tmdb_id)
-    if not details or "info" not in details:
-        logger.error(f"cli/update_episodes.py::update_episodes - Failed to get TMDB details for {show.tmdb_id}")
-        click.secho(f"❌ Failed to get TMDB details for {show.tmdb_id}", fg="red")
+    logger.debug(f"cli/update_episodes.py::update_episodes - Calling refresh_episodes_for_show for {show.sys_name} (tmdb_id={show.tmdb_id})")
+    num_episodes = refresh_episodes_for_show(db, tmdb, show, dry_run)
+    if num_episodes == 0:
+        click.secho(f"❌ Failed to fetch or update episodes for {show.sys_name}", fg="red")
         return
-
-    episode_groups = details.get("episode_groups", {}).get("results", [])
-    season_count = details["info"].get("number_of_seasons", 0)
-    logger.debug(f"cli/update_episodes.py::update_episodes - TMDB returned season_count={season_count}")
-
-    episodes = Episode.parse_from_tmdb(show.tmdb_id, tmdb, episode_groups, season_count)
-
-    logger.info(f"cli/update_episodes.py::update_episodes - Parsed {len(episodes)} episodes from TMDB")
-    click.secho(f"🎞️ Fetched {len(episodes)} episodes from TMDB", fg="cyan")
-
-    # Step 3: Update DB
+    click.secho(f"🎞️ Fetched {num_episodes} episodes from TMDB", fg="cyan")
     if dry_run:
-        logger.info("cli/update_episodes.py::update_episodes - Dry run: skipping db.add_episodes()")
         click.secho("[DRY RUN] Skipping database update.", fg="yellow")
     else:
-        logger.debug(f"cli/update_episodes.py::update_episodes - Writing {len(episodes)} episodes to database")
-        db.add_episodes(episodes)
-        logger.info(f"cli/update_episodes.py::update_episodes - Completed update for {show.sys_name}")
-        click.secho(f"✅ {len(episodes)} episodes added/updated for {show.sys_name}", fg="green")
+        click.secho(f"✅ {num_episodes} episodes added/updated for {show.sys_name}", fg="green")

@@ -26,7 +26,7 @@ def route_files(ctx, dry_run, auto_add):
     if auto_add:
         _auto_add_missing_shows(ctx, incoming_path, dry_run)
 
-    routed = file_routing(incoming_path, anime_tv_path, db, dry_run=dry_run)
+    routed = file_routing(incoming_path, anime_tv_path, db, tmdb, dry_run=dry_run)
 
     if dry_run:
         click.secho("\n[DRY RUN] No files will be moved.", fg="green")

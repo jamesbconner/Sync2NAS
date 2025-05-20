@@ -157,7 +157,7 @@ def test_no_episodes(monkeypatch, test_config, test_db, cli_runner, dummy_show, 
     })
 
     assert result.exit_code == 0
-    assert "Fetched 0 episodes from TMDB" in result.output
+    assert "Failed to fetch or update episodes for Bleach" in result.output
 
 def test_dry_run(monkeypatch, test_config, test_db, cli_runner, dummy_show, mock_tmdb_service, mock_sftp_service):
     config, config_path = test_config
