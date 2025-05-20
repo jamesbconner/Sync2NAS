@@ -4,6 +4,7 @@ import datetime
 from typing import List, Dict
 from services.sftp_service import SFTPService
 from services.db_implementations.db_interface import DatabaseInterface
+from utils.file_filters import is_valid_media_file, is_valid_directory
 
 logger = logging.getLogger(__name__)
 
@@ -100,27 +101,24 @@ def list_remote_files(sftp_service, remote_path: str) -> List[Dict]:
         List of filtered file metadata dictionaries
     """
 
-    EXCLUDED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".nfo", ".sfv"}
-    EXCLUDED_KEYWORDS = {"screens", "sample"}
-
     raw_files = sftp_service.list_remote_dir(remote_path)
 
     filtered = []
     now = datetime.datetime.now()
 
     for entry in raw_files:
-        name = entry.get("name", "").lower()
+        name = entry.get("name", "")
         is_dir = entry.get("is_dir", False)
 
-        # Exclude by keyword in name
-        if any(keyword in name for keyword in EXCLUDED_KEYWORDS):
-            logger.debug(f"Excluded by keyword: {entry['name']}")
-            continue
-
-        # Exclude by extension
-        if not is_dir and any(name.endswith(ext) for ext in EXCLUDED_EXTENSIONS):
-            logger.debug(f"Excluded by extension: {entry['name']}")
-            continue
+        # Use utils/file_filters.py for filtering
+        if is_dir:
+            if not is_valid_directory(name):
+                logger.debug(f"Excluded directory by keyword: {entry['name']}")
+                continue
+        else:
+            if not is_valid_media_file(name):
+                logger.debug(f"Excluded file by extension/keyword: {entry['name']}")
+                continue
 
         # Exclude files modified in the last minute
         modified_time = entry.get("modified_time")
