@@ -34,8 +34,14 @@ def process_sftp_diffs(
         entry['fetched_at'] = datetime.datetime.now()
 
         if entry["is_dir"]:
+            if not is_valid_directory(name):
+                logger.info(f"Skipping directory due to filter: {name}")
+                continue
             entry_type = "DIR"
         else:
+            if not is_valid_media_file(name):
+                logger.info(f"Skipping file due to filter: {name}")
+                continue
             entry_type = "FILE"
 
         if dry_run:
@@ -48,7 +54,7 @@ def process_sftp_diffs(
             else:
                 sftp_service.download_file(remote_path, local_path)
             
-            # ToDo: This only works for the top level objects in the sftp path. Need to update to work for nested directories.
+            # TODO: This only works for the top level objects in the sftp path. Need to update to work for nested directories.
             db_service.add_downloaded_file(entry)
             logger.info(f"Downloaded {entry_type}: {remote_path} -> {local_path}")
         except Exception as e:
