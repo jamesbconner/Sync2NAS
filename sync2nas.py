@@ -3,12 +3,13 @@ from cli.main import sync2nas_cli
 # ────────────────────────────────────────────────
 # TODO List
 # ────────────────────────────────────────────────
+# TODO: Database backup function
+# TODO: Add a function to check for and handle show/episode renames and updates to the database
 # TODO: Check downloaded file against AniDB hash to confirm file integrity and correctly identify episode
 # TODO: Check inventory hashes against AniDB hashes to confirm file integrity and correctly identify episode
 # TODO: Inventory check against episodes table to identify missing episodes
 # TODO: Filename transformer to convert absolute episode number to relative season/episode number (Jellyfin)
 # TODO: Check for new seasons of shows existing in the inventory on AniDb (periodic pull of AniDB)
-# TODO: Fix the downloader to use the file filtering function
 # TODO: Add a de-deupe function to identify duplicate show/episodes in the inventory for pruning
 # TODO: Rework special character handling in show names (primary and aliases)
 # TODO: Add a function to check for and handle show/episode renames and updates to the database
