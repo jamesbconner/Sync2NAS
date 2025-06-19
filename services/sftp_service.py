@@ -227,6 +227,7 @@ class SFTPService:
 
     @retry_sftp_operation
     def download_file(self, remote_path, local_path):
+        logger.debug(f"Downloading file from {remote_path} to {local_path}")
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
         self.client.get(remote_path, local_path)
         logger.debug(f"Downloaded file from {remote_path} to {local_path}")
@@ -239,8 +240,14 @@ class SFTPService:
             local_entry = os.path.join(local_path, entry.filename)
 
             if stat.S_ISDIR(entry.st_mode):
+                if not is_valid_directory(entry.filename):
+                    logger.debug(f"Skipping directory due to filter: {entry.filename}")
+                    continue
                 logger.debug(f"Downloading directory: {remote_entry}")
                 self.download_dir(remote_entry, local_entry)
             else:
+                if not is_valid_media_file(entry.filename):
+                    logger.debug(f"Skipping file due to filter: {entry.filename}")
+                    continue
                 logger.debug(f"Downloading file: {remote_entry}")
                 self.download_file(remote_entry, local_entry)
