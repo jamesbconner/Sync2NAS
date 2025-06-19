@@ -49,6 +49,7 @@ def process_sftp_diffs(
             continue
 
         try:
+            logger.info(f"Starting download of {entry_type}: {remote_path} -> {local_path}")
             if entry["is_dir"]:
                 sftp_service.download_dir(remote_path, local_path)
             else:
