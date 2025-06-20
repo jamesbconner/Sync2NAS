@@ -52,3 +52,6 @@ for filename in os.listdir(COMMAND_DIR):
             pass
     else:
         pass
+
+if __name__ == '__main__':
+    sync2nas_cli()

@@ -4,10 +4,12 @@ import json
 import sqlite3
 import datetime
 import logging
+import shutil
 from typing import List, Dict, Any, Optional, Tuple, Union
 from contextlib import contextmanager
 from models.episode import Episode
 from services.db_implementations.db_interface import DatabaseInterface
+from models.show import Show
 
 logger = logging.getLogger(__name__)
 
@@ -542,3 +544,25 @@ class SQLiteDBService(DatabaseInterface):
             """)
             conn.commit()
             logger.info("Copied sftp_temp_files to downloaded_files.")
+
+    def backup_database(self) -> str:
+        """
+        Creates a backup of the SQLite database file.
+        The backup is stored in a 'backups/sqlite' directory relative to the db file path,
+        with a timestamp in the filename.
+        """
+        if not self.db_file or not os.path.exists(self.db_file):
+            raise FileNotFoundError("Database file not found.")
+
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
+        db_dir = os.path.dirname(self.db_file)
+        backup_dir = os.path.join(db_dir, "..", "backups", "sqlite")
+        os.makedirs(backup_dir, exist_ok=True)
+
+        db_filename = os.path.basename(self.db_file)
+        backup_filename = f"{os.path.splitext(db_filename)[0]}_{timestamp}.db"
+        backup_path = os.path.join(backup_dir, backup_filename)
+
+        shutil.copy2(self.db_file, backup_path)
+        logger.info(f"SQLite database backed up to {backup_path}")
+        return backup_path

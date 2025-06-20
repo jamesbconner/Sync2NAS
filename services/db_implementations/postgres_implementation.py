@@ -6,7 +6,9 @@ import logging
 from typing import List, Dict, Any, Optional, Tuple, Union
 from contextlib import contextmanager
 from models.episode import Episode
+from models.show import Show
 from services.db_implementations.db_interface import DatabaseInterface
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 logger = logging.getLogger(__name__)
 
@@ -480,4 +482,65 @@ class PostgresDBService(DatabaseInterface):
                 FROM sftp_temp_files
             """)
             conn.commit()
-            logger.info("Copied sftp_temp_files to downloaded_files.") 
+            logger.info("Copied sftp_temp_files to downloaded_files.")
+
+    def backup_database(self) -> str:
+        """
+        Creates a backup of the PostgreSQL database by creating a new database
+        with a timestamp in its name and copying the contents.
+        """
+        source_db_name = self.conn_params.get("dbname")
+        if not source_db_name:
+            raise ValueError("Database name not configured.")
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+        backup_db_name = f"{source_db_name}_backup_{timestamp}"
+
+        conn_params_maintenance = self.conn_params.copy()
+        conn_params_maintenance["dbname"] = "postgres"  # Connect to maintenance db
+
+        conn = None
+        try:
+            conn = psycopg2.connect(**conn_params_maintenance)
+            conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+            cursor = conn.cursor()
+
+            # Check if role has CREATEDB privilege
+            cursor.execute(
+                "SELECT rolcreatedb FROM pg_roles WHERE rolname = %s;",
+                (self.conn_params.get("user"),),
+            )
+            can_create_db = cursor.fetchone()
+
+            if not can_create_db or not can_create_db[0]:
+                raise PermissionError(
+                    f"User '{self.conn_params.get('user')}' does not have CREATEDB privilege."
+                )
+
+            logger.info(f"Creating backup database: {backup_db_name}")
+            cursor.execute(
+                f'CREATE DATABASE "{backup_db_name}" WITH TEMPLATE "{source_db_name}" OWNER "{self.conn_params.get("user")}";'
+            )
+            logger.info(
+                f"PostgreSQL database '{source_db_name}' backed up to '{backup_db_name}'"
+            )
+            cursor.close()
+            return backup_db_name
+        except psycopg2.Error as e:
+            logger.error(f"PostgreSQL backup failed: {e}")
+            raise
+        finally:
+            if conn:
+                conn.close()
+
+    def get_show_by_name(self, name: str) -> Optional[Show]:
+        with self._connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM tv_shows WHERE LOWER(sys_name) = LOWER(%s) OR LOWER(tmdb_name) = LOWER(%s)", (name, name))
+            columns = [desc[0] for desc in cursor.description]
+            row = cursor.fetchone()
+            if row:
+                show_dict = dict(zip(columns, row))
+                return Show(**show_dict)
+            else:
+                return None 

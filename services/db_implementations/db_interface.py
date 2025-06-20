@@ -85,3 +85,11 @@ class DatabaseInterface(ABC):
     def get_sftp_diffs(self) -> List[Dict[str, Any]]:
         """Get differences between SFTP and downloaded files."""
         pass
+
+    @abstractmethod
+    def backup_database(self) -> str:
+        """
+        Backs up the database.
+        Returns the path or identifier of the backup.
+        """
+        pass

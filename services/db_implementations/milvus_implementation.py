@@ -11,6 +11,9 @@ from pymilvus import (
     Collection,
 )
 from services.db_implementations.db_interface import DatabaseInterface
+from models.show import Show
+from models.episode import Episode
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -421,4 +424,46 @@ class MilvusDBService(DatabaseInterface):
         results = sftp_collection.query(expr="")
         if results:
             downloaded_collection.insert(results)
-            logger.info(f"Copied {len(results)} records from sftp_temp_files to downloaded_files.") 
+            logger.info(f"Copied {len(results)} records from sftp_temp_files to downloaded_files.")
+
+    def backup_database(self) -> str:
+        """
+        Creates a backup of the Milvus database by dumping all collections to JSON files.
+        The backup is stored in a 'backups/milvus' directory.
+        """
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+        backup_dir = os.path.join("backups", "milvus", f"backup_{timestamp}")
+        os.makedirs(backup_dir, exist_ok=True)
+
+        try:
+            collections = utility.list_collections()
+            logger.info(f"Found collections to back up: {collections}")
+
+            for collection_name in collections:
+                logger.info(f"Backing up collection: {collection_name}")
+                collection = Collection(collection_name)
+                collection.load()
+
+                # Query all data from the collection
+                results = collection.query(expr="id >= 0", output_fields=["*"])
+
+                backup_file_path = os.path.join(
+                    backup_dir, f"{collection_name}.json"
+                )
+                with open(backup_file_path, "w") as f:
+                    json.dump(results, f, indent=4)
+
+                logger.info(
+                    f"Collection '{collection_name}' backed up to '{backup_file_path}'"
+                )
+                collection.release()
+
+            logger.info(f"Milvus database backup completed in: {backup_dir}")
+            return backup_dir
+        except Exception as e:
+            logger.error(f"Milvus backup failed: {e}")
+            raise
+
+    def get_show_by_name(self, name: str) -> Optional[Show]:
+        # ...
+        pass 
