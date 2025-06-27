@@ -7,6 +7,49 @@
 
 This Python script synchronizes files from an SFTP server to a NAS, integrates with the TMDB API for metadata enrichment, and manages the data using a pluggable database backend (SQLite, PostgreSQL, or Milvus). It supports routing downloaded media files into organized directories, creating and managing show records, and updating episode information.
 
+## Getting Started
+
+Follow these steps to set up and use Sync2NAS:
+
+1. **Create the Configuration File**
+   - Copy or create `sync2nas_config.ini` in the `config` directory. Populate it with the appropriate parameters for your environment, including the `incoming` directory path. The incoming directory is where files will be downloaded from SFTP and is the source location for routing to your media library.  If you have no particular database preference, using SQLite is recommended.
+
+2. **Bootstrap Existing SFTP Downloads (Optional)**
+   - If your SFTP server already contains files you do not want to download again, run the `bootstrap-downloads` CLI command. This will record all existing remote files in the database so they are not re-downloaded in the future.  If your remote SFTP path is empty, this step is unnecessary.
+   ```bash
+   python sync2nas.py bootstrap-downloads
+   ```
+
+3. **Bootstrap Existing Media Library (Optional)**
+   - If you already have a directory with media content on your NAS, use the `bootstrap-tv-shows` CLI command. This will scan your media directories and add shows to the database.  If your media path is empty, this step is unnecessary.
+   ```bash
+   python sync2nas.py bootstrap-tv-shows
+   ```
+
+4. **Bootstrap Episode Information (Optional)**
+   - If you bootstrapped TV shows, run the `bootstrap-episodes` CLI command to fill in episode metadata for all shows in the database.
+   ```bash
+   python sync2nas.py bootstrap-episodes
+   ```
+
+5. **Download New Files from SFTP**
+   - Whenever new files are added to your remote SFTP directory, execute the `download-from-remote` command to fetch them into your incoming directory.
+   ```bash
+   python sync2nas.py download-from-remote
+   ```
+
+6. **Add New Shows Manually (Optional)**
+   - For best results, especially with shows that have ambiguous names with multiple potential matches (e.g., "Nosferatu"), add new shows manually before routing. This ensures proper matching and directory creation.  This step would only need to be performed once per show.
+   ```bash
+   python sync2nas.py add-show "Show Name" --tmdb-id 123456
+   ```
+
+7. **Route Files to Media Destinations**
+   - Use the `route-files` CLI command to move files from the incoming directory to their proper destinations on your NAS, based on the database and TMDB metadata.
+   ```bash
+   python sync2nas.py route-files --auto-add
+   ```
+
 ## Service Test Coverage
 
 | Service  | Coverage Matrix | Testing Philosophy |
