@@ -84,6 +84,7 @@ The script requires a configuration file (`sync2nas_config.ini`) in the `config`
 
 - `[Database]` section with `type` key: `sqlite`, `postgres`, or `milvus`.
 - Each backend has its own section for connection details.
+- SQLite is recommended if there is no particular preference.
 
 ### SQLite Settings
 
@@ -155,6 +156,9 @@ To use the TMDB integration features, obtain an API key by registering an accoun
 ## TODOs in the Code
 
 - [x] Database backup function (implemented)
+- [ ] Add a function to list shows in the database
+- [ ] Add a function to search shows in the database
+- [ ] Add a function to search for shows from TMDB
 - [ ] Add a function to check for and handle show/episode renames and updates to the database
 - [ ] Check downloaded file against AniDB hash to confirm file integrity and correctly identify episode
 - [ ] Check inventory hashes against AniDB hashes to confirm file integrity and correctly identify episode
