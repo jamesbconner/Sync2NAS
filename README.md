@@ -5,7 +5,7 @@
 
 ## Introduction
 
-This Python script synchronizes files from an SFTP server to a NAS, integrates with the TMDB API for metadata enrichment, and manages the data using an SQLite database. It supports routing downloaded media files into organized directories, creating and managing show records, and updating episode information.
+This Python script synchronizes files from an SFTP server to a NAS, integrates with the TMDB API for metadata enrichment, and manages the data using a pluggable database backend (SQLite, PostgreSQL, or Milvus). It supports routing downloaded media files into organized directories, creating and managing show records, and updating episode information.
 
 ## Service Test Coverage
 
@@ -14,6 +14,16 @@ This Python script synchronizes files from an SFTP server to a NAS, integrates w
 | SFTP     | [SFTP Service Matrix](docs/Services_Test_Coverage_Matrix.md#sftpservice-tests) | [SFTP Testing Philosophy](docs/SFTP_Test_Philosophy.md) |
 | Database | [DB Service Matrix](docs/Services_Test_Coverage_Matrix.md#dbservice-tests) | [DB Testing Philosophy](docs/Database_Test_Philosophy.md) |
 | TMDB     | [TMDB Service Matrix](docs/Services_Test_Coverage_Matrix.md#tmdbservice-tests) | [TMDB Testing Philosophy](docs/TMDB_Test_Philosophy.md) |
+
+## Key Features
+
+- **Database Factory:** Easily switch between SQLite, PostgreSQL, and Milvus backends via config. The factory pattern allows future database types to be added with minimal code changes.
+- **Rich Configuration:** Supports advanced routing of files, multiple database backends, SFTP options, etc.
+- **Bootstrap TV Shows:** Populate the TV shows table from the NAS directory structure.
+- **Bootstrap Existing Media:** Easily add your existing media to the database.
+- **Robust File Routing:** Supports routing to multiple media types.
+- **Configurable Logging:** Verbosity and log file output are fully configurable.
+- **Comprehensive Test Coverage:** Tests focus on service contracts and use the factory for backend-agnostic testing.
 
 ## Configuration Requirements
 
@@ -27,9 +37,22 @@ The script requires a configuration file (`sync2nas_config.ini`) in the `config`
 - `ssh_key_path`: Path to the SSH private key for authentication.
 - `paths`: Comma-separated list of remote paths on the SFTP server to synchronize files from.
 
+### Database Backend Selection
+
+- `[Database]` section with `type` key: `sqlite`, `postgres`, or `milvus`.
+- Each backend has its own section for connection details.
+
 ### SQLite Settings
 
 - `db_file`: Path to the SQLite database file used to store metadata and manage show information.
+
+### PostgreSQL Settings
+
+- `host`, `port`, `database`, `user`, `password`: Standard PostgreSQL connection parameters.
+
+### Milvus Settings
+
+- `host`, `port`: Milvus vector database connection parameters.
 
 ### TMDB API Settings
 
@@ -52,6 +75,22 @@ username = whatsyourname
 ssh_key_path = ./ssh/your_sftpserver_rsa
 paths = /path/to/remote/files/,/another/remote/path/,/third/remote/path/
 
+[Database]
+#type = postgres
+#type = milvus
+type = sqlite
+
+[PostgreSQL]
+host = localhost
+port = 5432
+database = sync2nas
+user = postgres
+password = your_password
+
+[Milvus]
+host = localhost
+port = 19530
+
 [SQLite]
 db_file = ./database/sync2nas.db
 
@@ -72,7 +111,28 @@ To use the TMDB integration features, obtain an API key by registering an accoun
 
 ## TODOs in the Code
 
+- [x] Database backup function (implemented)
+- [ ] Add a function to check for and handle show/episode renames and updates to the database
+- [ ] Check downloaded file against AniDB hash to confirm file integrity and correctly identify episode
+- [ ] Check inventory hashes against AniDB hashes to confirm file integrity and correctly identify episode
+- [ ] Inventory check against episodes table to identify missing episodes
+- [ ] Filename transformer to convert absolute episode number to relative season/episode number (Jellyfin)
+- [ ] Check for new seasons of shows existing in the inventory on AniDb (periodic pull of AniDB)
+- [ ] Add a de-dupe function to identify duplicate show/episodes in the inventory for pruning
+- [ ] Rework special character handling in show names (primary and aliases)
+- [ ] Add IMDB, TVDB and AniDB APIs as optional sources for show information if TMDB info missing
+- [ ] Better checks for handling specials and OVAs
+- [ ] Add genre, language and other identifiers to the search and fix-show functions
+- [ ] MCP LLM integration for show and episode filename parsing
+- [ ] MCP Server integration with TMDB, AniDB, TVDB, IMDB, etc. to get show and episode information
+- [ ] MCP Server integration with database backend to update/add shows, episodes, etc. (already supports SQLite)
+- [ ] Try vector DB for similarity search and recommendations (Milvus, Chroma, Qdrant, Weaviate, Faiss, etc.)
+- [ ] Semantic search and content-based retrieval of shows and episodes
+- [ ] MCP Server RSS Feed integration for new show notifications
+
 ## Roadmap for Future Development
+
+See the TODOs above for planned features and improvements. Contributions are welcome!
 
 ## Usage Examples
 
@@ -106,6 +166,12 @@ When a show gets added, either manually or via the --auto-add flag when routing 
 python sync2nas.py fix-show "Show Name" --tmdb-id 000000
 ```
 
+### Database Backup
+Back up the current database using the configured backend.
+```bash
+python sync2nas.py backup-db
+```
+
 ### Verbose Output for Debugging
 Enable step by step verbose information printed out to the console.  Single -v is for INFO log level messages, -vv is for DEBUG level.
 ```bash
@@ -113,7 +179,7 @@ python sync2nas.py -vv
 ```
 
 ### Dry Running Commands
-Most commands have a --dry-run flag enabled, so you can see what actions will be taken before commiting to that plan of action.
+Most commands have a --dry-run flag enabled, so you can see what actions will be taken before committing to that plan of action.
 ```bash
 python sync2nas.py route-files --auto-add --dry-run
 ```
