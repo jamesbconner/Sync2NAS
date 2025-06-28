@@ -81,20 +81,6 @@ Once running, access the interactive API documentation:
 GET /api/shows/
 ```
 
-**Response:**
-```json
-[
-  {
-    "id": 1,
-    "tmdb_id": 1396,
-    "tmdb_name": "Breaking Bad",
-    "sys_name": "Breaking Bad",
-    "sys_path": "/path/to/shows/Breaking Bad",
-    "aliases": "BB, BrBa"
-  }
-]
-```
-
 #### Get Specific Show
 ```http
 GET /api/shows/{show_id}
@@ -112,17 +98,6 @@ Content-Type: application/json
 }
 ```
 
-**Response:**
-```json
-{
-  "success": true,
-  "tmdb_name": "Breaking Bad",
-  "sys_path": "/path/to/shows/Breaking Bad",
-  "episode_count": 62,
-  "message": "Show added successfully: Breaking Bad"
-}
-```
-
 #### Update Episodes for Show
 ```http
 POST /api/shows/{show_id}/episodes/refresh
@@ -130,16 +105,6 @@ Content-Type: application/json
 
 {
   "show_name": "Breaking Bad"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "episodes_updated": 62,
-  "show_name": "Breaking Bad",
-  "message": "62 episodes added/updated for Breaking Bad"
 }
 ```
 
@@ -352,6 +317,23 @@ POST /api/admin/init-db
              "path": ["api", "remote", "download"]
            }
          }
+       },
+       {
+         "name": "Delete Show",
+         "request": {
+           "method": "DELETE",
+           "header": [
+             {
+               "key": "Content-Type",
+               "value": "application/json"
+             }
+           ],
+           "url": {
+             "raw": "{{base_url}}/api/shows/{{show_id}}",
+             "host": ["{{base_url}}"],
+             "path": ["api", "shows", "{{show_id}}"]
+           }
+         }
        }
      ]
    }
@@ -385,6 +367,12 @@ Create a Postman environment with these variables:
 1. **Download from Remote** → Get files from SFTP
 2. **List Incoming Files** → Check downloaded files
 3. **Route Files** → Move files to show directories
+
+#### Fix Mis-identified Show Workflow
+1. **Identify the problematic show**: `GET /api/shows/` to find the show with wrong identification
+2. **Delete the mis-identified show**: `DELETE /api/shows/{show_id}` to remove it from database
+3. **Re-add with correct identification**: `POST /api/shows/` with correct show name or TMDB ID
+4. **Verify the fix**: `GET /api/shows/{new_show_id}` to confirm correct data
 
 ## Error Handling
 

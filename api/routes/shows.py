@@ -10,7 +10,7 @@ Endpoints:
     - GET /{show_id}: Retrieve specific show
     - POST /: Add new show
     - POST /{show_id}/episodes/refresh: Update episodes for show
-    - DELETE /{show_id}: Delete show
+    - DELETE /{show_id}: Delete a specific show and all its episodes
 """
 
 import logging
@@ -19,7 +19,7 @@ from typing import List
 
 from api.models.requests import AddShowRequest, UpdateEpisodesRequest
 from api.models.responses import (
-    ShowResponse, AddShowResponse, UpdateEpisodesResponse
+    ShowResponse, AddShowResponse, UpdateEpisodesResponse, DeleteShowResponse
 )
 from api.services.show_service import ShowService
 from api.dependencies import get_show_service
@@ -168,16 +168,19 @@ async def update_episodes(show_id: int, request: UpdateEpisodesRequest,
         raise HTTPException(status_code=500, detail=f"Failed to update episodes: {str(e)}")
 
 
-@router.delete("/{show_id}")
+@router.delete("/{show_id}", response_model=DeleteShowResponse)
 async def delete_show(show_id: int, show_service: ShowService = Depends(get_show_service)):
     """
-    Delete a TV show and all its associated episodes from the database.
+    Delete a specific TV show and all its episodes from the database.
+    
+    This endpoint is primarily used for fixing mis-identified shows by removing
+    them from the database so they can be re-added with correct identification.
     
     Args:
         show_id: Database ID of the show to delete
         
     Returns:
-        dict: Operation result with success message
+        DeleteShowResponse: Operation result with deletion details
         
     Raises:
         HTTPException: If show not found or operation errors occur
@@ -187,11 +190,11 @@ async def delete_show(show_id: int, show_service: ShowService = Depends(get_show
     try:
         result = await show_service.delete_show(show_id)
         
-        logger.info(f"api/routes/shows.py::delete_show - Successfully deleted show with ID {show_id}")
+        logger.info(f"api/routes/shows.py::delete_show - Successfully deleted show: {result['show_name']}")
         return result
         
     except ValueError as e:
-        logger.error(f"api/routes/shows.py::delete_show - Show not found: {e}")
+        logger.error(f"api/routes/shows.py::delete_show - Validation error: {e}")
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.exception(f"api/routes/shows.py::delete_show - Unexpected error: {e}")

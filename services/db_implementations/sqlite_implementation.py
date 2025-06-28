@@ -303,6 +303,48 @@ class SQLiteDBService(DatabaseInterface):
                 logger.info(f"No show found in database for TMDB ID {tmdb_id}")
                 return None
 
+    def get_show_by_id(self, show_id: int) -> Optional[Dict[str, Any]]:
+        """Get a show by its database ID.
+        
+        Args:
+            show_id: Database ID of the show to retrieve
+            
+        Returns:
+            dict: Show record if found, None otherwise
+        """
+        with self._connection() as conn:
+            cursor = conn.execute('''
+                SELECT id, sys_name, sys_path, tmdb_name, tmdb_aliases, tmdb_id,
+                       tmdb_first_aired, tmdb_last_aired, tmdb_year, tmdb_overview,
+                       tmdb_season_count, tmdb_episode_count, tmdb_episode_groups,
+                       tmdb_episodes_fetched_at, tmdb_status, tmdb_external_ids, fetched_at
+                FROM tv_shows 
+                WHERE id = ?
+            ''', (show_id,))
+            
+            row = cursor.fetchone()
+            if row:
+                return {
+                    'id': row[0],
+                    'sys_name': row[1],
+                    'sys_path': row[2],
+                    'tmdb_name': row[3],
+                    'aliases': row[4],
+                    'tmdb_id': row[5],
+                    'tmdb_first_aired': row[6],
+                    'tmdb_last_aired': row[7],
+                    'tmdb_year': row[8],
+                    'tmdb_overview': row[9],
+                    'tmdb_season_count': row[10],
+                    'tmdb_episode_count': row[11],
+                    'tmdb_episode_groups': row[12],
+                    'tmdb_episodes_fetched_at': row[13],
+                    'tmdb_status': row[14],
+                    'tmdb_external_ids': row[15],
+                    'fetched_at': row[16]
+                }
+            return None
+
     def get_all_shows(self) -> List[Dict[str, Any]]:
         """Return all shows from the tv_shows table."""
         with self._connection() as conn:

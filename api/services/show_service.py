@@ -285,10 +285,9 @@ class ShowService:
         """
         Delete a show and all its associated episodes from the database.
         
-        This method performs a cascading delete operation:
-        1. Verifies the show exists
-        2. Deletes all episodes associated with the show
-        3. Deletes the show record itself
+        This method is primarily used for fixing mis-identified shows by:
+        1. Removing the show and all episodes from the database
+        2. Allowing the show to be re-added with correct identification
         
         Args:
             show_id: Database ID of the show to delete
@@ -296,37 +295,45 @@ class ShowService:
         Returns:
             dict: Operation result containing:
                 - success: Boolean indicating operation success
+                - show_name: Name of the show that was deleted
+                - episodes_deleted: Number of episodes deleted
                 - message: Human-readable success message
                 
         Raises:
-            ValueError: If show with given ID is not found
+            ValueError: If show not found
             Exception: For other operational errors
         """
         logger.info(f"api/services/show_service.py::delete_show - Starting show deletion: show_id={show_id}")
         
         try:
-            # Verify show exists before deletion
+            # First verify the show exists and get its details
             show = self.db.get_show_by_id(show_id)
             if not show:
                 logger.error(f"api/services/show_service.py::delete_show - Show with ID {show_id} not found")
                 raise ValueError(f"Show with ID {show_id} not found")
-
-            show_name = show['tmdb_name']
-            logger.info(f"api/services/show_service.py::delete_show - Deleting show: {show_name}")
-
-            # Perform cascading delete: episodes first, then show
-            logger.debug(f"api/services/show_service.py::delete_show - Deleting episodes for show ID {show_id}")
-            self.db.delete_episodes_by_show_id(show_id)
             
-            logger.debug(f"api/services/show_service.py::delete_show - Deleting show record for ID {show_id}")
-            self.db.delete_show(show_id)
-
+            show_name = show["tmdb_name"]
+            tmdb_id = show["tmdb_id"]
+            
+            logger.info(f"api/services/show_service.py::delete_show - Found show to delete: {show_name} (TMDB ID {tmdb_id})")
+            
+            # Get episode count before deletion for reporting
+            episodes = self.db.get_episodes_by_tmdb_id(tmdb_id)
+            episode_count = len(episodes)
+            
+            # Delete the show and all episodes using existing database method
+            logger.debug(f"api/services/show_service.py::delete_show - Calling database delete_show_and_episodes method")
+            self.db.delete_show_and_episodes(tmdb_id)
+            
+            # Format response for API consumption
             api_result = {
                 "success": True,
-                "message": f"Show '{show_name}' deleted successfully"
+                "show_name": show_name,
+                "episodes_deleted": episode_count,
+                "message": f"Successfully deleted show '{show_name}' and {episode_count} episodes"
             }
             
-            logger.info(f"api/services/show_service.py::delete_show - Successfully deleted show: {show_name}")
+            logger.info(f"api/services/show_service.py::delete_show - Successfully deleted show: {show_name} with {episode_count} episodes")
             return api_result
             
         except ValueError as e:

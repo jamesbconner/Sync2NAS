@@ -22,7 +22,8 @@ from .responses import (
     ConnectionStatusResponse,
     BootstrapResponse,
     ErrorResponse,
-    HealthResponse
+    HealthResponse,
+    DeleteShowResponse
 )
 
 __all__ = [
@@ -49,5 +50,6 @@ __all__ = [
     "ConnectionStatusResponse",
     "BootstrapResponse",
     "ErrorResponse",
-    "HealthResponse"
+    "HealthResponse",
+    "DeleteShowResponse"
 ]
