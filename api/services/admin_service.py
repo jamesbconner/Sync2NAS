@@ -85,7 +85,7 @@ class AdminService:
                     show = Show.from_db_record(show_record)
                     
                     # Check if episodes already exist
-                    existing_episodes = self.db.get_episodes_by_show_id(show.id)
+                    existing_episodes = self.db.get_episodes_by_tmdb_id(show.tmdb_id)
                     if existing_episodes:
                         logger.info(f"Skipping {show.sys_name} - already has episodes")
                         skipped += 1
