@@ -24,6 +24,7 @@ from cli.main import sync2nas_cli
 # TODO: Try vector DB for similarity search and recommendations ... Milvus, Chroma, Qdrant, Weaviate, Faiss, etc.
 # TODO: Semantic search and content-based retrieval of shows and episodes
 # TODO: MCP Server RSS Feed integration for new show notifications
+# TODO: Add discord integration for notifications of scene releases
 
 
 if __name__ == '__main__':
