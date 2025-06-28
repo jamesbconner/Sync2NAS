@@ -93,3 +93,8 @@ class DatabaseInterface(ABC):
         Returns the path or identifier of the backup.
         """
         pass
+
+    @abstractmethod
+    def get_show_by_id(self, show_id: int) -> Optional[Dict[str, Any]]:
+        """Get a show by its database ID."""
+        pass

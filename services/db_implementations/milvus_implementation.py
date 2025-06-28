@@ -227,6 +227,43 @@ class MilvusDBService(DatabaseInterface):
             logger.info(f"No show found in database for TMDB ID {tmdb_id}")
             return None
 
+    def get_show_by_id(self, show_id: int) -> Optional[Dict[str, Any]]:
+        """Get a show by its database ID.
+        
+        Args:
+            show_id: Database ID of the show to retrieve
+            
+        Returns:
+            dict: Show record if found, None otherwise
+        """
+        collection = Collection("tv_shows")
+        expr = f'id == {show_id}'
+        results = collection.query(expr=expr)
+        
+        if results:
+            # Convert Milvus result to standard format
+            result = results[0]
+            return {
+                'id': result.get('id'),
+                'sys_name': result.get('sys_name'),
+                'sys_path': result.get('sys_path'),
+                'tmdb_name': result.get('tmdb_name'),
+                'aliases': result.get('tmdb_aliases'),
+                'tmdb_id': result.get('tmdb_id'),
+                'tmdb_first_aired': result.get('tmdb_first_aired'),
+                'tmdb_last_aired': result.get('tmdb_last_aired'),
+                'tmdb_year': result.get('tmdb_year'),
+                'tmdb_overview': result.get('tmdb_overview'),
+                'tmdb_season_count': result.get('tmdb_season_count'),
+                'tmdb_episode_count': result.get('tmdb_episode_count'),
+                'tmdb_episode_groups': result.get('tmdb_episode_groups'),
+                'tmdb_episodes_fetched_at': result.get('tmdb_episodes_fetched_at'),
+                'tmdb_status': result.get('tmdb_status'),
+                'tmdb_external_ids': result.get('tmdb_external_ids'),
+                'fetched_at': result.get('fetched_at')
+            }
+        return None
+
     def get_all_shows(self) -> List[Dict[str, Any]]:
         """Get all shows from the database."""
         collection = Collection("tv_shows")
