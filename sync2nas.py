@@ -3,9 +3,9 @@ from cli.main import sync2nas_cli
 # ────────────────────────────────────────────────
 # TODO List
 # ────────────────────────────────────────────────
-# TODO: Database backup function
-# TODO: Add list and search functions from the database
-# TODO: Add search function from the TMDB API
+# Done: Database backup function
+# Done: Add list and search functions from the database
+# Done: Add search function from the TMDB API
 # TODO: Add a function to check for and handle show/episode renames and updates to the database
 # TODO: Check downloaded file against AniDB hash to confirm file integrity and correctly identify episode
 # TODO: Check inventory hashes against AniDB hashes to confirm file integrity and correctly identify episode
