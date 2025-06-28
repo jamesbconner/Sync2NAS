@@ -24,5 +24,7 @@ htmlcov/*
 .cursorignore/*
 
 database/sync2nas_backup.db
+backups
+backups/*
 
 *.pyc
