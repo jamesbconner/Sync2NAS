@@ -5,6 +5,7 @@ from typing import Dict, Any
 from services.db_implementations.db_interface import DatabaseInterface
 from services.tmdb_service import TMDBService
 from models.show import Show
+from models.episode import Episode
 
 logger = logging.getLogger(__name__)
 
