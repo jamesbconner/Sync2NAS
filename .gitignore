@@ -69,6 +69,7 @@ log/
 ##### Local Items #####
 # Project specific
 backup/
+backups/
 config/
 database/
 incoming/
