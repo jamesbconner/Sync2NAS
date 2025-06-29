@@ -126,7 +126,7 @@ class LLMService:
         # Remove common release group tags and metadata
         # Keep some useful information but remove noise
         cleaned = re.sub(r"\[.*?\]", "", base)  # Remove [tags]
-        cleaned = re.sub(r"\(.*?\)", "", base)  # Remove (metadata)
+        cleaned = re.sub(r"\(.*?\)", "", cleaned)  # Remove (metadata)
         
         # Normalize delimiters
         cleaned = re.sub(r"[_.]", " ", cleaned)

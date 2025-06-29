@@ -11,13 +11,14 @@ from services.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
 
-def parse_filename(filename: str, llm_service: Optional[LLMService] = None) -> dict:
+def parse_filename(filename: str, llm_service: Optional[LLMService] = None, llm_confidence_threshold: float = 0.7) -> dict:
     """
     Extract show metadata from a filename using LLM or fallback to regex.
 
     Args:
         filename (str): Raw filename (e.g., "Show.Name.S01E01.1080p.mkv")
         llm_service (LLMService, optional): LLM service for intelligent parsing
+        llm_confidence_threshold (float, optional): Minimum confidence to accept LLM result
 
     Returns:
         dict: {
@@ -37,7 +38,7 @@ def parse_filename(filename: str, llm_service: Optional[LLMService] = None) -> d
             logger.debug(f"utils/file_routing.py::parse_filename - LLM result: {llm_result}")
             
             # If LLM confidence is high enough, use it
-            if llm_result.get("confidence", 0.0) >= 0.7:
+            if llm_result.get("confidence", 0.0) >= llm_confidence_threshold:
                 logger.info(f"utils/file_routing.py::parse_filename - Using LLM parsing (confidence: {llm_result['confidence']})")
                 return llm_result
             else:
@@ -108,7 +109,7 @@ def _regex_parse_filename(filename: str) -> dict:
 
 
 def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, tmdb, 
-                dry_run: bool = False, llm_service: Optional[LLMService] = None) -> List[Dict[str, str]]:
+                dry_run: bool = False, llm_service: Optional[LLMService] = None, llm_confidence_threshold: float = 0.7) -> List[Dict[str, str]]:
     """
     Scan the incoming directory, identify files to route, and move them to their destination paths.
 
@@ -119,6 +120,7 @@ def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, 
         tmdb: TMDB object for episode refreshing
         dry_run: If True, simulate actions without moving files
         llm_service: Optional LLM service for intelligent filename parsing
+        llm_confidence_threshold: Minimum confidence to accept LLM result
 
     Returns:
         List of dicts describing routed files
@@ -133,7 +135,7 @@ def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, 
             source_path = os.path.join(root, filename)
 
             # Parse metadata from the filename (now with LLM support)
-            metadata = parse_filename(filename, llm_service)
+            metadata = parse_filename(filename, llm_service, llm_confidence_threshold)
             show_name = metadata["show_name"]
             season = metadata["season"]
             episode = metadata["episode"]

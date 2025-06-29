@@ -52,7 +52,8 @@ def route_files(ctx, incoming, dry_run, use_llm, llm_confidence, auto_add):
             db=db,
             tmdb=tmdb,
             dry_run=dry_run,
-            llm_service=llm_service
+            llm_service=llm_service,
+            llm_confidence_threshold=llm_confidence
         )
 
         if dry_run:
