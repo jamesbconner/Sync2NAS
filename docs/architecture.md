@@ -6,29 +6,6 @@ This document provides an overview of the Sync2NAS system architecture, componen
 
 Sync2NAS is built using a modular, service-oriented architecture that separates concerns and enables easy testing and extension.
 
-## Architecture Diagram 
-┌─────────────────────────────────────────────────────────────┐
-│ Sync2NAS System                                             │
-├─────────────────────────────────────────────────────────────┤
-│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐             │
-│ │ CLI │ │ API │ │ Utils       │ │             |             |
-│ │ Commands    │ │ Endpoints   │ │ Functions   │             │
-│ └─────────────┘ └─────────────┘ └─────────────┘             │
-├─────────────────────────────────────────────────────────────┤
-│ Service Layer                                               │
-│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐             │
-│ │ SFTP        │ │ TMDB        │ │ LLM         │             │
-│ │ Service     │ │ Service     │ │ Service     │             │
-│ └─────────────┘ └─────────────┘ └─────────────┘             │
-├─────────────────────────────────────────────────────────────┤
-│ Database Layer │
-│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐             │
-│ │ SQLite      │ │ PostgreSQL  │ │ Milvus      │             │
-│ │ Backend     │ │ Backend     │ │ Backend     │             │
-│ └─────────────┘ └─────────────┘ └─────────────┘             │
-└─────────────────────────────────────────────────────────────┘
----
-
 ## Layers and Components
 
 ### 1. CLI Layer (`cli/`)
