@@ -6,41 +6,70 @@ from utils.file_routing import file_routing, parse_filename
 from utils.cli_helpers import pass_sync2nas_context
 from cli.add_show import add_show
 from utils.file_filters import EXCLUDED_FILENAMES
+from services.llm_service import LLMService
 
 
 @click.command("route-files", help="Scan the incoming path and move files to the appropriate show directories.")
-@click.option("--dry-run", is_flag=True, default=False, help="Print what would be routed without actually moving files.")
+@click.option("--incoming", "-i", type=click.Path(exists=True), help="Incoming directory to scan")
+@click.option("--dry-run", "-d", is_flag=True, help="Simulate without moving files")
+@click.option("--use-llm", "-l", is_flag=True, help="Use LLM for filename parsing")
+@click.option("--llm-confidence", type=float, default=0.7, help="Minimum LLM confidence threshold (0.0-1.0)")
 @click.option("--auto-add", is_flag=True, default=False, help="Attempt to add missing shows automatically before routing.")
 @pass_sync2nas_context
-def route_files(ctx, dry_run, auto_add):
+def route_files(ctx, incoming, dry_run, use_llm, llm_confidence, auto_add):
     """
     Scan the incoming path and move files to the appropriate show directories.
     """
+    if not ctx.obj:
+        click.echo("Error: No context object found")
+        return 1
+
     db = ctx.obj["db"]
     tmdb = ctx.obj["tmdb"]
     anime_tv_path = ctx.obj["anime_tv_path"]
-    incoming_path = ctx.obj["incoming_path"]
+    incoming_path = incoming if incoming else ctx.obj["incoming_path"]
 
     click.secho(f"Scanning: {incoming_path}", fg="cyan")
+
+    # Initialize LLM service if requested
+    llm_service = None
+    if use_llm:
+        try:
+            llm_service = LLMService()
+            click.secho("✅ LLM service initialized for filename parsing", fg="green")
+        except Exception as e:
+            click.secho(f"❌ Failed to initialize LLM service: {e}", fg="red")
+            click.secho("Falling back to regex parsing", fg="yellow")
+            llm_service = None
 
     if auto_add:
         _auto_add_missing_shows(ctx, incoming_path, dry_run)
 
-    routed = file_routing(incoming_path, anime_tv_path, db, tmdb, dry_run=dry_run)
-
-    if dry_run:
-        click.secho("\n[DRY RUN] No files will be moved.", fg="green")
-
-    if not routed:
-        click.secho("No files routed.", fg="yellow")
-        return
-
-    click.secho(f"{len(routed)} file(s) routed:", fg="green")
-    for item in routed:
-        click.echo(
-            f"- {item['original_path']} → {item['routed_path']}, "
-            f"{item['show_name']}, {item['season']}, {item['episode']}"
+    try:
+        routed_files = file_routing(
+            incoming_path=incoming_path,
+            anime_tv_path=anime_tv_path,
+            db=db,
+            tmdb=tmdb,
+            dry_run=dry_run,
+            llm_service=llm_service,
+            llm_confidence_threshold=llm_confidence
         )
+
+        if dry_run:
+            click.echo(f"Dry run: Would route {len(routed_files)} files")
+            for file_info in routed_files:
+                click.echo(f"  {file_info['original_path']} -> {file_info['routed_path']}")
+                if 'confidence' in file_info:
+                    click.echo(f"    Confidence: {file_info['confidence']:.2f} - {file_info['reasoning']}")
+        else:
+            click.echo(f"Successfully routed {len(routed_files)} files")
+            for file_info in routed_files:
+                click.echo(f"  {file_info['original_path']} -> {file_info['routed_path']}")
+
+    except Exception as e:
+        click.secho(f"Error routing files: {str(e)}", fg="red")
+        return 1
 
 
 def _auto_add_missing_shows(ctx, incoming_path: str, dry_run: bool, ignore_files: set[str] = None):

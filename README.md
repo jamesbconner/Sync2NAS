@@ -5,7 +5,7 @@
 
 ## Introduction
 
-This Python script synchronizes files from an SFTP server to a NAS, integrates with the TMDB API for metadata enrichment, and manages the data using a pluggable database backend (SQLite, PostgreSQL, or Milvus). It supports routing downloaded media files into organized directories, creating and managing show records, and updating episode information.
+This Python script synchronizes files from an SFTP server to a NAS, integrates with the TMDB API for metadata enrichment, and manages the data using a pluggable database backend (SQLite, PostgreSQL, or Milvus). It supports routing downloaded media files into organized directories, creating and managing show records, and updating episode information. **New in this version: AI-powered filename parsing using OpenAI's GPT models for more accurate show name extraction.**
 
 ## Getting Started
 
@@ -14,40 +14,54 @@ Follow these steps to set up and use Sync2NAS:
 1. **Create the Configuration File**
    - Copy or create `sync2nas_config.ini` in the `config` directory. Populate it with the appropriate parameters for your environment, including the `incoming` directory path. The incoming directory is where files will be downloaded from SFTP and is the source location for routing to your media library.  If you have no particular database preference, using SQLite is recommended.
 
-2. **Bootstrap Existing SFTP Downloads (Optional)**
+2. **Configure OpenAI API (Optional - for LLM filename parsing)**
+   - If you want to use AI-powered filename parsing, add your OpenAI API key to the configuration file. This enables more accurate show name extraction from complex filenames.
+   ```ini
+   [OpenAI]
+   api_key = your_openai_api_key_here
+   model = gpt-3.5-turbo
+   max_tokens = 150
+   temperature = 0.1
+   ```
+
+3. **Bootstrap Existing SFTP Downloads (Optional)**
    - If your SFTP server already contains files you do not want to download again, run the `bootstrap-downloads` CLI command. This will record all existing remote files in the database so they are not re-downloaded in the future.  If your remote SFTP path is empty, this step is unnecessary.
    ```bash
    python sync2nas.py bootstrap-downloads
    ```
 
-3. **Bootstrap Existing Media Library (Optional)**
+4. **Bootstrap Existing Media Library (Optional)**
    - If you already have a directory with media content on your NAS, use the `bootstrap-tv-shows` CLI command. This will scan your media directories and add shows to the database.  If your media path is empty, this step is unnecessary.
    ```bash
    python sync2nas.py bootstrap-tv-shows
    ```
 
-4. **Bootstrap Episode Information (Optional)**
+5. **Bootstrap Episode Information (Optional)**
    - If you bootstrapped TV shows, run the `bootstrap-episodes` CLI command to fill in episode metadata for all shows in the database.
    ```bash
    python sync2nas.py bootstrap-episodes
    ```
 
-5. **Download New Files from SFTP**
+6. **Download New Files from SFTP**
    - Whenever new files are added to your remote SFTP directory, execute the `download-from-remote` command to fetch them into your incoming directory.
    ```bash
    python sync2nas.py download-from-remote
    ```
 
-6. **Add New Shows Manually (Optional)**
+7. **Add New Shows Manually (Optional)**
    - For best results, especially with shows that have ambiguous names with multiple potential matches (e.g., "Nosferatu"), add new shows manually before routing. This ensures proper matching and directory creation.  This step would only need to be performed once per show.
    ```bash
    python sync2nas.py add-show "Show Name" --tmdb-id 123456
    ```
 
-7. **Route Files to Media Destinations**
+8. **Route Files to Media Destinations**
    - Use the `route-files` CLI command to move files from the incoming directory to their proper destinations on your NAS, based on the database and TMDB metadata.
    ```bash
+   # Standard routing with regex parsing
    python sync2nas.py route-files --auto-add
+   
+   # Enhanced routing with AI-powered LLM parsing
+   python sync2nas.py route-files --auto-add --use-llm
    ```
 
 ## Service Test Coverage
@@ -65,8 +79,54 @@ Follow these steps to set up and use Sync2NAS:
 - **Bootstrap TV Shows:** Populate the TV shows table from the NAS directory structure.
 - **Bootstrap Existing Media:** Easily add your existing media to the database.
 - **Robust File Routing:** Supports routing to multiple media types.
+- **AI-Powered Filename Parsing:** Uses OpenAI's GPT models for intelligent show name extraction from complex filenames.
 - **Configurable Logging:** Verbosity and log file output are fully configurable.
 - **Comprehensive Test Coverage:** Tests focus on service contracts and use the factory for backend-agnostic testing.
+
+## AI-Powered Filename Parsing
+
+Sync2NAS now includes intelligent filename parsing using OpenAI's GPT models. This feature provides several advantages over traditional regex-based parsing:
+
+### Benefits of LLM Parsing
+
+- **Better Accuracy**: Handles complex filename patterns that regex can't parse
+- **Intelligent Context**: Understands show names even when embedded in release group tags
+- **Confidence Scoring**: Provides confidence levels for parsing decisions
+- **Fallback Support**: Automatically falls back to regex if LLM fails or has low confidence
+- **Cost Effective**: Uses GPT-3.5-turbo which is relatively inexpensive
+
+### Example LLM Parsing Results
+
+**Complex filename**: `[GroupName] One Piece - 1000 [1080p][Multiple Subtitle][5312D81B].mkv`
+- **LLM Output**: `{"show_name": "One Piece", "season": null, "episode": 1000, "confidence": 0.95}`
+
+**Messy filename**: `Bleach.S01E01.Pilot.1080p.BluRay.x264-Scene.mkv`
+- **LLM Output**: `{"show_name": "Bleach", "season": 1, "episode": 1, "confidence": 0.98}`
+
+### Using LLM Parsing
+
+```bash
+# Enable LLM parsing for file routing
+python sync2nas.py route-files --use-llm
+
+# Set custom confidence threshold (default: 0.7)
+python sync2nas.py route-files --use-llm --llm-confidence 0.8
+
+# Dry run with LLM parsing
+python sync2nas.py route-files --use-llm --dry-run
+```
+
+### Configuration
+
+Add the following section to your `sync2nas_config.ini`:
+
+```ini
+[OpenAI]
+api_key = your_openai_api_key_here
+model = gpt-3.5-turbo
+max_tokens = 150
+temperature = 0.1
+```
 
 ## Configuration Requirements
 
@@ -101,6 +161,13 @@ The script requires a configuration file (`sync2nas_config.ini`) in the `config`
 ### TMDB API Settings
 
 - `api_key`: API key for authenticating with the TMDB API.
+
+### OpenAI API Settings (Optional)
+
+- `api_key`: API key for OpenAI GPT models (required for LLM filename parsing).
+- `model`: OpenAI model to use (default: gpt-3.5-turbo).
+- `max_tokens`: Maximum tokens for LLM responses (default: 150).
+- `temperature`: Response randomness (default: 0.1 for consistent parsing).
 
 ### Routing Settings
 
@@ -147,18 +214,31 @@ api_key = a1234567-b123-c123-d123-e12345678901
 [Routing]
 anime_tv_path = d:/anime_tv/
 movie_path = d:/movies/
+
+[OpenAI]
+api_key = a1234567-b123-c123-d123-e12345678901
+model = gpt-3.5-turbo
+max_tokens = 250
+temperature = 0.1
 ```
 
-## Obtaining a TMDB API Key
+## Obtaining API Keys
+
+### TMDB API Key
 
 To use the TMDB integration features, obtain an API key by registering an account with [The Movie Database](https://www.themoviedb.org/). This API key must be added to the configuration file under the `TMDB` section.
+
+### OpenAI API Key
+
+To use the AI-powered filename parsing, obtain an API key by registering an account with [OpenAI](https://platform.openai.com/). This API key must be added to the configuration file under the `OpenAI` section.  This may also require the pre-purchasing of credits.
 
 ## TODOs in the Code
 
 - [x] Database backup function (implemented)
-- [ ] Add a function to list shows in the database
-- [ ] Add a function to search shows in the database
-- [ ] Add a function to search for shows from TMDB
+- [x] Add a function to list shows in the database
+- [x] Add a function to search shows in the database
+- [x] Add a function to search for shows from TMDB
+- [x] MCP LLM integration for show and episode filename parsing
 - [ ] Add a function to check for and handle show/episode renames and updates to the database
 - [ ] Check downloaded file against AniDB hash to confirm file integrity and correctly identify episode
 - [ ] Check inventory hashes against AniDB hashes to confirm file integrity and correctly identify episode
@@ -170,7 +250,6 @@ To use the TMDB integration features, obtain an API key by registering an accoun
 - [ ] Add IMDB, TVDB and AniDB APIs as optional sources for show information if TMDB info missing
 - [ ] Better checks for handling specials and OVAs
 - [ ] Add genre, language and other identifiers to the search and fix-show functions
-- [ ] MCP LLM integration for show and episode filename parsing
 - [ ] MCP Server integration with TMDB, AniDB, TVDB, IMDB, etc. to get show and episode information
 - [ ] MCP Server integration with database backend to update/add shows, episodes, etc. (already supports SQLite)
 - [ ] Try vector DB for similarity search and recommendations (Milvus, Chroma, Qdrant, Weaviate, Faiss, etc.)
@@ -192,13 +271,43 @@ python sync2nas.py -vv download-from-remote
 ### Route Files from Incoming to NAS Filesystem
 Route the files located in the Incoming directory to the destinations on the local NAS as defined in the database.  Also add any unknown shows by looking up the TMDB entry.
 ```bash
-python sync2nas.py route-files --auto-add 
+# Standard routing with regex parsing
+python sync2nas.py route-files --auto-add
+
+# Enhanced routing with AI-powered LLM parsing
+python sync2nas.py route-files --auto-add --use-llm
 ```
 
 ### Add A New Show To The Database and NAS Filesystem Directory
 Creates an entry for the show in the database, adds the episode information, and creates the path for the show on the NAS.  If the --tmdb-id flag is provided, it uses the ID for an exact match, otherwise it uses the show name for a search and uses the first result.  Using the --override-dir flag tells the command to ues the show name provided as the name of the directory on the path, rather than using the name provided by TMDB.  Useful when the showname contains invalid characters.
 ```bash
 python sync2nas.py add-show "Example Showname" --tmdb-id 000000 --override-dir
+```
+
+### Search for Shows in Database
+Search for shows in your local database using partial matching.
+```bash
+# Search by show name
+python sync2nas.py search-show "Bleach"
+
+# Search by TMDB ID
+python sync2nas.py search-show --tmdb-id 30984
+
+# Verbose output with detailed information
+python sync2nas.py search-show "One Piece" --verbose
+```
+
+### Search for Shows on TMDB
+Search for shows directly on TMDB to discover new content.
+```bash
+# Search by show name
+python sync2nas.py search-tmdb "Bleach"
+
+# Search by TMDB ID
+python sync2nas.py search-tmdb --tmdb-id 30984
+
+# Verbose output with detailed information
+python sync2nas.py search-tmdb "One Piece" --verbose --limit 5
 ```
 
 ### Refresh the Downloads Table
