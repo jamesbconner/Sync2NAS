@@ -89,4 +89,17 @@ class BootstrapEpisodesRequest(BaseModel):
             "example": {
                 "dry_run": True
             }
+        }
+
+
+class LLMParseFilenameRequest(BaseModel):
+    filename: str = Field(..., description="Filename to parse using LLM")
+    llm_confidence_threshold: float = Field(0.7, description="Minimum confidence to accept LLM result")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "filename": "Breaking.Bad.S01E01.1080p.mkv",
+                "llm_confidence_threshold": 0.7
+            }
         } 

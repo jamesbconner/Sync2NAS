@@ -116,4 +116,12 @@ class DeleteShowResponse(BaseModel):
     success: bool = Field(..., description="Whether the deletion was successful")
     show_name: str = Field(..., description="Name of the show that was deleted")
     episodes_deleted: int = Field(..., description="Number of episodes that were deleted")
-    message: str = Field(..., description="Human-readable success message") 
+    message: str = Field(..., description="Human-readable success message")
+
+
+class LLMParseFilenameResponse(BaseModel):
+    show_name: str
+    season: int | None
+    episode: int | None
+    confidence: float
+    reasoning: str 

@@ -149,6 +149,33 @@ Content-Type: application/json
 GET /api/files/incoming
 ```
 
+#### LLM Show Name Parsing
+
+#### Parse Filename Using LLM
+```http
+POST /api/files/parse-filename
+Content-Type: application/json
+
+{
+  "filename": "Breaking.Bad.S01E01.1080p.mkv",
+  "llm_confidence_threshold": 0.7
+}
+```
+
+**Response:**
+```json
+{
+  "show_name": "Breaking Bad",
+  "season": 1,
+  "episode": 1,
+  "confidence": 0.95,
+  "reasoning": "Clear S01E01 format"
+}
+```
+
+- `llm_confidence_threshold` is a float (default 0.7) and can be set per request to control the minimum confidence required for the LLM result to be accepted.
+- If the LLM's confidence is below the threshold, the API will return a 422 error.
+
 ### Remote Operations (`/api/remote`)
 
 #### Download from SFTP
