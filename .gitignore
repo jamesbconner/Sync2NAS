@@ -70,7 +70,7 @@ log/
 # Project specific
 backup/
 backups/
-config/
+config/sync2nas_config.ini
 database/
 incoming/
 sql/

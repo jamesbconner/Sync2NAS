@@ -1,0 +1,39 @@
+[Database]
+# Type of database to use: sqlite, postgres, or milvus
+type = sqlite
+
+[SQLite]
+db_file = ./database/sync2nas.db
+
+[PostgreSQL]
+host = localhost
+port = 5432
+database = sync2nas
+user = postgres
+password = your_password
+
+[Milvus]
+host = localhost
+port = 19530
+
+[SFTP]
+host = your.sftpserver.com
+port = 22
+username = whatsyourname
+ssh_key_path = ./ssh/your_sftpserver_rsa
+path = /path/to/remote/files/, /path/to/remote/files2/
+
+[Transfers]
+incoming = ./incoming
+
+[TMDB]
+api_key = your_tmdb_api_key
+
+[Routing]
+anime_tv_path = d:/anime_tv/
+
+[OpenAI]
+api_key = your_openai_api_key
+model = gpt-3.5-turbo
+max_tokens = 250
+temperature = 0.1
