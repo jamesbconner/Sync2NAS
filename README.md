@@ -1,125 +1,163 @@
-# SFTP to NAS Synchronization Script
+# Sync2NAS - TV Show Management and File Synchronization Tool
 ![Service Test Coverage](https://img.shields.io/badge/Service%20Test%20Coverage-100%25-success?style=flat-square&logo=pytest&logoColor=white)
 
+## Table of Contents
 
+- [Overview](#overview)
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Documentation](#documentation)
+- [Configuration](#configuration)
+- [API Documentation](#api-documentation)
+- [Usage Examples](#usage-examples)
+- [Development](#development)
+- [Contributing](#contributing)
 
-## Introduction
+## Overview
 
-This Python script synchronizes files from an SFTP server to a NAS, integrates with the TMDB API for metadata enrichment, and manages the data using a pluggable database backend (SQLite, PostgreSQL, or Milvus). It supports routing downloaded media files into organized directories, creating and managing show records, and updating episode information. **New in this version: AI-powered filename parsing using OpenAI's GPT models for more accurate show name extraction.**
+Sync2NAS is a comprehensive Python tool for managing TV shows, synchronizing files via SFTP, and providing both CLI and API interfaces for show management. It integrates with TMDB for metadata enrichment and supports multiple database backends (SQLite, PostgreSQL, Milvus).
 
-## Getting Started
+### What Sync2NAS Does
 
-Follow these steps to set up and use Sync2NAS:
+- **File Synchronization**: Downloads files from SFTP servers to your NAS
+- **Intelligent File Routing**: Routes media files to organized show directories
+- **Metadata Management**: Integrates with TMDB for show and episode information
+- **Database Management**: Supports multiple database backends with a factory pattern
+- **AI-Powered Parsing**: Uses OpenAI GPT models for intelligent filename parsing
+- **Dual Interface**: Provides both CLI commands and REST API endpoints
 
-1. **Create the Configuration File**
-   - Copy or create `sync2nas_config.ini` in the `config` directory. Populate it with the appropriate parameters for your environment, including the `incoming` directory path. The incoming directory is where files will be downloaded from SFTP and is the source location for routing to your media library.  If you have no particular database preference, using SQLite is recommended.
+## Features
 
-2. **Configure OpenAI API (Optional - for LLM filename parsing)**
-   - If you want to use AI-powered filename parsing, add your OpenAI API key to the configuration file. This enables more accurate show name extraction from complex filenames.
-   ```ini
-   [OpenAI]
-   api_key = your_openai_api_key_here
-   model = gpt-3.5-turbo
-   max_tokens = 150
-   temperature = 0.1
-   ```
+### Core Functionality
+- **SFTP Integration**: Secure file transfer with SSH key authentication
+- **Database Factory**: Easily switch between SQLite, PostgreSQL, and Milvus backends
+- **TMDB Integration**: Automatic show and episode metadata enrichment
+- **File Routing**: Intelligent routing of media files to organized directories
+- **Bootstrap Operations**: Easy migration of existing media libraries
 
-3. **Bootstrap Existing SFTP Downloads (Optional)**
-   - If your SFTP server already contains files you do not want to download again, run the `bootstrap-downloads` CLI command. This will record all existing remote files in the database so they are not re-downloaded in the future.  If your remote SFTP path is empty, this step is unnecessary.
+### Advanced Features
+- **AI-Powered Filename Parsing**: Uses OpenAI GPT models for accurate show name extraction
+- **Confidence Scoring**: LLM provides confidence levels for parsing decisions
+- **Fallback Support**: Automatic fallback to regex if LLM fails
+- **Search Capabilities**: Search local database and TMDB for shows
+- **Show Management**: Add, fix, and manage show metadata
+
+### Technical Features
+- **REST API**: Full API for programmatic access to all functionality
+- **Configurable Logging**: Verbose logging with file output support
+- **Dry Run Mode**: Test operations without making changes
+- **Comprehensive Testing**: Extensive test coverage with service contracts
+- **Plugin Architecture**: Extensible design for future enhancements
+
+## Quick Start
+
+### Prerequisites
+- Python 3.12 or higher
+- SFTP server access
+- TMDB API key (optional but recommended)
+- OpenAI API key (optional, for AI-powered parsing)
+
+### Installation
+
+1. **Clone the repository**
    ```bash
-   python sync2nas.py bootstrap-downloads
+   git clone https://github.com/yourusername/sync2nas.git
+   cd sync2nas
    ```
 
-4. **Bootstrap Existing Media Library (Optional)**
-   - If you already have a directory with media content on your NAS, use the `bootstrap-tv-shows` CLI command. This will scan your media directories and add shows to the database.  If your media path is empty, this step is unnecessary.
+2. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Create configuration file**
+   ```bash
+   cp config/sync2nas_config.ini.example config/sync2nas_config.ini
+   # Edit config/sync2nas_config.ini with your settings
+   ```
+
+4. **Test installation**
+   ```bash
+   python sync2nas.py --help
+   ```
+
+### Basic Setup
+
+1. **Configure your settings** in `config/sync2nas_config.ini`
+2. **Bootstrap existing media** (if any):
    ```bash
    python sync2nas.py bootstrap-tv-shows
-   ```
-
-5. **Bootstrap Episode Information (Optional)**
-   - If you bootstrapped TV shows, run the `bootstrap-episodes` CLI command to fill in episode metadata for all shows in the database.
-   ```bash
    python sync2nas.py bootstrap-episodes
    ```
-
-6. **Download New Files from SFTP**
-   - Whenever new files are added to your remote SFTP directory, execute the `download-from-remote` command to fetch them into your incoming directory.
+3. **Download and route files**:
    ```bash
    python sync2nas.py download-from-remote
-   ```
-
-7. **Add New Shows Manually (Optional)**
-   - For best results, especially with shows that have ambiguous names with multiple potential matches (e.g., "Nosferatu"), add new shows manually before routing. This ensures proper matching and directory creation.  This step would only need to be performed once per show.
-   ```bash
-   python sync2nas.py add-show "Show Name" --tmdb-id 123456
-   ```
-
-8. **Route Files to Media Destinations**
-   - Use the `route-files` CLI command to move files from the incoming directory to their proper destinations on your NAS, based on the database and TMDB metadata.
-   ```bash
-   # Standard routing with regex parsing
    python sync2nas.py route-files --auto-add
-   
-   # Enhanced routing with AI-powered LLM parsing
-   python sync2nas.py route-files --auto-add --use-llm
    ```
 
-## Service Test Coverage
+## Documentation
 
-| Service  | Coverage Matrix | Testing Philosophy |
-|:---------|:----------------|:-------------------|
-| SFTP     | [SFTP Service Matrix](docs/Services_Test_Coverage_Matrix.md#sftpservice-tests) | [SFTP Testing Philosophy](docs/SFTP_Test_Philosophy.md) |
-| Database | [DB Service Matrix](docs/Services_Test_Coverage_Matrix.md#dbservice-tests) | [DB Testing Philosophy](docs/Database_Test_Philosophy.md) |
-| TMDB     | [TMDB Service Matrix](docs/Services_Test_Coverage_Matrix.md#tmdbservice-tests) | [TMDB Testing Philosophy](docs/TMDB_Test_Philosophy.md) |
+### User Documentation
+- **[CLI Commands](docs/cli_commands.md)**: Complete guide to all CLI commands
+- **[Configuration Guide](docs/configuration.md)**: Detailed configuration options
+- **[File Routing](docs/file_routing.md)**: Understanding file routing and AI parsing
+- **[Database Backends](docs/database_backends.md)**: Database setup and management
 
-## Key Features
+### Developer Documentation
+- **[API Documentation](#api-documentation)**: REST API reference and examples
+- **[Architecture](docs/architecture.md)**: System design and component overview
+- **[Testing](docs/testing.md)**: Testing philosophy and coverage matrix
+- **[Contributing](docs/contributing.md)**: Development setup and guidelines
 
-- **Database Factory:** Easily switch between SQLite, PostgreSQL, and Milvus backends via config. The factory pattern allows future database types to be added with minimal code changes.
-- **Rich Configuration:** Supports advanced routing of files, multiple database backends, SFTP options, etc.
-- **Bootstrap TV Shows:** Populate the TV shows table from the NAS directory structure.
-- **Bootstrap Existing Media:** Easily add your existing media to the database.
-- **Robust File Routing:** Supports routing to multiple media types.
-- **AI-Powered Filename Parsing:** Uses OpenAI's GPT models for intelligent show name extraction from complex filenames.
-- **Configurable Logging:** Verbosity and log file output are fully configurable.
-- **Comprehensive Test Coverage:** Tests focus on service contracts and use the factory for backend-agnostic testing.
+### Service Documentation
+- **[SFTP Service](docs/SFTP_Test_Philosophy.md)**: SFTP integration details
+- **[Database Service](docs/Database_Test_Philosophy.md)**: Database backend details
+- **[TMDB Service](docs/TMDB_Test_Philosophy.md)**: TMDB API integration
+- **[Services Test Coverage](docs/Services_Test_Coverage_Matrix.md)**: Test coverage matrix
 
-## AI-Powered Filename Parsing
+## Configuration
 
-Sync2NAS now includes intelligent filename parsing using OpenAI's GPT models. This feature provides several advantages over traditional regex-based parsing:
+### Required Configuration
 
-### Benefits of LLM Parsing
+Create `config/sync2nas_config.ini` with the following sections:
 
-- **Better Accuracy**: Handles complex filename patterns that regex can't parse
-- **Intelligent Context**: Understands show names even when embedded in release group tags
-- **Confidence Scoring**: Provides confidence levels for parsing decisions
-- **Fallback Support**: Automatically falls back to regex if LLM fails or has low confidence
-- **Cost Effective**: Uses GPT-3.5-turbo which is relatively inexpensive
-
-### Example LLM Parsing Results
-
-**Complex filename**: `[GroupName] One Piece - 1000 [1080p][Multiple Subtitle][5312D81B].mkv`
-- **LLM Output**: `{"show_name": "One Piece", "season": null, "episode": 1000, "confidence": 0.95}`
-
-**Messy filename**: `Bleach.S01E01.Pilot.1080p.BluRay.x264-Scene.mkv`
-- **LLM Output**: `{"show_name": "Bleach", "season": 1, "episode": 1, "confidence": 0.98}`
-
-### Using LLM Parsing
-
-```bash
-# Enable LLM parsing for file routing
-python sync2nas.py route-files --use-llm
-
-# Set custom confidence threshold (default: 0.7)
-python sync2nas.py route-files --use-llm --llm-confidence 0.8
-
-# Dry run with LLM parsing
-python sync2nas.py route-files --use-llm --dry-run
+#### SFTP Settings
+```ini
+[SFTP]
+host = your.sftpserver.com
+port = 22
+username = your_username
+ssh_key_path = ./ssh/your_sftpserver_rsa
+paths = /path/to/remote/files/
 ```
 
-### Configuration
+#### Database Settings
+```ini
+[Database]
+type = sqlite  # sqlite, postgres, or milvus
 
-Add the following section to your `sync2nas_config.ini`:
+[SQLite]
+db_file = ./database/sync2nas.db
+```
 
+#### Transfer Settings
+```ini
+[Transfers]
+incoming = ./incoming
+
+[Routing]
+anime_tv_path = d:/anime_tv/
+```
+
+### Optional Configuration
+
+#### TMDB Integration
+```ini
+[TMDB]
+api_key = your_tmdb_api_key_here
+```
+
+#### AI-Powered Parsing
 ```ini
 [OpenAI]
 api_key = your_openai_api_key_here
@@ -128,79 +166,17 @@ max_tokens = 150
 temperature = 0.1
 ```
 
-## Configuration Requirements
-
-The script requires a configuration file (`sync2nas_config.ini`) in the `config` subdirectory with the following fields:
-
-### SFTP Settings
-
-- `host`: SFTP server hostname.
-- `port`: SFTP server port.
-- `username`: Username for SFTP authentication.
-- `ssh_key_path`: Path to the SSH private key for authentication.
-- `paths`: Comma-separated list of remote paths on the SFTP server to synchronize files from.
-
-### Database Backend Selection
-
-- `[Database]` section with `type` key: `sqlite`, `postgres`, or `milvus`.
-- Each backend has its own section for connection details.
-- SQLite is recommended if there is no particular preference.
-
-### SQLite Settings
-
-- `db_file`: Path to the SQLite database file used to store metadata and manage show information.
-
-### PostgreSQL Settings
-
-- `host`, `port`, `database`, `user`, `password`: Standard PostgreSQL connection parameters.
-
-### Milvus Settings
-
-- `host`, `port`: Milvus vector database connection parameters.
-
-### TMDB API Settings
-
-- `api_key`: API key for authenticating with the TMDB API.
-
-### OpenAI API Settings (Optional)
-
-- `api_key`: API key for OpenAI GPT models (required for LLM filename parsing).
-- `model`: OpenAI model to use (default: gpt-3.5-turbo).
-- `max_tokens`: Maximum tokens for LLM responses (default: 150).
-- `temperature`: Response randomness (default: 0.1 for consistent parsing).
-
-### Routing Settings
-
-- `anime_tv_path`: Path to the anime TV directory on the NAS.
-
-### Transfer Settings
-
-- `incoming`: Path to the incoming directory where files are initially downloaded before routing.
-
-### Example sync2nas_config.ini
-```
+### Complete Configuration Example
+```ini
 [SFTP]
 host = your.sftpserver.com
 port = 22
-username = whatsyourname
+username = your_username
 ssh_key_path = ./ssh/your_sftpserver_rsa
-paths = /path/to/remote/files/,/another/remote/path/,/third/remote/path/
+paths = /path/to/remote/files/,/another/remote/path/
 
 [Database]
-#type = postgres
-#type = milvus
 type = sqlite
-
-[PostgreSQL]
-host = localhost
-port = 5432
-database = sync2nas
-user = postgres
-password = your_password
-
-[Milvus]
-host = localhost
-port = 19530
 
 [SQLite]
 db_file = ./database/sync2nas.db
@@ -209,138 +185,224 @@ db_file = ./database/sync2nas.db
 incoming = ./incoming
 
 [TMDB]
-api_key = a1234567-b123-c123-d123-e12345678901
+api_key = your_tmdb_api_key_here
+
+[OpenAI]
+api_key = your_openai_api_key_here
+model = gpt-3.5-turbo
+max_tokens = 150
+temperature = 0.1
 
 [Routing]
 anime_tv_path = d:/anime_tv/
-movie_path = d:/movies/
-
-[OpenAI]
-api_key = a1234567-b123-c123-d123-e12345678901
-model = gpt-3.5-turbo
-max_tokens = 250
-temperature = 0.1
 ```
 
-## Obtaining API Keys
+## API Documentation
 
-### TMDB API Key
+Sync2NAS provides a comprehensive REST API for programmatic access to all functionality.
 
-To use the TMDB integration features, obtain an API key by registering an account with [The Movie Database](https://www.themoviedb.org/). This API key must be added to the configuration file under the `TMDB` section.
+### API Overview
+- **Base URL**: `http://localhost:8000`
+- **Documentation**: Interactive API docs at `http://localhost:8000/docs`
+- **Alternative Docs**: ReDoc at `http://localhost:8000/redoc`
 
-### OpenAI API Key
+### Quick API Start
+```bash
+# Start the API server
+python run_api.py
 
-To use the AI-powered filename parsing, obtain an API key by registering an account with [OpenAI](https://platform.openai.com/). This API key must be added to the configuration file under the `OpenAI` section.  This may also require the pre-purchasing of credits.
+# Or use the CLI
+python sync2nas.py api-start
+```
 
-## TODOs in the Code
+### API Features
+- **Show Management**: Add, search, update, and delete shows
+- **File Operations**: Route files, list remote files, download from SFTP
+- **Episode Management**: Update episode information from TMDB
+- **Admin Operations**: Database backup, initialization, bootstrap operations
 
-- [x] Database backup function (implemented)
-- [x] Add a function to list shows in the database
-- [x] Add a function to search shows in the database
-- [x] Add a function to search for shows from TMDB
-- [x] MCP LLM integration for show and episode filename parsing
-- [ ] Add a function to check for and handle show/episode renames and updates to the database
-- [ ] Check downloaded file against AniDB hash to confirm file integrity and correctly identify episode
-- [ ] Check inventory hashes against AniDB hashes to confirm file integrity and correctly identify episode
-- [ ] Inventory check against episodes table to identify missing episodes
-- [ ] Filename transformer to convert absolute episode number to relative season/episode number (Jellyfin)
-- [ ] Check for new seasons of shows existing in the inventory on AniDb (periodic pull of AniDB)
-- [ ] Add a de-dupe function to identify duplicate show/episodes in the inventory for pruning
-- [ ] Rework special character handling in show names (primary and aliases)
-- [ ] Add IMDB, TVDB and AniDB APIs as optional sources for show information if TMDB info missing
-- [ ] Better checks for handling specials and OVAs
-- [ ] Add genre, language and other identifiers to the search and fix-show functions
-- [ ] MCP Server integration with TMDB, AniDB, TVDB, IMDB, etc. to get show and episode information
-- [ ] MCP Server integration with database backend to update/add shows, episodes, etc. (already supports SQLite)
-- [ ] Try vector DB for similarity search and recommendations (Milvus, Chroma, Qdrant, Weaviate, Faiss, etc.)
-- [ ] Semantic search and content-based retrieval of shows and episodes
-- [ ] MCP Server RSS Feed integration for new show notifications
+### Detailed API Documentation
+For complete API documentation, including:
+- All available endpoints
+- Request/response schemas
+- Authentication details
+- Usage examples
+- Postman collection
 
-## Roadmap for Future Development
-
-See the TODOs above for planned features and improvements. Contributions are welcome!
+**See: [API Documentation](api/README.md)**
 
 ## Usage Examples
 
-### Basic File Download from SFTP
-Download new files from all configured SFTP paths to the local Incoming directory with DEBUG log verbosity. The command will process each path defined in the configuration file's `paths` setting.
+### File Management
+
+#### Download Files from SFTP
 ```bash
+# Download new files with debug logging
 python sync2nas.py -vv download-from-remote
+
+# List files on remote server
+python sync2nas.py list-remote
 ```
 
-### Route Files from Incoming to NAS Filesystem
-Route the files located in the Incoming directory to the destinations on the local NAS as defined in the database.  Also add any unknown shows by looking up the TMDB entry.
+#### Route Files to Media Library
 ```bash
 # Standard routing with regex parsing
 python sync2nas.py route-files --auto-add
 
 # Enhanced routing with AI-powered LLM parsing
 python sync2nas.py route-files --auto-add --use-llm
+
+# Dry run to see what would happen
+python sync2nas.py route-files --dry-run
 ```
 
-### Add A New Show To The Database and NAS Filesystem Directory
-Creates an entry for the show in the database, adds the episode information, and creates the path for the show on the NAS.  If the --tmdb-id flag is provided, it uses the ID for an exact match, otherwise it uses the show name for a search and uses the first result.  Using the --override-dir flag tells the command to ues the show name provided as the name of the directory on the path, rather than using the name provided by TMDB.  Useful when the showname contains invalid characters.
+### Show Management
+
+#### Add New Shows
 ```bash
-python sync2nas.py add-show "Example Showname" --tmdb-id 000000 --override-dir
+# Add show by name (interactive search)
+python sync2nas.py add-show "Breaking Bad"
+
+# Add show by TMDB ID
+python sync2nas.py add-show --tmdb-id 1396
+
+# Override directory name
+python sync2nas.py add-show "Show Name" --override-dir
 ```
 
-### Search for Shows in Database
-Search for shows in your local database using partial matching.
+#### Search for Shows
 ```bash
-# Search by show name
-python sync2nas.py search-show "Bleach"
+# Search local database
+python sync2nas.py search-show "Breaking Bad"
+python sync2nas.py search-show --tmdb-id 1396
 
-# Search by TMDB ID
-python sync2nas.py search-show --tmdb-id 30984
-
-# Verbose output with detailed information
-python sync2nas.py search-show "One Piece" --verbose
+# Search TMDB directly
+python sync2nas.py search-tmdb "One Piece"
+python sync2nas.py search-tmdb --tmdb-id 37854
 ```
 
-### Search for Shows on TMDB
-Search for shows directly on TMDB to discover new content.
+#### Fix Misclassified Shows
 ```bash
-# Search by show name
-python sync2nas.py search-tmdb "Bleach"
+# Interactive fix with TMDB search
+python sync2nas.py fix-show "Show Name"
 
-# Search by TMDB ID
-python sync2nas.py search-tmdb --tmdb-id 30984
-
-# Verbose output with detailed information
-python sync2nas.py search-tmdb "One Piece" --verbose --limit 5
+# Fix with specific TMDB ID
+python sync2nas.py fix-show "Show Name" --tmdb-id 123456
 ```
 
-### Refresh the Downloads Table
-Baseline the downloads database with the contents of the SFTP server to the downloads table. This command will process all configured SFTP paths in the configuration file. It uses a recursive search on all directories in each SFTP server path, so it may take a considerable amount of time depending on the number and size of configured paths. These files will not be downloaded as a result of this command, nor will these files be downloaded in the future.
+### Database Operations
+
+#### Bootstrap Operations
 ```bash
+# Bootstrap existing SFTP downloads
 python sync2nas.py bootstrap-downloads
+
+# Bootstrap existing media library
+python sync2nas.py bootstrap-tv-shows
+
+# Bootstrap episode information
+python sync2nas.py bootstrap-episodes
 ```
 
-### Fix a misclassified show in the database
-When a show gets added, either manually or via the --auto-add flag when routing files in the Incoming directory, the correct show might not be identified in the TMDB search results.  In that case, the show and episode information need to be corrected.  When using the fix-show CLI command, a show name argument is required in order to know what show to fix.  If the --tmdb-id flag is used, it will correct the given show name with the provided TMDB show ID.  If no --tmdb-id flag is provided, then an interactive session will appear in the terminal window with the top 20 results for the show.
+#### Database Maintenance
 ```bash
-python sync2nas.py fix-show "Show Name" --tmdb-id 000000
-```
-
-### Database Backup
-Back up the current database using the configured backend.
-```bash
+# Backup database
 python sync2nas.py backup-db
+
+# Initialize database
+python sync2nas.py init-db
 ```
 
-### Verbose Output for Debugging
-Enable step by step verbose information printed out to the console.  Single -v is for INFO log level messages, -vv is for DEBUG level.
+### Advanced Features
+
+#### AI-Powered Parsing
 ```bash
-python sync2nas.py -vv
+# Route files with LLM parsing
+python sync2nas.py route-files --use-llm
+
+# Custom confidence threshold
+python sync2nas.py route-files --use-llm --llm-confidence 0.8
 ```
 
-### Dry Running Commands
-Most commands have a --dry-run flag enabled, so you can see what actions will be taken before committing to that plan of action.
+#### Verbose Output and Debugging
 ```bash
-python sync2nas.py route-files --auto-add --dry-run
+# INFO level logging
+python sync2nas.py -v route-files
+
+# DEBUG level logging
+python sync2nas.py -vv route-files
+
+# Log to file
+python sync2nas.py -v --logfile sync2nas.log route-files
 ```
 
-## Contribution
+## Development
 
-Feel free to fork the repository and submit pull requests to enhance the features or fix bugs. Please ensure code is well-documented and tested.
+### Project Structure
 
+sync2nas/
+├── cli/     
+├── cli/ # CLI command implementations
+├── api/ # REST API implementation
+├── services/ # Core business logic
+├── models/ # Data models
+├── utils/ # Utility functions
+├── tests/ # Test suite
+├── config/ # Configuration files
+└── docs/ # Documentation
+
+### Testing
+```bash
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=sync2nas
+
+# Run specific test categories
+pytest tests/services/
+pytest tests/cli/
+```
+
+### Development Setup
+```bash
+# Install in development mode
+pip install -e .
+
+# Install development dependencies
+pip install -r requirements-dev.txt
+
+# Run linting
+flake8 sync2nas/
+black sync2nas/
+```
+
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guide](docs/contributing.md) for details.
+
+### Getting Started
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Submit a pull request
+
+### Development Guidelines
+- Follow the existing code style
+- Add comprehensive tests
+- Update documentation
+- Use meaningful commit messages
+
+### Reporting Issues
+- Use the GitHub issue tracker
+- Include detailed reproduction steps
+- Provide relevant configuration and logs
+
+---
+
+**Need Help?**
+- Check the [documentation](docs/)
+- Review [API documentation](api/README.md)
+- Open an [issue](https://github.com/yourusername/sync2nas/issues)
+- Join our [discussions](https://github.com/yourusername/sync2nas/discussions)
