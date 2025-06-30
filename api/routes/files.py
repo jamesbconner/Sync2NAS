@@ -4,6 +4,8 @@ from api.models.requests import RouteFilesRequest, LLMParseFilenameRequest
 from api.models.responses import RouteFilesResponse, ListIncomingResponse, LLMParseFilenameResponse
 from api.services.file_service import FileService
 from api.dependencies import get_file_service
+from api.services.llm_implementations.llm_interface import LLMService
+from api.dependencies import get_llm_service
 
 router = APIRouter()
 
@@ -35,28 +37,19 @@ async def list_incoming_files(file_service: FileService = Depends(get_file_servi
 
 
 @router.post("/parse-filename", response_model=LLMParseFilenameResponse)
-async def parse_filename_llm(request: LLMParseFilenameRequest):
+async def parse_filename_llm(
+    request: Request,
+    body: LLMParseFilenameRequest,
+    llm_service: LLMService = Depends(get_llm_service)
+):
     """Parse a filename using LLM for show/season/episode extraction"""
     try:
-        from fastapi import Request as FastAPIRequest
-        import inspect
-        # Get the FastAPI request object from the stack
-        fastapi_request = None
-        for frame_info in inspect.stack():
-            if "request" in frame_info.frame.f_locals:
-                maybe_request = frame_info.frame.f_locals["request"]
-                if isinstance(maybe_request, FastAPIRequest):
-                    fastapi_request = maybe_request
-                    break
-        if fastapi_request is None:
-            raise RuntimeError("Could not access FastAPI request context for LLM service.")
-        llm_service = fastapi_request.app.state.services["llm_service"]
         result = llm_service.parse_filename(
-            request.filename,
+            body.filename,
             max_tokens=150
         )
         # Only return if confidence meets threshold
-        if result.get("confidence", 0.0) < request.llm_confidence_threshold:
+        if result.get("confidence", 0.0) < body.llm_confidence_threshold:
             raise HTTPException(status_code=422, detail=f"LLM confidence too low: {result.get('confidence')}")
         return LLMParseFilenameResponse(**result)
     except Exception as e:
