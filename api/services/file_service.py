@@ -6,6 +6,8 @@ from services.tmdb_service import TMDBService
 from utils.file_routing import file_routing, parse_filename
 from utils.file_filters import EXCLUDED_FILENAMES
 from utils.show_adder import add_show_interactively
+from services.llm_implementations.ollama_implementation import OllamaLLMService
+from services.llm_implementations.openai_implementation import OpenAILLMService
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +29,22 @@ class FileService:
 
             llm_service = None
             llm_confidence_threshold = 0.7
-            if request is not None:
+            services = None
+            config = None
+            if request is not None and hasattr(request, "app") and hasattr(request.app, "state") and hasattr(request.app.state, "services"):
                 services = request.app.state.services
+            if services:
                 llm_service = services.get("llm_service")
                 config = services.get("config")
-                if config and config.has_option("ollama", "llm_confidence_threshold"):
-                    llm_confidence_threshold = config.getfloat("ollama", "llm_confidence_threshold")
+                if config and llm_service:
+                    if isinstance(llm_service, OllamaLLMService):
+                        section = "ollama"
+                    elif isinstance(llm_service, OpenAILLMService):
+                        section = "openai"
+                    else:
+                        section = None
+                    if section and config.has_option(section, "llm_confidence_threshold"):
+                        llm_confidence_threshold = config.getfloat(section, "llm_confidence_threshold")
 
             routed = file_routing(
                 self.incoming_path, 
