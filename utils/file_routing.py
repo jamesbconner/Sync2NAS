@@ -163,6 +163,8 @@ def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, 
             if season is not None and episode is not None:
                 season_str = f"{season:02}"
                 episode_str = f"{episode:02}"
+                season_int = season
+                episode_int = episode
 
             # If only episode is found, use absolute episode lookup
             elif episode is not None:
@@ -176,12 +178,18 @@ def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, 
                         # Continue routing, but leave season/episode as None
                         season_str = None
                         episode_str = None
+                        season_int = None
+                        episode_int = None
                     else:
                         season_str = f"{int(matched_ep['season']):02}"
                         episode_str = f"{int(matched_ep['episode']):02}"
+                        season_int = int(matched_ep['season'])
+                        episode_int = int(matched_ep['episode'])
                 else:
                     season_str = f"{int(matched_ep['season']):02}"
                     episode_str = f"{int(matched_ep['episode']):02}"
+                    season_int = int(matched_ep['season'])
+                    episode_int = int(matched_ep['episode'])
 
             # If neither is available, skip this file
             else:
@@ -208,8 +216,8 @@ def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, 
                 "original_path": source_path,
                 "routed_path": target_path,
                 "show_name": show.sys_name,
-                "season": season_str,
-                "episode": episode_str,
+                "season": season_int,
+                "episode": episode_int,
                 "confidence": confidence,
                 "reasoning": reasoning
             })
