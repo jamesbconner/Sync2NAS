@@ -1,0 +1,195 @@
+import logging
+import json
+import re
+from typing import Dict, Any, List
+from ollama import Client
+from utils.sync2nas_config import load_configuration
+from services.llm_implementations.base_llm_service import BaseLLMService
+
+logger = logging.getLogger(__name__)
+
+class OllamaLLMService(BaseLLMService):
+    """
+    LLM service implementation using a local Ollama server and model.
+    Provides filename parsing for show metadata extraction.
+    """
+    def __init__(self, config):
+        """
+        Initialize the Ollama LLM service.
+        Args:
+            config: Loaded configuration object
+        """
+        self.config = config
+        self.model = self.config.get('ollama', 'model', fallback='llama3.2')
+        self.client = Client()
+        logger.info(f"ollama_implementation.py::__init__ - Ollama LLM service initialized with model: {self.model}")
+
+    def parse_filename(self, filename: str, max_tokens: int = 150) -> Dict[str, Any]:
+        """
+        Parse a filename using Ollama LLM to extract show metadata.
+        Args:
+            filename: Raw filename to parse
+            max_tokens: Maximum tokens for LLM response
+        Returns:
+            dict: Parsed metadata
+        """
+        logger.info(f"ollama_implementation.py::parse_filename - Parsing filename with Ollama LLM: {filename}")
+        cleaned_filename = self._clean_filename_for_llm(filename)
+        prompt = self._create_filename_parsing_prompt(cleaned_filename)
+        try:
+            response = self.client.generate(
+                model=self.model,
+                prompt=f"{self._get_system_prompt()}\n\n{prompt}",
+                stream=False,
+                options={"num_predict": max_tokens, "temperature": 0.1}
+            )
+            # Extract the JSON string from the response object
+            if hasattr(response, 'response'):
+                content = response.response
+            elif isinstance(response, dict) and 'response' in response:
+                content = response['response']
+            else:
+                content = response  # fallback
+            logger.debug(f"ollama_implementation.py::parse_filename - Ollama response: {content}")
+            try:
+                result = json.loads(content)
+                parsed_result = self._validate_and_clean_result(result, filename)
+                logger.info(f"ollama_implementation.py::parse_filename - Successfully parsed: {parsed_result}")
+                return parsed_result
+            except json.JSONDecodeError as e:
+                logger.error(f"ollama_implementation.py::parse_filename - Failed to parse JSON response: {e}")
+                return self._fallback_parse(filename)
+        except Exception as e:
+            logger.exception(f"ollama_implementation.py::parse_filename - Ollama API error: {e}")
+            return self._fallback_parse(filename)
+
+    def _get_system_prompt(self) -> str:
+        return """
+You are an expert at parsing TV and anime episode filenames and extracting structured metadata. Your job is to extract the following information and return it as strict JSON:
+
+- "show_name": The full show name as it appears in the filename. This may include dashes, alternate titles, or unusual letter sequences like "GQuuuuuuX" — these are not metadata tags or suffixes, but part of the true name.
+- "season": The season number as an integer, or null if not explicitly present.
+- "episode": The episode number as an integer, or null if not explicitly present.
+- "confidence": A float between 0.0 and 1.0 that reflects how certain you are in ALL extracted fields.
+- "reasoning": A short explanation that justifies each extracted field and explains why the confidence is high or low.
+
+---
+
+Important Rules:
+1. There is never a valid scenario with a season number but no episode number. If a season is detected but no episode, return episode: null and reduce confidence sharply.
+2. It is common for filenames to include only a show name and episode number. This is valid and should not be interpreted as season 1 unless explicitly stated.
+3. Dashes (-) are commonly used separators, but they can also appear within show names. Use heuristics: if a dash is between the show title and a number, it may be a separator; if it's inside a quoted or known title structure, or if there are words on both sides of the dash, keep it in the title.
+4. Show names are often in Japanese or English, and may contain underscores, romanization artifacts, or substitutions. Normalize to readable title case.
+5. Season and episode numbers are always expressed using Arabic numerals, often formatted as:
+   - S02E03 / SO2 EO3 / 2nd Season 03 / Ep 03 / - 03 / 03 / 3
+6. Tags such as [GroupName], [1080p], [BDRip], and hex hashes like [89F3A28D] must be ignored.
+7. If any field is unclear or inferred, confidence should not exceed 0.7.
+8. The output MUST BE STRICT JSON, with no markdown, code blocks, or commentary. Return ONLY the raw JSON object.
+
+---
+
+Output Constraints:
+- Return a valid JSON object with exactly these fields:
+  - show_name: string
+  - season: integer or null
+  - episode: integer or null
+  - confidence: float (0.0 to 1.0)
+  - reasoning: string
+- Do not include any markdown, code blocks, or commentary. Return only the raw JSON object.
+
+---
+
+Example 1:
+Given:
+[Erai-raws] Kidou Senshi Gundam GQuuuuuuX - 12 [1080p AMZN WEB-DL AVC EAC3][MultiSub][CC001E26].mkv
+
+Return:
+{
+  "show_name": "Kidou Senshi Gundam GQuuuuuuX",
+  "season": null,
+  "episode": 12,
+  "confidence": 0.95,
+  "reasoning": "Episode number 12 appears clearly after the show name; no season is indicated. Full title retained with suffix."
+}
+
+Example 2:
+Given:
+[Asakura] Tensei Shitara Slime Datta Ken 3rd Season 49 [BDRip x265 IObit FLAC] [36E425AB].mkv
+
+Return:
+{
+  "show_name": "Tensei Shitara Slime Datta Ken",
+  "season": 3,
+  "episode": 49,
+  "confidence": 0.95,
+  "reasoning": "Season number is explicitly stated as '3rd Season'"
+}
+
+Example 3:
+Given:
+[SubsPlease] Zatsu Tabi - That's Journey - 01 (1080p) [EC01EEB3].mkv
+
+Return:
+{
+  "show_name": "Zatsu Tabi - That's Journey",
+  "season": null,
+  "episode": 1,
+  "confidence": 0.80,
+  "reasoning": "Episode number 1 appears clearly after the show name; no season is indicated. Full title retained with suffix."
+}
+"""
+
+    def _create_filename_parsing_prompt(self, filename: str) -> str:
+        return (f"Parse this TV show filename and extract the show name, season, and episode information:\n\n"
+                f"Filename: {filename}\n\n"
+                "Please analyze this filename and return the parsed information in JSON format.")
+
+    def _validate_and_clean_result(self, result: Dict[str, Any], original_filename: str) -> Dict[str, Any]:
+        validated = {
+            "show_name": result.get("show_name", "").strip(),
+            "season": result.get("season"),
+            "episode": result.get("episode"),
+            "confidence": result.get("confidence", 0.0),
+            "reasoning": result.get("reasoning", "No reasoning provided")
+        }
+        try:
+            if validated["season"] is not None:
+                validated["season"] = int(validated["season"])
+            if validated["episode"] is not None:
+                validated["episode"] = int(validated["episode"])
+            validated["confidence"] = float(validated["confidence"])
+        except (ValueError, TypeError):
+            logger.warning(f"ollama_implementation.py::_validate_and_clean_result - Invalid data types in LLM response, using fallback")
+            return self._fallback_parse(original_filename)
+        validated["confidence"] = max(0.0, min(1.0, validated["confidence"]))
+        if not validated["show_name"]:
+            logger.warning(f"ollama_implementation.py::_validate_and_clean_result - Empty show name from LLM, using fallback")
+            return self._fallback_parse(original_filename)
+        return validated
+
+    def _fallback_parse(self, filename: str) -> Dict[str, Any]:
+        logger.info(f"ollama_implementation.py::_fallback_parse - Using fallback parsing for: {filename}")
+        base = re.sub(r"\.[a-z0-9]{2,4}$", "", filename, flags=re.IGNORECASE)
+        cleaned = re.sub(r"[\[\(].*?[\]\)]", "", base)
+        cleaned = re.sub(r"[_.]", " ", cleaned)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        season_episode_pattern = r"(.*?)[\s\-]+[Ss](\d{1,2})[Ee](\d{1,3})"
+        match = re.search(season_episode_pattern, cleaned, re.IGNORECASE)
+        if match:
+            show_name = match.group(1).strip(" -_")
+            season = int(match.group(2))
+            episode = int(match.group(3))
+            return {
+                "show_name": show_name,
+                "season": season,
+                "episode": episode,
+                "confidence": 0.5,
+                "reasoning": "Fallback regex parsing"
+            }
+        return {
+            "show_name": cleaned,
+            "season": None,
+            "episode": None,
+            "confidence": 0.1,
+            "reasoning": "Fallback parsing - no clear pattern"
+        } 

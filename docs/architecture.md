@@ -42,7 +42,7 @@ Sync2NAS is built using a modular, service-oriented architecture that separates 
   - `db_factory.py`: Database backend selection.
   - `tmdb_service.py`: TMDB API integration.
   - `sftp_service.py`: SFTP file transfer.
-  - `llm_service.py`: OpenAI GPT filename parsing.
+  - `llm_factory.py`: LLM backend selection.
   - `db_implementations/`: Backend implementations (SQLite, PostgreSQL, Milvus).
 
 **Pattern:**  
@@ -171,3 +171,49 @@ Sync2NAS is built using a modular, service-oriented architecture that separates 
 ---
 
 *For more details on any component, see the corresponding module or documentation file.*
+
+# LLM Architecture
+
+**Note:** The old `services/llm_service.py` is deprecated and should not be used. All LLM logic is now handled via the factory/interface/implementation pattern described below.
+
+## Overview
+The LLM filename parsing system is now modular and backend-agnostic, supporting both local (Ollama) and remote (OpenAI) LLMs. The backend is selected via configuration, and all implementations share common logic via a base class.
+
+## Components
+
+### Factory (`services/llm_factory.py`)
+- Exposes `create_llm_service(config)`.
+- Reads the `[llm]` section of the config to select the backend (`ollama` or `openai`).
+- Instantiates and returns the correct implementation.
+
+### Base Class (`services/llm_implementations/base_llm_service.py`)
+- Inherits from `LLMInterface`.
+- Implements shared logic for:
+  - Prompt creation
+  - Result validation and cleaning
+  - Fallback parsing
+  - Batch parsing
+- All LLM implementations inherit from this class.
+
+### Implementations
+- `OllamaLLMService`: Uses the local Ollama server and model. Reads model and confidence threshold from config.
+- `OpenAILLMService`: Uses the OpenAI API. Reads model, API key, and other options from config.
+- Both only override backend-specific logic and the system prompt.
+
+### Adding a New LLM Backend
+1. Implement a new class inheriting from `BaseLLMService`.
+2. Add backend-specific logic and system prompt.
+3. Update the factory to recognize the new backend in config and instantiate your class.
+
+## Configuration-Driven
+- The backend, model, and options are all set in the config file. No code changes are needed to switch backends.
+
+## API and CLI Integration
+- Both API and CLI use the factory to instantiate the LLM service based on the loaded config.
+- The LLM service is passed via context or dependency injection, ensuring a single instance is used per run.
+
+## Migration Note
+If you are upgrading from a previous version:
+- The old `services/llm_service.py` is deprecated and should be removed.
+- All LLM logic is now handled via the factory/interface/implementation pattern described above.
+- Update your config to use the new `[llm]`, `[ollama]`, and `[openai]` sections.

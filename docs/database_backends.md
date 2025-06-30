@@ -225,14 +225,11 @@ def create_db_service(config: Dict[str, Any]) -> DatabaseInterface:
 Used for different filename parsing strategies (regex vs LLM).
 
 ```python
-def parse_filename(filename: str, llm_service: Optional[LLMService] = None) -> dict:
+def parse_filename(filename: str, llm_service: Optional[LLMInterface] = None) -> dict:
     if llm_service:
-        try:
-            result = llm_service.parse_filename(filename)
-            if result.get("confidence", 0.0) >= 0.7:
-                return result
-        except Exception:
-            pass
+        result = llm_service.parse_filename(filename)
+        if result.get("confidence", 0.0) >= 0.7:
+            return result
     
     return _regex_parse_filename(filename)
 ```
@@ -464,4 +461,18 @@ print(f"Index status: {collection.has_index()}")
 - You're experimenting with advanced features
 - You have the resources to manage a vector database
 - You're building a recommendation system
+
+# Database and LLM Backend Architecture
+
+## Pattern
+- Both database and LLM backends use a factory and interface/implementation pattern.
+- The backend is selected via config, and the factory instantiates the correct implementation.
+
+## Extensibility
+- This pattern makes it easy to add new database or LLM backends in the future.
+- To add a new backend, implement the interface, add your class, and update the factory.
+
+## LLM Example
+- The LLM system now supports both Ollama and OpenAI using this pattern.
+- See `services/llm_factory.py` and `services/llm_implementations/` for details.
 

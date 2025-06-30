@@ -23,7 +23,7 @@ File routing is the process of moving downloaded files from your "incoming" dire
 
    This is done using:
    - **Regex patterns** (default, fast, works for standard formats)
-   - **LLM (OpenAI GPT) parsing** (optional, for complex or non-standard filenames)
+   - **LLM (OpenAI GPT, or Ollama based models) parsing** (optional, for complex or non-standard filenames)
 
 3. **Show Matching:**  
    The extracted show name is matched against the database using:
@@ -63,7 +63,7 @@ Regex parsing is fast and works well for standard scene and fansub formats.
 
 ### 2. LLM (AI) Parsing (Optional)
 
-For complex or non-standard filenames, Sync2NAS can use OpenAI's GPT models for intelligent parsing.
+For complex or non-standard filenames, Sync2NAS can use OpenAI's GPT or Ollama models for intelligent parsing.
 
 **Benefits:**
 - Handles messy, ambiguous, or highly variable filenames
@@ -157,9 +157,24 @@ python sync2nas.py route-files --use-llm --dry-run
 ## Advanced
 
 - You can extend or modify the regex patterns in `utils/file_routing.py` for custom formats.
-- The LLM prompt can be customized in `services/llm_service.py` for special parsing needs.
+- The LLM prompt can be customized in the `_get_system_prompt` method of the relevant LLM implementation (e.g., `OllamaLLMService` or `OpenAILLMService`).
 - Future versions may support custom routing rules for different file types.
 
 ---
 
 For more details, see the main [README.md](../README.md) and the [API documentation](../api/README.md).
+
+# File Routing and LLM Integration
+
+## LLM-Based Filename Parsing
+- File routing now supports intelligent filename parsing using an LLM (Ollama or OpenAI).
+- The LLM backend and confidence threshold are configurable in the config file.
+- If the LLM is not confident enough or fails, the system falls back to regex-based parsing.
+
+## How It Works
+- The LLM service is injected into the file routing logic via context (CLI) or dependency injection (API).
+- The LLM parses filenames and returns show name, season, episode, confidence, and reasoning.
+- The routing logic uses these results to determine where to move files.
+
+## Configuration
+- See the configuration documentation for details on setting up the LLM backend and options.

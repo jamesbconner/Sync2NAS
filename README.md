@@ -23,7 +23,7 @@ Sync2NAS is a comprehensive Python tool for managing TV shows, synchronizing fil
 - **Intelligent File Routing**: Routes media files to organized show directories
 - **Metadata Management**: Integrates with TMDB for show and episode information
 - **Database Management**: Supports multiple database backends with a factory pattern
-- **AI-Powered Parsing**: Uses OpenAI GPT models for intelligent filename parsing
+- **AI-Powered Parsing**: Uses OpenAI GPT and Ollama models for intelligent filename parsing
 - **Dual Interface**: Provides both CLI commands and REST API endpoints
 
 ## Features
@@ -36,7 +36,7 @@ Sync2NAS is a comprehensive Python tool for managing TV shows, synchronizing fil
 - **Bootstrap Operations**: Easy migration of existing media libraries
 
 ### Advanced Features
-- **AI-Powered Filename Parsing**: Uses OpenAI GPT models for accurate show name extraction
+- **AI-Powered Filename Parsing**: Uses modular LLM backends (Ollama or OpenAI) for accurate show name extraction, configurable via the config file
 - **Confidence Scoring**: LLM provides confidence levels for parsing decisions
 - **Fallback Support**: Automatic fallback to regex if LLM fails
 - **Search Capabilities**: Search local database and TMDB for shows
@@ -56,6 +56,9 @@ Sync2NAS is a comprehensive Python tool for managing TV shows, synchronizing fil
 - SFTP server access
 - TMDB API key (optional but recommended)
 - OpenAI API key (optional, for AI-powered parsing)
+- Ollama service running your preferred model (default llama3.2)
+**Note:** Sync2NAS does not manage Ollama models. You must ensure that any model specified here (e.g., `llama3.2`) is already installed and available in your local Ollama instance. Use `ollama pull <model>` to install models as needed.
+
 
 ### Installation
 
@@ -109,7 +112,7 @@ Sync2NAS is a comprehensive Python tool for managing TV shows, synchronizing fil
 - **[Testing](docs/testing.md)**: Testing philosophy and coverage matrix
 - **[Contributing](docs/contributing.md)**: Development setup and guidelines
 
-### Service Documentation
+### Service Testing Documentation
 - **[SFTP Service](docs/SFTP_Test_Philosophy.md)**: SFTP integration details
 - **[Database Service](docs/Database_Test_Philosophy.md)**: Database backend details
 - **[TMDB Service](docs/TMDB_Test_Philosophy.md)**: TMDB API integration
@@ -157,13 +160,27 @@ anime_tv_path = d:/anime_tv/
 api_key = your_tmdb_api_key_here
 ```
 
-#### AI-Powered Parsing
+#### LLM Backend Selection
 ```ini
-[OpenAI]
+[llm]
+service = ollama  # ollama or openai
+```
+
+#### Ollama LLM Backend
+```ini
+[ollama]
+model = llama3.2
+llm_confidence_threshold = 0.7
+```
+
+#### OpenAI LLM Backend
+```ini
+[openai]
 api_key = your_openai_api_key_here
 model = gpt-3.5-turbo
 max_tokens = 150
 temperature = 0.1
+llm_confidence_threshold = 0.7
 ```
 
 ### Complete Configuration Example
@@ -187,11 +204,19 @@ incoming = ./incoming
 [TMDB]
 api_key = your_tmdb_api_key_here
 
-[OpenAI]
+[llm]
+service = ollama  # or openai
+
+[ollama]
+model = llama3
+llm_confidence_threshold = 0.7
+
+[openai]
 api_key = your_openai_api_key_here
 model = gpt-3.5-turbo
 max_tokens = 150
 temperature = 0.1
+llm_confidence_threshold = 0.7
 
 [Routing]
 anime_tv_path = d:/anime_tv/
@@ -251,6 +276,7 @@ python sync2nas.py route-files --auto-add
 
 # Enhanced routing with AI-powered LLM parsing
 python sync2nas.py route-files --auto-add --use-llm
+# The LLM backend (Ollama or OpenAI) is selected via the config file
 
 # Dry run to see what would happen
 python sync2nas.py route-files --dry-run
@@ -320,8 +346,9 @@ python sync2nas.py init-db
 # Route files with LLM parsing
 python sync2nas.py route-files --use-llm
 
-# Custom confidence threshold
+# Custom confidence threshold (overrides config value)
 python sync2nas.py route-files --use-llm --llm-confidence 0.8
+# The backend (Ollama or OpenAI) is selected via the [llm] config section
 ```
 
 #### Verbose Output and Debugging
@@ -335,6 +362,15 @@ python sync2nas.py -vv route-files
 # Log to file
 python sync2nas.py -v --logfile sync2nas.log route-files
 ```
+
+## Migration Notes
+
+If you are upgrading from a previous version:
+- The `[llm]` section is required to select the LLM backend (`ollama` or `openai`).
+- The `[openAI]` section is now optional and only used if `[llm] service = openai`.
+- The `[ollama]` section is required if using Ollama.
+- All LLM configuration is now modular and extensible; see [docs/configuration.md](docs/configuration.md) for details.
+- Deprecated references to `llm_service.py` and `LLMService` have been removed; see migration notes in the documentation if you have custom integrations.
 
 ## Development
 

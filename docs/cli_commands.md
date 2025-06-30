@@ -43,8 +43,8 @@ python sync2nas.py route-files [options]
 
 **Options:**
 - `--auto-add`: Automatically add unknown shows to database
-- `--use-llm`: Enable AI-powered filename parsing
-- `--llm-confidence`: Set minimum confidence threshold (0.0-1.0)
+- `--use-llm`: Enable LLM-based filename parsing for routing files
+- `--llm-confidence`: Minimum confidence required to accept LLM results (overrides config value for this run)
 - `--dry-run`: Simulate operations without moving files
 - `--incoming, -i`: Specify incoming directory path
 
@@ -287,3 +287,20 @@ python sync2nas.py add-show "Show 2" --tmdb-id 456
 # Update all episodes
 python sync2nas.py update-episodes
 ```
+
+# CLI LLM Integration
+
+## LLM-Enabled Commands
+
+### route-files
+- `--use-llm`: Enable LLM-based filename parsing for routing files.
+- `--llm-confidence`: Minimum confidence required to accept LLM results (overrides config value for this run).
+- The CLI uses the LLM service as configured in the config file and passes it via the context object.
+
+## How It Works
+- The CLI loads the config and instantiates the LLM service at startup.
+- The LLM backend (Ollama or OpenAI) is selected based on the `[llm]` section of the config.
+- All LLM options (model, confidence threshold, etc.) are read from the config unless overridden by CLI flags.
+
+## Switching Backends
+- To switch between Ollama and OpenAI, change the `service` value in the `[llm]` section of your config file.

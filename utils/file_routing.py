@@ -7,17 +7,17 @@ from models.episode import Episode
 from models.show import Show
 import logging
 from utils.episode_updater import refresh_episodes_for_show
-from services.llm_service import LLMService
+from services.llm_implementations.llm_interface import LLMInterface
 
 logger = logging.getLogger(__name__)
 
-def parse_filename(filename: str, llm_service: Optional[LLMService] = None, llm_confidence_threshold: float = 0.7) -> dict:
+def parse_filename(filename: str, llm_service: Optional[LLMInterface] = None, llm_confidence_threshold: float = 0.7) -> dict:
     """
     Extract show metadata from a filename using LLM or fallback to regex.
 
     Args:
         filename (str): Raw filename (e.g., "Show.Name.S01E01.1080p.mkv")
-        llm_service (LLMService, optional): LLM service for intelligent parsing
+        llm_service (LLMInterface, optional): LLM service for intelligent parsing
         llm_confidence_threshold (float, optional): Minimum confidence to accept LLM result
 
     Returns:
@@ -109,7 +109,7 @@ def _regex_parse_filename(filename: str) -> dict:
 
 
 def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, tmdb, 
-                dry_run: bool = False, llm_service: Optional[LLMService] = None, llm_confidence_threshold: float = 0.7) -> List[Dict[str, str]]:
+                dry_run: bool = False, llm_service: Optional[LLMInterface] = None, llm_confidence_threshold: float = 0.7) -> List[Dict[str, str]]:
     """
     Scan the incoming directory, identify files to route, and move them to their destination paths.
 
@@ -163,6 +163,8 @@ def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, 
             if season is not None and episode is not None:
                 season_str = f"{season:02}"
                 episode_str = f"{episode:02}"
+                season_int = season
+                episode_int = episode
 
             # If only episode is found, use absolute episode lookup
             elif episode is not None:
@@ -176,12 +178,18 @@ def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, 
                         # Continue routing, but leave season/episode as None
                         season_str = None
                         episode_str = None
+                        season_int = None
+                        episode_int = None
                     else:
                         season_str = f"{int(matched_ep['season']):02}"
                         episode_str = f"{int(matched_ep['episode']):02}"
+                        season_int = int(matched_ep['season'])
+                        episode_int = int(matched_ep['episode'])
                 else:
                     season_str = f"{int(matched_ep['season']):02}"
                     episode_str = f"{int(matched_ep['episode']):02}"
+                    season_int = int(matched_ep['season'])
+                    episode_int = int(matched_ep['episode'])
 
             # If neither is available, skip this file
             else:
@@ -208,8 +216,8 @@ def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, 
                 "original_path": source_path,
                 "routed_path": target_path,
                 "show_name": show.sys_name,
-                "season": season_str,
-                "episode": episode_str,
+                "season": season_int,
+                "episode": episode_int,
                 "confidence": confidence,
                 "reasoning": reasoning
             })

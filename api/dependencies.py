@@ -6,6 +6,7 @@ from api.services.show_service import ShowService
 from api.services.file_service import FileService
 from api.services.remote_service import RemoteService
 from api.services.admin_service import AdminService
+from services.llm_factory import create_llm_service
 
 
 def get_services(config):
@@ -21,6 +22,7 @@ def get_services(config):
     
     anime_tv_path = config["Routing"]["anime_tv_path"]
     incoming_path = config["Transfers"]["incoming"]
+    llm_service = create_llm_service(config)
     
     return {
         "db": db,
@@ -28,7 +30,8 @@ def get_services(config):
         "tmdb": tmdb,
         "anime_tv_path": anime_tv_path,
         "incoming_path": incoming_path,
-        "config": config
+        "config": config,
+        "llm_service": llm_service
     }
 
 
@@ -71,4 +74,10 @@ def get_admin_service(request: Request) -> AdminService:
         services["tmdb"],
         services["anime_tv_path"],
         services["config"]
-    ) 
+    )
+
+
+def get_llm_service(request: Request):
+    """Dependency for LLM service"""
+    services = request.app.state.services
+    return services["llm_service"] 

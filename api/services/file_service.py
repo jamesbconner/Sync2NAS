@@ -6,6 +6,9 @@ from services.tmdb_service import TMDBService
 from utils.file_routing import file_routing, parse_filename
 from utils.file_filters import EXCLUDED_FILENAMES
 from utils.show_adder import add_show_interactively
+from services.llm_implementations.ollama_implementation import OllamaLLMService
+from services.llm_implementations.openai_implementation import OpenAILLMService
+from services.llm_implementations.llm_interface import LLMInterface as LLMService
 
 logger = logging.getLogger(__name__)
 
@@ -19,18 +22,39 @@ class FileService:
         self.incoming_path = incoming_path
 
     async def route_files(self, dry_run: bool = False, 
-                         auto_add: bool = False) -> Dict[str, Any]:
+                         auto_add: bool = False, request=None) -> Dict[str, Any]:
         """Route files from incoming directory to show directories"""
         try:
             if auto_add:
                 await self._auto_add_missing_shows(dry_run)
+
+            llm_service = None
+            llm_confidence_threshold = 0.7
+            services = None
+            config = None
+            if request is not None and hasattr(request, "app") and hasattr(request.app, "state") and hasattr(request.app.state, "services"):
+                services = request.app.state.services
+            if services:
+                llm_service = services.get("llm_service")
+                config = services.get("config")
+                if config and llm_service:
+                    if isinstance(llm_service, OllamaLLMService):
+                        section = "ollama"
+                    elif isinstance(llm_service, OpenAILLMService):
+                        section = "openai"
+                    else:
+                        section = None
+                    if section and config.has_option(section, "llm_confidence_threshold"):
+                        llm_confidence_threshold = config.getfloat(section, "llm_confidence_threshold")
 
             routed = file_routing(
                 self.incoming_path, 
                 self.anime_tv_path, 
                 self.db, 
                 self.tmdb, 
-                dry_run=dry_run
+                dry_run=dry_run,
+                llm_service=llm_service,
+                llm_confidence_threshold=llm_confidence_threshold
             )
 
             return {

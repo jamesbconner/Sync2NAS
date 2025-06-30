@@ -8,6 +8,7 @@ from utils.logging_config import setup_logging
 from services.db_factory import create_db_service
 from services.sftp_service import SFTPService
 from services.tmdb_service import TMDBService
+from services.llm_factory import create_llm_service
 
 @rclick.group()
 @click.option('--logfile', '-l', type=click.Path(writable=True), help="Log to file")
@@ -16,7 +17,7 @@ from services.tmdb_service import TMDBService
 @click.pass_context
 def sync2nas_cli(ctx, verbose, logfile, config):
     # If the context object is already set, return it without reinitializing it
-    if ctx.obj and all(k in ctx.obj for k in ("config", "db", "tmdb", "sftp", "anime_tv_path", "incoming_path")):
+    if ctx.obj and all(k in ctx.obj for k in ("config", "db", "tmdb", "sftp", "anime_tv_path", "incoming_path", "llm_service")):
         return
     
     if logfile:
@@ -31,7 +32,8 @@ def sync2nas_cli(ctx, verbose, logfile, config):
         "sftp": SFTPService(cfg["SFTP"]["host"], int(cfg["SFTP"]["port"]), cfg["SFTP"]["username"], cfg["SFTP"]["ssh_key_path"]),
         "tmdb": TMDBService(cfg["TMDB"]["api_key"]),
         "anime_tv_path": cfg["Routing"]["anime_tv_path"],
-        "incoming_path": cfg["Transfers"]["incoming"]
+        "incoming_path": cfg["Transfers"]["incoming"],
+        "llm_service": create_llm_service(cfg)
     }
 
 # Dynamic discovery loop

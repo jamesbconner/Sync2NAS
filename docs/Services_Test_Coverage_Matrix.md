@@ -58,3 +58,14 @@ It provides a checklist of critical behaviors each service implements and the co
 
 # 🔗 Related Links
 - [Main README](../README.md)
+
+## LLM Services
+- Tests should cover:
+  - LLM factory: correct backend selection based on config
+  - Base class: prompt creation, validation, fallback, batch parsing
+  - Ollama and OpenAI implementations: backend-specific logic, system prompt
+  - CLI and API integration: ensure LLM is used when configured
+  - Fallback to regex when LLM is not confident or fails
+  - Error handling for misconfiguration or backend errors
+  - Migration: tests should ensure legacy LLMService code is removed and new pattern is used
+  - No code or tests should reference the deprecated services/llm_service.py or LLMService class

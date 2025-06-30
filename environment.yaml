@@ -21,3 +21,4 @@ dependencies:
     - pydantic>=2.5.0
     - python-multipart>=0.0.6
     - openai>=1.93.0
+    - ollama=0.5.1

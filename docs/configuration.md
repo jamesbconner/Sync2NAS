@@ -102,7 +102,7 @@ Configure OpenAI GPT integration for filename parsing.
 
 ```ini
 [OpenAI]
-api_key = your_openai_api_key_here
+api_key = your_openai_api_key
 model = gpt-3.5-turbo
 max_tokens = 150
 temperature = 0.1
@@ -125,6 +125,43 @@ port = 8000
 ```
 - `host`: Hostname to bind the API server (default: 127.0.0.1).
 - `port`: Port for the API server (default: 8000).
+
+---
+
+### [llm] Section
+Specifies which LLM backend to use for filename parsing.
+
+```
+[llm]
+service = ollama  # or openai
+```
+- `service`: Which LLM backend to use. Options: `ollama`, `openai`.
+
+### [ollama] Section
+Configuration for the Ollama local LLM backend.
+
+```
+[ollama]
+model = llama3.2
+llm_confidence_threshold = 0.7
+```
+- `model`: The Ollama model to use (must be available locally).
+- `llm_confidence_threshold`: Minimum confidence required to accept LLM results (float, 0.0-1.0).
+
+### [openai] Section
+Configuration for the OpenAI LLM backend.
+
+```
+[openai]
+model = gpt-3.5-turbo
+api_key = your_openai_api_key
+max_tokens = 250
+temperature = 0.1
+```
+- `model`: The OpenAI model to use.
+- `api_key`: Your OpenAI API key.
+- `max_tokens`: Maximum tokens for LLM responses.
+- `temperature`: Sampling temperature for LLM responses.
 
 ---
 
@@ -151,7 +188,7 @@ incoming = ./incoming
 api_key = a1234567-b123-c123-d123-e12345678901
 
 [OpenAI]
-api_key = sk-your-openai-api-key-here
+api_key = sk-your-openai-api-key
 model = gpt-3.5-turbo
 max_tokens = 150
 temperature = 0.1
@@ -163,6 +200,19 @@ movie_path = d:/movies/
 [API]
 host = 127.0.0.1
 port = 8000
+
+[llm]
+service = ollama
+
+[ollama]
+model = llama3.2
+llm_confidence_threshold = 0.7
+
+[openai]
+model = gpt-3.5-turbo
+api_key = your_openai_api_key
+max_tokens = 250
+temperature = 0.1
 ```
 
 ---
@@ -206,3 +256,9 @@ You can override some settings with environment variables:
 ---
 
 For more details on configuration options, see the main [README.md](../README.md) and the [Database Backends Guide](database_backends.md).
+
+---
+
+**Migration Note:**
+- The old `LLMService` config options are no longer supported.
+- You must migrate to the new `[llm]`, `[ollama]`, and `[openai]` sections as described above.
