@@ -74,4 +74,10 @@ def get_admin_service(request: Request) -> AdminService:
         services["tmdb"],
         services["anime_tv_path"],
         services["config"]
-    ) 
+    )
+
+
+def get_llm_service(request: Request):
+    """Dependency for LLM service"""
+    services = request.app.state.services
+    return services["llm_service"] 

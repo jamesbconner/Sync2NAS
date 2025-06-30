@@ -8,6 +8,7 @@ from utils.file_filters import EXCLUDED_FILENAMES
 from utils.show_adder import add_show_interactively
 from services.llm_implementations.ollama_implementation import OllamaLLMService
 from services.llm_implementations.openai_implementation import OpenAILLMService
+from services.llm_implementations.llm_interface import LLMInterface as LLMService
 
 logger = logging.getLogger(__name__)
 

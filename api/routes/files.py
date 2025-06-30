@@ -4,7 +4,7 @@ from api.models.requests import RouteFilesRequest, LLMParseFilenameRequest
 from api.models.responses import RouteFilesResponse, ListIncomingResponse, LLMParseFilenameResponse
 from api.services.file_service import FileService
 from api.dependencies import get_file_service
-from api.services.llm_implementations.llm_interface import LLMService
+from services.llm_implementations.llm_interface import LLMInterface as LLMService
 from api.dependencies import get_llm_service
 
 router = APIRouter()
