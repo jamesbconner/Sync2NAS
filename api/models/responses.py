@@ -46,8 +46,8 @@ class RouteFileResponse(BaseModel):
     original_path: str
     routed_path: str
     show_name: str
-    season: str
-    episode: str
+    season: Optional[int] = None
+    episode: Optional[int] = None
 
 
 class RouteFilesResponse(BaseModel):

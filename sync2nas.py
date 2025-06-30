@@ -25,6 +25,7 @@ from cli.main import sync2nas_cli
 # TODO: Semantic search and content-based retrieval of shows and episodes
 # TODO: MCP Server RSS Feed integration for new show notifications
 # TODO: Add discord integration for notifications of scene releases
+# TODO: Implement Anthropic LLM support in the LLM factory and as a service implementation
 
 
 if __name__ == '__main__':

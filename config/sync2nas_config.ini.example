@@ -32,8 +32,15 @@ api_key = your_tmdb_api_key
 [Routing]
 anime_tv_path = d:/anime_tv/
 
-[OpenAI]
-api_key = your_openai_api_key
+[llm]
+service = ollama  # ollama or openai
+
+[ollama]
+model = llama3.2
+llm_confidence_threshold = 0.7
+
+[openai]
 model = gpt-3.5-turbo
+api_key = your_openai_api_key
 max_tokens = 250
 temperature = 0.1

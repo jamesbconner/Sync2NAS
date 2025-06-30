@@ -6,7 +6,6 @@ from utils.file_routing import file_routing, parse_filename
 from utils.cli_helpers import pass_sync2nas_context
 from cli.add_show import add_show
 from utils.file_filters import EXCLUDED_FILENAMES
-from services.llm_service import LLMService
 
 
 @click.command("route-files", help="Scan the incoming path and move files to the appropriate show directories.")
@@ -32,15 +31,7 @@ def route_files(ctx, incoming, dry_run, use_llm, llm_confidence, auto_add):
     click.secho(f"Scanning: {incoming_path}", fg="cyan")
 
     # Initialize LLM service if requested
-    llm_service = None
-    if use_llm:
-        try:
-            llm_service = LLMService()
-            click.secho("✅ LLM service initialized for filename parsing", fg="green")
-        except Exception as e:
-            click.secho(f"❌ Failed to initialize LLM service: {e}", fg="red")
-            click.secho("Falling back to regex parsing", fg="yellow")
-            llm_service = None
+    llm_service = ctx.obj["llm_service"] if use_llm else None
 
     if auto_add:
         _auto_add_missing_shows(ctx, incoming_path, dry_run)

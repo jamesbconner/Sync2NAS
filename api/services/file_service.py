@@ -19,18 +19,29 @@ class FileService:
         self.incoming_path = incoming_path
 
     async def route_files(self, dry_run: bool = False, 
-                         auto_add: bool = False) -> Dict[str, Any]:
+                         auto_add: bool = False, request=None) -> Dict[str, Any]:
         """Route files from incoming directory to show directories"""
         try:
             if auto_add:
                 await self._auto_add_missing_shows(dry_run)
+
+            llm_service = None
+            llm_confidence_threshold = 0.7
+            if request is not None:
+                services = request.app.state.services
+                llm_service = services.get("llm_service")
+                config = services.get("config")
+                if config and config.has_option("ollama", "llm_confidence_threshold"):
+                    llm_confidence_threshold = config.getfloat("ollama", "llm_confidence_threshold")
 
             routed = file_routing(
                 self.incoming_path, 
                 self.anime_tv_path, 
                 self.db, 
                 self.tmdb, 
-                dry_run=dry_run
+                dry_run=dry_run,
+                llm_service=llm_service,
+                llm_confidence_threshold=llm_confidence_threshold
             )
 
             return {
