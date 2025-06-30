@@ -376,16 +376,17 @@ If you are upgrading from a previous version:
 
 ### Project Structure
 
+```text
 sync2nas/
-├── cli/     
-├── cli/ # CLI command implementations
-├── api/ # REST API implementation
-├── services/ # Core business logic
-├── models/ # Data models
-├── utils/ # Utility functions
-├── tests/ # Test suite
-├── config/ # Configuration files
-└── docs/ # Documentation
+├── cli/         # CLI command implementations
+├── api/         # REST API implementation
+├── services/    # Core service objects
+├── models/      # Data models
+├── utils/       # Utility functions
+├── tests/       # Test suite
+├── config/      # Configuration files
+└── docs/        # Documentation
+```
 
 ### Testing
 ```bash
