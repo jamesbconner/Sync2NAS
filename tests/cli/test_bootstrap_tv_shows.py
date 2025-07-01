@@ -9,6 +9,7 @@ from utils.sync2nas_config import load_configuration
 from utils.sync2nas_config import write_temp_config
 from unittest.mock import patch, MagicMock
 from cli.bootstrap_tv_shows import bootstrap_tv_shows
+from services.llm_factory import create_llm_service
 
 
 def create_temp_config(tmp_path) -> str:
@@ -55,6 +56,7 @@ def test_bootstrap_tv_shows_adds_show(tmp_path, mock_tmdb_service, mock_sftp_ser
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
         "incoming_path": config["Transfers"]["incoming"],
+        "llm_service": create_llm_service(config),
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-tv-shows"], obj=obj)
@@ -87,6 +89,7 @@ def test_bootstrap_tv_shows_skips_existing(tmp_path, mock_tmdb_service, mock_sft
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
         "incoming_path": config["Transfers"]["incoming"],
+        "llm_service": create_llm_service(config),
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-tv-shows"], obj=obj)
@@ -126,20 +129,23 @@ def test_bootstrap_tv_shows_dir_names(monkeypatch, cli_runner, cli, tmp_path, fo
     db_path = tmp_path / "test.db"
     incoming_path = tmp_path / "incoming"
     incoming_path.mkdir()
+    db_path.touch()
 
-    config = {
-        "SQLite": {"db_file": str(db_path)},
-        "Routing": {"anime_tv_path": str(anime_tv_path)},
-        "Transfers": {"incoming": str(incoming_path)},
-        "SFTP": {
-            "host": "localhost",
-            "port": "22",
-            "username": "testuser",
-            "ssh_key_path": str(tmp_path / "test_key"),
-        },
-        "TMDB": {"api_key": "dummy"},
+    parser = configparser.ConfigParser()
+    parser["SQLite"] = {"db_file": str(db_path)}
+    parser["Routing"] = {"anime_tv_path": str(anime_tv_path)}
+    parser["Transfers"] = {"incoming": str(incoming_path)}
+    parser["SFTP"] = {
+        "host": "localhost",
+        "port": "22",
+        "username": "testuser",
+        "ssh_key_path": str(tmp_path / "test_key"),
     }
-    config_path = write_temp_config(config, tmp_path)
+    parser["TMDB"] = {"api_key": "test_api_key"}
+    parser["llm"] = {"service": "ollama"}
+    parser["ollama"] = {"model": "ollama3.2"}
+    config_path = write_temp_config(parser, tmp_path)
+    config = load_configuration(config_path)
 
     db = SQLiteDBService(str(db_path))
     db.initialize()
@@ -151,6 +157,7 @@ def test_bootstrap_tv_shows_dir_names(monkeypatch, cli_runner, cli, tmp_path, fo
         "sftp": mock_sftp_service,
         "anime_tv_path": str(anime_tv_path),
         "incoming_path": str(incoming_path),
+        "llm_service": create_llm_service(config),
     }
 
     result = cli_runner.invoke(cli, ["-c", str(config_path), "bootstrap-tv-shows"], obj=obj)

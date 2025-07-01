@@ -216,8 +216,8 @@ def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, 
                 "original_path": source_path,
                 "routed_path": target_path,
                 "show_name": show.sys_name,
-                "season": season_int,
-                "episode": episode_int,
+                "season": season_str, # Changed from season_int to season_str
+                "episode": episode_str, # Changed from episode_int to episode_str
                 "confidence": confidence,
                 "reasoning": reasoning
             })

@@ -19,6 +19,9 @@ def sync2nas_cli(ctx, verbose, logfile, config):
     # If the context object is already set, return it without reinitializing it
     if ctx.obj and all(k in ctx.obj for k in ("config", "db", "tmdb", "sftp", "anime_tv_path", "incoming_path", "llm_service")):
         return
+    else:
+        print(f"ctx.obj does not contain all required keys")
+        print(f"ctx.obj: {ctx.obj}")
     
     if logfile:
         os.makedirs(os.path.dirname(logfile), exist_ok=True)

@@ -1,7 +1,7 @@
 import sqlite3
 import pytest
 import datetime
-from services.db_service import DBService
+from services.db_factory import create_db_service
 
 # ────────────────────────────────────────────────
 # FIXTURES
@@ -13,7 +13,13 @@ def db_path(tmp_path):
 
 @pytest.fixture
 def db_service(db_path):
-    db = DBService(str(db_path))
+    config = {
+        "Database": {"type": "sqlite"},
+        "SQLite": {"db_file": str(db_path)},
+        "llm": {"service": "ollama"},
+        "ollama": {"model": "ollama3.2"},
+    }
+    db = create_db_service(config)
     db.initialize()
     return db
 

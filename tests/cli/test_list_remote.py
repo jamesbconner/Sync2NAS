@@ -9,6 +9,7 @@ from utils.sync2nas_config import load_configuration, write_temp_config
 from pathlib import Path
 from cli.list_remote import list_remote
 from datetime import datetime
+from services.llm_factory import create_llm_service
 
 def create_temp_config(tmp_path: Path) -> str:
     config_path = tmp_path / "test_config.ini"
@@ -132,7 +133,8 @@ def test_list_remote_basic(tmp_path: Path, mock_tmdb_service, mock_sftp_service,
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": str(incoming_path)
+        "incoming_path": str(incoming_path),
+        "llm_service": create_llm_service(config),
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "list-remote"], obj=obj)
@@ -174,7 +176,8 @@ def test_list_remote_with_path(tmp_path: Path, mock_tmdb_service, mock_sftp_serv
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": str(incoming_path)
+        "incoming_path": str(incoming_path),
+        "llm_service": create_llm_service(config),
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "list-remote", "--path", "/custom/path"], obj=obj)
@@ -216,7 +219,8 @@ def test_list_remote_dry_run(tmp_path: Path, mock_tmdb_service, mock_sftp_servic
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": str(incoming_path)
+        "incoming_path": str(incoming_path),
+        "llm_service": create_llm_service(config),
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "list-remote", "--dry-run"], obj=obj)
@@ -266,7 +270,8 @@ def test_list_remote_with_recursive(tmp_path: Path, mock_tmdb_service, mock_sftp
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": str(incoming_path)
+        "incoming_path": str(incoming_path),
+        "llm_service": create_llm_service(config),
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "list-remote", "--recursive"], obj=obj)
@@ -312,7 +317,8 @@ def test_list_remote_with_populate_sftp_temp(tmp_path: Path, mock_tmdb_service, 
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": str(incoming_path)
+        "incoming_path": str(incoming_path),
+        "llm_service": create_llm_service(config),
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "list-remote", "--populate-sftp-temp"], obj=obj)

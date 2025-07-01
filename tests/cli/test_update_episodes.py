@@ -11,6 +11,7 @@ from pathlib import Path
 from utils.sync2nas_config import write_temp_config
 from models.episode import Episode
 from models.show import Show
+from services.llm_factory import create_llm_service
 
 # -------------------------------
 # Fixtures
@@ -116,7 +117,8 @@ def test_update_show_not_found(test_config, test_db, cli_runner, mock_tmdb_servi
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"]
+        "incoming_path": config["Transfers"]["incoming"],
+        "llm_service": create_llm_service(config)
     })
     assert result.exit_code == 0
     assert "No show found in DB for show name" in result.output
@@ -136,7 +138,8 @@ def test_tmdb_failure(monkeypatch, test_config, test_db, cli_runner, dummy_show,
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"]
+        "incoming_path": config["Transfers"]["incoming"],
+        "llm_service": create_llm_service(config)
     })
     assert result.exit_code != 0
 
@@ -153,7 +156,8 @@ def test_no_episodes(monkeypatch, test_config, test_db, cli_runner, dummy_show, 
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"]
+        "incoming_path": config["Transfers"]["incoming"],
+        "llm_service": create_llm_service(config)
     })
 
     assert result.exit_code == 0
@@ -175,7 +179,8 @@ def test_dry_run(monkeypatch, test_config, test_db, cli_runner, dummy_show, mock
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"]
+        "incoming_path": config["Transfers"]["incoming"],
+        "llm_service": create_llm_service(config)
     })
 
     assert result.exit_code == 0
@@ -193,7 +198,8 @@ def test_db_failure(monkeypatch, test_config, cli_runner, mock_tmdb_service, moc
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"]
+        "incoming_path": config["Transfers"]["incoming"],
+        "llm_service": create_llm_service(config)
     })
     assert result.exit_code != 0
 
@@ -225,7 +231,8 @@ def test_unicode_show_name(test_config, test_db, cli_runner, mock_tmdb_service, 
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"]
+        "incoming_path": config["Transfers"]["incoming"],
+        "llm_service": create_llm_service(config)
     })
 
     assert result.exit_code == 0
@@ -266,7 +273,8 @@ def test_update_by_show_name(test_config, cli_runner, cli, mock_tmdb_service, mo
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"]
+        "incoming_path": config["Transfers"]["incoming"],
+        "llm_service": create_llm_service(config)
     })
 
     assert result.exit_code == 0, result.output
@@ -303,7 +311,8 @@ def test_update_by_tmdb_id(test_config, cli_runner, cli, mock_tmdb_service, mock
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"]
+        "incoming_path": config["Transfers"]["incoming"],
+        "llm_service": create_llm_service(config)
     })
 
     assert result.exit_code == 0, result.output

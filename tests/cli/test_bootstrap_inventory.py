@@ -9,6 +9,7 @@ from utils.sync2nas_config import load_configuration, write_temp_config
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from cli.bootstrap_inventory import bootstrap_inventory
+from services.llm_factory import create_llm_service
 
 @pytest.fixture
 def mock_ctx():
@@ -79,7 +80,8 @@ def test_bootstrap_inventory_dry_run(tmp_path, mock_tmdb_service, mock_sftp_serv
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": anime_tv_path,
-        "incoming_path": config["Transfers"]["incoming"]
+        "incoming_path": config["Transfers"]["incoming"],
+        "llm_service": create_llm_service(config),
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-inventory", "--dry-run"], obj=obj)
@@ -105,7 +107,8 @@ def test_bootstrap_inventory_insert(tmp_path, mock_tmdb_service, mock_sftp_servi
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": anime_tv_path,
-        "incoming_path": config["Transfers"]["incoming"]
+        "incoming_path": config["Transfers"]["incoming"],
+        "llm_service": create_llm_service(config),
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-inventory"], obj=obj)
@@ -137,7 +140,8 @@ def test_bootstrap_inventory_file_filtering(tmp_path, mock_tmdb_service, mock_sf
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": anime_tv_path,
-        "incoming_path": config["Transfers"]["incoming"]
+        "incoming_path": config["Transfers"]["incoming"],
+        "llm_service": create_llm_service(config),
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-inventory", "--dry-run"], obj=obj)

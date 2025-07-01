@@ -65,8 +65,8 @@ class FileService:
                         "original_path": item["original_path"],
                         "routed_path": item["routed_path"],
                         "show_name": item["show_name"],
-                        "season": item["season"],
-                        "episode": item["episode"]
+                        "season": int(item["season"]) if item["season"] is not None else None,
+                        "episode": int(item["episode"]) if item["episode"] is not None else None
                     }
                     for item in (routed or [])
                 ],

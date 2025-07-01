@@ -11,6 +11,8 @@ from services.tmdb_service import TMDBService
 from cli.fix_show import fix_show
 from unittest.mock import Mock, patch
 from datetime import datetime
+from services.llm_factory import create_llm_service
+import configparser
 
 
 def create_temp_config(tmp_path):
@@ -21,20 +23,21 @@ def create_temp_config(tmp_path):
     anime_tv_path.mkdir(parents=True, exist_ok=True)
     incoming_path.mkdir(parents=True, exist_ok=True)
 
-    config = {
-        "SQLite": {"db_file": str(db_path)},
-        "Routing": {"anime_tv_path": str(anime_tv_path)},
-        "Transfers": {"incoming": str(incoming_path)},
-        "SFTP": {
-            "host": "localhost",
-            "port": "22",
-            "username": "testuser",
-            "ssh_key_path": str(tmp_path / "test_key"),
-        },
-        "TMDB": {"api_key": "test_api_key"},
+    parser = configparser.ConfigParser()
+    parser["SQLite"] = {"db_file": str(db_path)}
+    parser["Routing"] = {"anime_tv_path": str(anime_tv_path)}
+    parser["Transfers"] = {"incoming": str(incoming_path)}
+    parser["SFTP"] = {
+        "host": "localhost",
+        "port": "22",
+        "username": "testuser",
+        "ssh_key_path": str(tmp_path / "test_key"),
     }
-
-    return write_temp_config(config, tmp_path)
+    parser["TMDB"] = {"api_key": "test_api_key"}
+    parser["llm"] = {"service": "ollama"}
+    parser["ollama"] = {"model": "ollama3.2"}
+    config_path = write_temp_config(parser, tmp_path)
+    return config_path
 
 
 @pytest.fixture
@@ -176,10 +179,29 @@ def mock_episodes():
 def create_click_context(mock_db, mock_tmdb, anime_tv_path="/test/path"):
     """Helper function to create a proper Click context"""
     ctx = Context(fix_show)
+    parser = configparser.ConfigParser()
+    parser["SQLite"] = {"db_file": "test.db"}
+    parser["Routing"] = {"anime_tv_path": str(anime_tv_path)}
+    parser["Transfers"] = {"incoming": "incoming"}
+    parser["SFTP"] = {
+        "host": "localhost",
+        "port": "22",
+        "username": "testuser",
+        "ssh_key_path": "test_key",
+    }
+    parser["TMDB"] = {"api_key": "test_api_key"}
+    parser["llm"] = {"service": "ollama"}
+    parser["ollama"] = {"model": "ollama3.2"}
+    config_path = write_temp_config(parser, ".")
+    config = load_configuration(config_path)
     ctx.obj = {
+        "config": config,
         "db": mock_db,
         "tmdb": mock_tmdb,
-        "anime_tv_path": anime_tv_path
+        "sftp": Mock(),
+        "anime_tv_path": str(anime_tv_path),
+        "incoming_path": "incoming",
+        "llm_service": create_llm_service(config),
     }
     return ctx
 

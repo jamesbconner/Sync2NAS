@@ -4,7 +4,7 @@ import pytest
 import datetime
 from unittest.mock import Mock, patch, MagicMock
 from utils.file_routing import parse_filename, file_routing
-from services.db_service import DBService
+from services.db_implementations.sqlite_implementation import SQLiteDBService
 from models.show import Show
 
 @pytest.fixture
@@ -15,7 +15,7 @@ def setup_test_environment(tmp_path, mocker):
     show_dir = tmp_path / "tv_shows" / "Bleach"
     show_dir.mkdir(parents=True)
 
-    db = Mock(spec=DBService)
+    db = Mock(spec=SQLiteDBService)
 
     # Create file simulating: Bleach.S02.E06.mkv
     file_path = incoming / "Bleach.S02.E06.mkv"
@@ -97,7 +97,7 @@ def test_file_route_fallback_to_absolute_episode(tmp_path, mocker):
     show_dir = tmp_path / "tv_shows" / "Bleach"
     show_dir.mkdir(parents=True)
 
-    db = Mock(spec=DBService)
+    db = Mock(spec=SQLiteDBService)
     db.get_show_by_name_or_alias.return_value = {
         "sys_name": "Bleach",
         "sys_path": str(show_dir),
@@ -138,7 +138,7 @@ def test_file_route_skips_unmatched_show(tmp_path):
     incoming.mkdir()
     (incoming / "UnknownShow.S01E01.mkv").write_text("no match")
 
-    db = Mock(spec=DBService)
+    db = Mock(spec=SQLiteDBService)
     db.get_show_by_name_or_alias.return_value = None
 
     result = file_routing(str(incoming), None, db, tmdb=MagicMock())
@@ -152,7 +152,7 @@ def test_file_route_skips_unmatched_episode(tmp_path):
     show_dir = tmp_path / "tv_shows" / "Bleach"
     show_dir.mkdir(parents=True)
 
-    db = Mock(spec=DBService)
+    db = Mock(spec=SQLiteDBService)
     db.get_show_by_name_or_alias.return_value = {
         "sys_name": "Bleach",
         "sys_path": str(show_dir),
@@ -229,7 +229,7 @@ def test_file_routing_dry_run(tmp_path):
     test_file.write_text("test content")
 
     # Mock DB service
-    mock_db = MagicMock(spec=DBService)
+    mock_db = MagicMock(spec=SQLiteDBService)
     
     # Mock show lookup with complete show record
     mock_db.get_show_by_name_or_alias.return_value = {
@@ -277,7 +277,7 @@ def test_file_routing_actual_move(tmp_path):
     test_file.write_text("test content")
 
     # Mock DB service
-    mock_db = MagicMock(spec=DBService)
+    mock_db = MagicMock(spec=SQLiteDBService)
     
     # Mock show lookup with complete show record
     mock_db.get_show_by_name_or_alias.return_value = {
@@ -325,7 +325,7 @@ def test_file_routing_no_show_match(tmp_path):
     test_file.write_text("test content")
 
     # Mock DB service with no show match
-    mock_db = MagicMock(spec=DBService)
+    mock_db = MagicMock(spec=SQLiteDBService)
     mock_db.get_show_by_name_or_alias.return_value = None
 
     # Run file routing
@@ -347,7 +347,7 @@ def test_file_routing_no_episode_match(tmp_path):
     test_file.write_text("test content")
 
     # Mock DB service
-    mock_db = MagicMock(spec=DBService)
+    mock_db = MagicMock(spec=SQLiteDBService)
     
     # Mock show lookup with complete show record
     mock_db.get_show_by_name_or_alias.return_value = {

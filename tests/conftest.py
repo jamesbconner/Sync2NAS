@@ -13,7 +13,7 @@ from click.testing import CliRunner
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from utils.sync2nas_config import load_configuration
-from services.db_service import DBService
+from services.db_factory import create_db_service
 from services.tmdb_service import TMDBService
 from services.sftp_service import SFTPService
 from cli.main import sync2nas_cli
@@ -42,6 +42,8 @@ def test_config_path():
         "ssh_key_path": str(temp_dir / "test_key"),
     }
     config["TMDB"] = {"api_key": "test_api_key"}
+    config["llm"] = {"service": "ollama"}
+    config["ollama"] = {"model": "llama3.2"}
 
     with config_path.open("w") as config_file:
         config.write(config_file)
@@ -61,8 +63,8 @@ def config(test_config_path):
 
 @pytest.fixture(scope="function")
 def db_service(config):
-    """Return a DBService initialized with the test database."""
-    db = DBService(config["SQLite"]["db_file"])
+    """Return a database service initialized with the test database."""
+    db = create_db_service(config)
     db.initialize()
     return db
 

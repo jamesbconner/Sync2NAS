@@ -7,6 +7,7 @@ from cli.main import sync2nas_cli
 from models.episode import Episode
 from services.db_implementations.sqlite_implementation import SQLiteDBService
 from utils.sync2nas_config import load_configuration
+from services.llm_factory import create_llm_service
 
 
 def test_add_show_via_name(tmp_path, test_config_path, mock_tmdb_service, mock_sftp_service, cli, cli_runner):
@@ -14,6 +15,7 @@ def test_add_show_via_name(tmp_path, test_config_path, mock_tmdb_service, mock_s
 
     config_path = str(test_config_path)
     unique_db_path = tmp_path / "unique_test.db"
+    unique_db_path.touch()
 
     # Update config with the unique DB path
     config = load_configuration(config_path)
@@ -40,8 +42,11 @@ def test_add_show_via_name(tmp_path, test_config_path, mock_tmdb_service, mock_s
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": str(anime_tv_path),
-        "incoming_path": str(incoming_path)
+        "incoming_path": str(incoming_path),
+        "llm_service": create_llm_service(config)
     }
+
+    print("Mock TMDB search_show('Mock Show'):", mock_tmdb_service.search_show("Mock Show"))
 
     result = runner.invoke(
         cli,
@@ -50,7 +55,11 @@ def test_add_show_via_name(tmp_path, test_config_path, mock_tmdb_service, mock_s
         catch_exceptions=False
     )
 
-    assert result.exit_code == 0
+    if result.exit_code != 0:
+        print("CLI Output:\n", result.output)
+        if result.exception:
+            print("Exception:\n", result.exception)
+        assert False, f"CLI failed with exit code {result.exit_code}"
     assert "✅ Show added" in result.output
 
 
@@ -86,7 +95,8 @@ def test_add_show_dry_run(tmp_path, test_config_path, mock_tmdb_service, mock_sf
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": str(tmp_path / "anime_tv_path"),
-        "incoming_path": str(tmp_path / "incoming")
+        "incoming_path": str(tmp_path / "incoming"),
+        "llm_service": create_llm_service(config)
     }
 
     # Init DB
@@ -95,5 +105,9 @@ def test_add_show_dry_run(tmp_path, test_config_path, mock_tmdb_service, mock_sf
     # Run dry-run CLI command
     result = runner.invoke(cli, ["add-show", "Mock Dry Show", "--dry-run"], obj=obj, catch_exceptions=False)
 
-    assert result.exit_code == 0
+    if result.exit_code != 0:
+        print("CLI Output:\n", result.output)
+        if result.exception:
+            print("Exception:\n", result.exception)
+        assert False, f"CLI failed with exit code {result.exit_code}"
     assert "✅ DRY RUN successful" in result.output

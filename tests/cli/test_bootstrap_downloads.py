@@ -7,6 +7,7 @@ from cli.main import sync2nas_cli
 from services.db_implementations.sqlite_implementation import SQLiteDBService
 from utils.sync2nas_config import load_configuration, write_temp_config, parse_sftp_paths
 from unittest.mock import MagicMock
+from services.llm_factory import create_llm_service
 
 def create_temp_config(tmp_path) -> str:
     config_path = tmp_path / "test_config.ini"
@@ -79,7 +80,8 @@ def test_bootstrap_downloads_dry_run(tmp_path, mock_tmdb_service, mock_sftp_serv
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"]
+        "incoming_path": config["Transfers"]["incoming"],
+        "llm_service": create_llm_service(config),
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-downloads", "--dry-run"], obj=obj)
@@ -124,7 +126,8 @@ def test_bootstrap_downloads_insert(tmp_path, mock_tmdb_service, mock_sftp_servi
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"]
+        "incoming_path": config["Transfers"]["incoming"],
+        "llm_service": create_llm_service(config),
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-downloads"], obj=obj)

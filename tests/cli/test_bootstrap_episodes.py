@@ -8,6 +8,7 @@ from models.show import Show
 from models.episode import Episode
 from services.db_implementations.sqlite_implementation import SQLiteDBService
 from utils.sync2nas_config import load_configuration, write_temp_config
+from services.llm_factory import create_llm_service
 
 
 def create_temp_config(tmp_path) -> str:
@@ -57,7 +58,8 @@ def test_bootstrap_episodes_adds_records(tmp_path, mock_tmdb_service, mock_sftp_
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": anime_tv_path,
-        "incoming_path": config["Transfers"]["incoming"]
+        "incoming_path": config["Transfers"]["incoming"],
+        "llm_service": create_llm_service(config),
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-episodes"], obj=obj)
@@ -107,7 +109,8 @@ def test_bootstrap_episodes_skips_existing(tmp_path, mock_tmdb_service, mock_sft
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": anime_tv_path,
-        "incoming_path": config["Transfers"]["incoming"]
+        "incoming_path": config["Transfers"]["incoming"],
+        "llm_service": create_llm_service(config),
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-episodes"], obj=obj)

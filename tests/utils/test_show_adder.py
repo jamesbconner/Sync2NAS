@@ -5,13 +5,15 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 from models.episode import Episode
 from models.show import Show
-from services.db_service import DBService
+from services.db_factory import create_db_service
 from services.tmdb_service import TMDBService
 from utils.show_adder import add_show_interactively
+from utils.sync2nas_config import write_temp_config, load_configuration
+import configparser
 
 @pytest.fixture
 def mock_db():
-    return Mock(spec=DBService)
+    return Mock(spec=create_db_service)
 
 @pytest.fixture
 def mock_tmdb():
@@ -79,7 +81,26 @@ def test_add_show_interactively(tmp_path, mock_tmdb_service):
     db_path = tmp_path / "test.db"
     anime_tv_path = tmp_path / "anime_tv_path"
     anime_tv_path.mkdir()
-    db = DBService(str(db_path))
+    db_path.touch()
+    
+    parser = configparser.ConfigParser()
+    parser["Database"] = {"type": "sqlite"}
+    parser["SQLite"] = {"db_file": str(db_path)}
+    parser["Routing"] = {"anime_tv_path": str(anime_tv_path)}
+    parser["Transfers"] = {"incoming": str(tmp_path / "incoming")}
+    parser["SFTP"] = {
+        "host": "localhost",
+        "port": "22",
+        "username": "testuser",
+        "ssh_key_path": str(tmp_path / "test_key"),
+    }
+    parser["TMDB"] = {"api_key": "test_api_key"}
+    parser["llm"] = {"service": "ollama"}
+    parser["ollama"] = {"model": "ollama3.2"}
+    config_path = write_temp_config(parser, tmp_path)
+    config = load_configuration(config_path)
+    
+    db = create_db_service(config)
     db.initialize()
 
     result = add_show_interactively(
@@ -104,7 +125,23 @@ def test_add_show_interactively_dry_run(tmp_path, mock_tmdb_service):
     db_path = tmp_path / "test.db"
     anime_tv_path = tmp_path / "anime_tv_path"
     anime_tv_path.mkdir()
-    db = DBService(str(db_path))
+    parser = configparser.ConfigParser()
+    parser["Database"] = {"type": "sqlite"}
+    parser["SQLite"] = {"db_file": str(db_path)}
+    parser["Routing"] = {"anime_tv_path": str(anime_tv_path)}
+    parser["Transfers"] = {"incoming": str(tmp_path / "incoming")}
+    parser["SFTP"] = {
+        "host": "localhost",
+        "port": "22",
+        "username": "testuser",
+        "ssh_key_path": str(tmp_path / "test_key"),
+    }
+    parser["TMDB"] = {"api_key": "test_api_key"}
+    parser["llm"] = {"service": "ollama"}
+    parser["ollama"] = {"model": "ollama3.2"}
+    config_path = write_temp_config(parser, tmp_path)
+    config = load_configuration(config_path)
+    db = create_db_service(config)
     db.initialize()
 
     result = add_show_interactively(
@@ -125,7 +162,23 @@ def test_add_show_with_tmdb_id(tmp_path, mock_tmdb_service):
     db_path = tmp_path / "test.db"
     anime_tv_path = tmp_path / "anime_tv_path"
     anime_tv_path.mkdir()
-    db = DBService(str(db_path))
+    parser = configparser.ConfigParser()
+    parser["Database"] = {"type": "sqlite"}
+    parser["SQLite"] = {"db_file": str(db_path)}
+    parser["Routing"] = {"anime_tv_path": str(anime_tv_path)}
+    parser["Transfers"] = {"incoming": str(tmp_path / "incoming")}
+    parser["SFTP"] = {
+        "host": "localhost",
+        "port": "22",
+        "username": "testuser",
+        "ssh_key_path": str(tmp_path / "test_key"),
+    }
+    parser["TMDB"] = {"api_key": "test_api_key"}
+    parser["llm"] = {"service": "ollama"}
+    parser["ollama"] = {"model": "ollama3.2"}
+    config_path = write_temp_config(parser, tmp_path)
+    config = load_configuration(config_path)
+    db = create_db_service(config)
     db.initialize()
 
     result = add_show_interactively(
@@ -150,7 +203,23 @@ def test_add_show_with_override_dir(tmp_path, mock_tmdb_service):
     db_path = tmp_path / "test.db"
     anime_tv_path = tmp_path / "anime_tv_path"
     anime_tv_path.mkdir()
-    db = DBService(str(db_path))
+    parser = configparser.ConfigParser()
+    parser["Database"] = {"type": "sqlite"}
+    parser["SQLite"] = {"db_file": str(db_path)}
+    parser["Routing"] = {"anime_tv_path": str(anime_tv_path)}
+    parser["Transfers"] = {"incoming": str(tmp_path / "incoming")}
+    parser["SFTP"] = {
+        "host": "localhost",
+        "port": "22",
+        "username": "testuser",
+        "ssh_key_path": str(tmp_path / "test_key"),
+    }
+    parser["TMDB"] = {"api_key": "test_api_key"}
+    parser["llm"] = {"service": "ollama"}
+    parser["ollama"] = {"model": "ollama3.2"}
+    config_path = write_temp_config(parser, tmp_path)
+    config = load_configuration(config_path)
+    db = create_db_service(config)
     db.initialize()
 
     result = add_show_interactively(
@@ -176,7 +245,23 @@ def test_add_show_already_exists(tmp_path, mock_tmdb_service):
     db_path = tmp_path / "test.db"
     anime_tv_path = tmp_path / "anime_tv_path"
     anime_tv_path.mkdir()
-    db = DBService(str(db_path))
+    parser = configparser.ConfigParser()
+    parser["Database"] = {"type": "sqlite"}
+    parser["SQLite"] = {"db_file": str(db_path)}
+    parser["Routing"] = {"anime_tv_path": str(anime_tv_path)}
+    parser["Transfers"] = {"incoming": str(tmp_path / "incoming")}
+    parser["SFTP"] = {
+        "host": "localhost",
+        "port": "22",
+        "username": "testuser",
+        "ssh_key_path": str(tmp_path / "test_key"),
+    }
+    parser["TMDB"] = {"api_key": "test_api_key"}
+    parser["llm"] = {"service": "ollama"}
+    parser["ollama"] = {"model": "ollama3.2"}
+    config_path = write_temp_config(parser, tmp_path)
+    config = load_configuration(config_path)
+    db = create_db_service(config)
     db.initialize()
 
     # First add the show
@@ -205,7 +290,23 @@ def test_add_show_no_tmdb_details(tmp_path):
     db_path = tmp_path / "test.db"
     anime_tv_path = tmp_path / "anime_tv_path"
     anime_tv_path.mkdir()
-    db = DBService(str(db_path))
+    parser = configparser.ConfigParser()
+    parser["Database"] = {"type": "sqlite"}
+    parser["SQLite"] = {"db_file": str(db_path)}
+    parser["Routing"] = {"anime_tv_path": str(anime_tv_path)}
+    parser["Transfers"] = {"incoming": str(tmp_path / "incoming")}
+    parser["SFTP"] = {
+        "host": "localhost",
+        "port": "22",
+        "username": "testuser",
+        "ssh_key_path": str(tmp_path / "test_key"),
+    }
+    parser["TMDB"] = {"api_key": "test_api_key"}
+    parser["llm"] = {"service": "ollama"}
+    parser["ollama"] = {"model": "ollama3.2"}
+    config_path = write_temp_config(parser, tmp_path)
+    config = load_configuration(config_path)
+    db = create_db_service(config)
     db.initialize()
 
     class MockTMDBNoDetails:
@@ -233,7 +334,23 @@ def test_add_show_no_search_results(tmp_path):
     db_path = tmp_path / "test.db"
     anime_tv_path = tmp_path / "anime_tv_path"
     anime_tv_path.mkdir()
-    db = DBService(str(db_path))
+    parser = configparser.ConfigParser()
+    parser["Database"] = {"type": "sqlite"}
+    parser["SQLite"] = {"db_file": str(db_path)}
+    parser["Routing"] = {"anime_tv_path": str(anime_tv_path)}
+    parser["Transfers"] = {"incoming": str(tmp_path / "incoming")}
+    parser["SFTP"] = {
+        "host": "localhost",
+        "port": "22",
+        "username": "testuser",
+        "ssh_key_path": str(tmp_path / "test_key"),
+    }
+    parser["TMDB"] = {"api_key": "test_api_key"}
+    parser["llm"] = {"service": "ollama"}
+    parser["ollama"] = {"model": "ollama3.2"}
+    config_path = write_temp_config(parser, tmp_path)
+    config = load_configuration(config_path)
+    db = create_db_service(config)
     db.initialize()
 
     class MockTMDBNoResults:
@@ -261,7 +378,23 @@ def test_add_show_no_show_name_or_tmdb_id(tmp_path, mock_tmdb_service):
     db_path = tmp_path / "test.db"
     anime_tv_path = tmp_path / "anime_tv_path"
     anime_tv_path.mkdir()
-    db = DBService(str(db_path))
+    parser = configparser.ConfigParser()
+    parser["Database"] = {"type": "sqlite"}
+    parser["SQLite"] = {"db_file": str(db_path)}
+    parser["Routing"] = {"anime_tv_path": str(anime_tv_path)}
+    parser["Transfers"] = {"incoming": str(tmp_path / "incoming")}
+    parser["SFTP"] = {
+        "host": "localhost",
+        "port": "22",
+        "username": "testuser",
+        "ssh_key_path": str(tmp_path / "test_key"),
+    }
+    parser["TMDB"] = {"api_key": "test_api_key"}
+    parser["llm"] = {"service": "ollama"}
+    parser["ollama"] = {"model": "ollama3.2"}
+    config_path = write_temp_config(parser, tmp_path)
+    config = load_configuration(config_path)
+    db = create_db_service(config)
     db.initialize()
 
     with pytest.raises(ValueError):
@@ -279,7 +412,23 @@ def test_add_show_directory_creation_error(tmp_path, mock_tmdb_service):
     db_path = tmp_path / "test.db"
     anime_tv_path = tmp_path / "anime_tv_path"
     anime_tv_path.mkdir()
-    db = DBService(str(db_path))
+    parser = configparser.ConfigParser()
+    parser["Database"] = {"type": "sqlite"}
+    parser["SQLite"] = {"db_file": str(db_path)}
+    parser["Routing"] = {"anime_tv_path": str(anime_tv_path)}
+    parser["Transfers"] = {"incoming": str(tmp_path / "incoming")}
+    parser["SFTP"] = {
+        "host": "localhost",
+        "port": "22",
+        "username": "testuser",
+        "ssh_key_path": str(tmp_path / "test_key"),
+    }
+    parser["TMDB"] = {"api_key": "test_api_key"}
+    parser["llm"] = {"service": "ollama"}
+    parser["ollama"] = {"model": "ollama3.2"}
+    config_path = write_temp_config(parser, tmp_path)
+    config = load_configuration(config_path)
+    db = create_db_service(config)
     db.initialize()
 
     with patch('os.makedirs', side_effect=OSError("Permission denied")):
@@ -301,7 +450,23 @@ def test_add_show_database_error(tmp_path, mock_tmdb_service):
     db_path = tmp_path / "test.db"
     anime_tv_path = tmp_path / "anime_tv_path"
     anime_tv_path.mkdir()
-    db = DBService(str(db_path))
+    parser = configparser.ConfigParser()
+    parser["Database"] = {"type": "sqlite"}
+    parser["SQLite"] = {"db_file": str(db_path)}
+    parser["Routing"] = {"anime_tv_path": str(anime_tv_path)}
+    parser["Transfers"] = {"incoming": str(tmp_path / "incoming")}
+    parser["SFTP"] = {
+        "host": "localhost",
+        "port": "22",
+        "username": "testuser",
+        "ssh_key_path": str(tmp_path / "test_key"),
+    }
+    parser["TMDB"] = {"api_key": "test_api_key"}
+    parser["llm"] = {"service": "ollama"}
+    parser["ollama"] = {"model": "ollama3.2"}
+    config_path = write_temp_config(parser, tmp_path)
+    config = load_configuration(config_path)
+    db = create_db_service(config)
     db.initialize()
 
     # Mock the database to raise an error on add_show

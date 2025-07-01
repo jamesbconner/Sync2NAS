@@ -8,6 +8,7 @@ from cli.main import sync2nas_cli
 from services.db_implementations.sqlite_implementation import SQLiteDBService
 from utils.sync2nas_config import load_configuration, write_temp_config
 from cli.route_files import parse_filename
+from services.llm_factory import create_llm_service
 
 @pytest.fixture
 def temp_show_file(tmp_path):
@@ -38,13 +39,15 @@ def test_config(tmp_path):
         "path": "/remote/path"
     }
     config["TMDB"] = {"api_key": "dummy"}
+    config["llm"] = {"service": "ollama"}
+    config["ollama"] = {"model": "ollama3.2"}
 
     config_path = write_temp_config(config, tmp_path)
     return config, config_path
 
 @pytest.fixture
 def mock_routing(monkeypatch):
-    def fake_routing(incoming_path, anime_tv_path, db, tmdb, dry_run=False, auto_add=False):
+    def fake_routing(incoming_path, anime_tv_path, db, tmdb, dry_run=False, auto_add=False, **kwargs):
         print(f"fake_routing - incoming_path: {incoming_path}")
         print(f"fake_routing - anime_tv_path: {anime_tv_path}")
         return [
@@ -106,7 +109,8 @@ def test_route_files_basic(tmp_path, test_config_path, cli_runner, cli, mock_rou
         "sftp": mock_sftp_service,
         "tmdb": mock_tmdb_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"]
+        "incoming_path": config["Transfers"]["incoming"],
+        "llm_service": create_llm_service(config),
     }
     
     # Run the route-files command
@@ -146,7 +150,8 @@ def test_route_files_dry_run(tmp_path, test_config_path, cli_runner, cli, mock_t
         "sftp": mock_sftp_service,
         "tmdb": mock_tmdb_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"]
+        "incoming_path": config["Transfers"]["incoming"],
+        "llm_service": create_llm_service(config),
     }
 
     # Run the route-files command
@@ -154,9 +159,9 @@ def test_route_files_dry_run(tmp_path, test_config_path, cli_runner, cli, mock_t
 
     # Assert the command was successful
     assert result.exit_code == 0
+    assert "Dry run: Would route 2 files" in result.output
     assert "file1.mkv" in result.output
     assert "file2.mkv" in result.output
-    assert "[DRY RUN]" in result.output
 
 def test_route_files_auto_add(tmp_path, test_config, mock_tmdb_service, cli_runner, cli, patch_add_show, monkeypatch, mock_sftp_service):
     config, config_path = test_config
@@ -180,6 +185,7 @@ def test_route_files_auto_add(tmp_path, test_config, mock_tmdb_service, cli_runn
         "tmdb": mock_tmdb_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
         "incoming_path": config["Transfers"]["incoming"],
+        "llm_service": create_llm_service(config),
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "route-files", "--auto-add"], obj=ctx)
@@ -191,15 +197,69 @@ def test_route_files_auto_add(tmp_path, test_config, mock_tmdb_service, cli_runn
 
 # Test cases for the refactored parse_filename
 test_cases = [
-    ("[Group] Mock Show (2022) - 01.mkv", {"show_name": "Mock Show", "season": None, "episode": 1}),
-    ("[SubsPlease] My Show - S01E05 (1080p).mkv", {"show_name": "My Show", "season": 1, "episode": 5}),
-    ("My.Show.S02E09.1080p.mkv", {"show_name": "My Show", "season": 2, "episode": 9}),
-    ("Cool_Show-E12.mkv", {"show_name": "Cool Show", "season": None, "episode": 12}),
-    ("Title.2nd Season 07", {"show_name": "Title", "season": 2, "episode": 7}),
-    ("Another Show - 103.mkv", {"show_name": "Another Show", "season": None, "episode": 103}),
-    ("NoMatchHere.txt", {"show_name": "NoMatchHere", "season": None, "episode": None}),
-    ("Show_with_underscores_S03E08.mkv", {"show_name": "Show with underscores", "season": 3, "episode": 8}),
-    ("[FanSub]_Show.Name_03_(720p).mkv", {"show_name": "Show Name", "season": None, "episode": 3}),
+    ("[Group] Mock Show (2022) - 01.mkv", {
+        "show_name": "Mock Show",
+        "season": None,
+        "episode": 1,
+        "confidence": 0.6,
+        "reasoning": "Regex pattern 4 matched"
+    }),
+    ("[SubsPlease] My Show - S01E05 (1080p).mkv", {
+        "show_name": "My Show",
+        "season": 1,
+        "episode": 5,
+        "confidence": 0.6,
+        "reasoning": "Regex pattern 1 matched"
+    }),
+    ("My.Show.S02E09.1080p.mkv", {
+        "show_name": "My Show",
+        "season": 2,
+        "episode": 9,
+        "confidence": 0.6,
+        "reasoning": "Regex pattern 1 matched"
+    }),
+    ("Cool_Show-E12.mkv", {
+        "show_name": "Cool Show",
+        "season": None,
+        "episode": 12,
+        "confidence": 0.6,
+        "reasoning": "Regex pattern 3 matched"
+    }),
+    ("Title.2nd Season 07", {
+        "show_name": "Title",
+        "season": 2,
+        "episode": 7,
+        "confidence": 0.6,
+        "reasoning": "Regex pattern 0 matched"
+    }),
+    ("Another Show - 103.mkv", {
+        "show_name": "Another Show",
+        "season": None,
+        "episode": 103,
+        "confidence": 0.6,
+        "reasoning": "Regex pattern 4 matched"
+    }),
+    ("NoMatchHere.txt", {
+        "show_name": "NoMatchHere",
+        "season": None,
+        "episode": None,
+        "confidence": 0.1,
+        "reasoning": "No regex pattern matched"
+    }),
+    ("Show_with_underscores_S03E08.mkv", {
+        "show_name": "Show with underscores",
+        "season": 3,
+        "episode": 8,
+        "confidence": 0.6,
+        "reasoning": "Regex pattern 1 matched"
+    }),
+    ("[FanSub]_Show.Name_03_(720p).mkv", {
+        "show_name": "Show Name",
+        "season": None,
+        "episode": 3,
+        "confidence": 0.6,
+        "reasoning": "Regex pattern 4 matched"
+    }),
 ]
 
 # Create a test function for each case

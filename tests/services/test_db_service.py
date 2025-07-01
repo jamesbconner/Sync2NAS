@@ -5,7 +5,7 @@ import os
 import datetime
 import sqlite3
 
-from services.db_service import DBService
+from services.db_factory import create_db_service
 from models.show import Show
 from models.episode import Episode
 
@@ -94,7 +94,7 @@ def test_get_show_by_alias(db_service):
         fetched_at=datetime.datetime.now()
     )
     db_service.add_show(show)
-    result = db_service.get_show_by_alias("alias2")
+    result = db_service.get_show_by_name_or_alias("alias2")
     assert result["tmdb_name"] == "Test Show"
 
 
@@ -210,14 +210,26 @@ def test_sqlite_adapter_registration_error(tmp_path, monkeypatch):
         raise sqlite3.ProgrammingError("Adapter registration failed")
 
     monkeypatch.setattr(sqlite3, "register_adapter", mock_register_adapter)
-    db_service = DBService(os.path.join(tmp_path, "test.db"))
+    config = {
+        "Database": {"type": "sqlite"},
+        "SQLite": {"db_file": os.path.join(tmp_path, "test.db")},
+        "llm": {"service": "ollama"},
+        "ollama": {"model": "ollama3.2"},
+    }
+    db_service = create_db_service(config)
     # Should not raise anything, just log error
 
 def test_connection_error_handling(tmp_path, monkeypatch):
     def mock_connect(*args, **kwargs):
         raise sqlite3.Error("Connection failed")
 
-    db_service = DBService(os.path.join(tmp_path, "test.db"))
+    config = {
+        "Database": {"type": "sqlite"},
+        "SQLite": {"db_file": os.path.join(tmp_path, "test.db")},
+        "llm": {"service": "ollama"},
+        "ollama": {"model": "ollama3.2"},
+    }
+    db_service = create_db_service(config)
     monkeypatch.setattr(sqlite3, "connect", mock_connect)
 
     with pytest.raises(sqlite3.Error):
