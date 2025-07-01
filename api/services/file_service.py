@@ -3,7 +3,8 @@ import os
 from typing import List, Dict, Any
 from services.db_implementations.db_interface import DatabaseInterface
 from services.tmdb_service import TMDBService
-from utils.file_routing import file_routing, parse_filename
+from utils.file_routing import file_routing
+from utils.filename_parser import parse_filename
 from utils.file_filters import EXCLUDED_FILENAMES
 from utils.show_adder import add_show_interactively
 from services.llm_implementations.ollama_implementation import OllamaLLMService

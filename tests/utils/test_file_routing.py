@@ -3,9 +3,10 @@ import shutil
 import pytest
 import datetime
 from unittest.mock import Mock, patch, MagicMock
-from utils.file_routing import parse_filename, file_routing
+from utils.file_routing import file_routing
 from services.db_implementations.sqlite_implementation import SQLiteDBService
 from models.show import Show
+from utils.filename_parser import parse_filename
 
 @pytest.fixture
 def setup_test_environment(tmp_path, mocker):

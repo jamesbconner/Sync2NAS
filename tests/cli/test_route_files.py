@@ -7,7 +7,7 @@ from click.testing import CliRunner
 from cli.main import sync2nas_cli
 from services.db_implementations.sqlite_implementation import SQLiteDBService
 from utils.sync2nas_config import load_configuration, write_temp_config
-from cli.route_files import parse_filename
+from utils.filename_parser import parse_filename
 from services.llm_factory import create_llm_service
 
 @pytest.fixture

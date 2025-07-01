@@ -2,7 +2,8 @@ import os
 import click
 from click.testing import CliRunner
 from pathlib import Path
-from utils.file_routing import file_routing, parse_filename
+from utils.file_routing import file_routing
+from utils.filename_parser import parse_filename
 from utils.cli_helpers import pass_sync2nas_context
 from cli.add_show import add_show
 from utils.file_filters import EXCLUDED_FILENAMES
