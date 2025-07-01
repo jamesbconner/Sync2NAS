@@ -1,5 +1,5 @@
 # Sync2NAS - TV Show Management and File Synchronization Tool
-![Service Test Coverage](https://img.shields.io/badge/Service%20Test%20Coverage-100%25-success?style=flat-square&logo=pytest&logoColor=white)
+![Service Test Coverage](https://img.shields.io/badge/Service%20Test%20Coverage-76%25-success?style=flat-square&logo=pytest&logoColor=white)
 
 ## Table of Contents
 
