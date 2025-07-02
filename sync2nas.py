@@ -31,7 +31,7 @@ from cli.main import sync2nas_cli
 # TODO: Add test coverage for the LLMs & factory
 # TODO: Add test coverage for database factory
 # TODO: Add show name to sys_name logic for LLM when using --auto-add and --auto-fix flags
-# TODO: Move some of the file routing logic from the utils/, since it's not really a common function
+# Done: Move some of the file routing logic from the utils/, since it's not really a common function
 # TODO: Add more comments to the codebase to improve readability
 # TODO: Generalize the application away from hardcoding variable name of anime_tv in the ctx.obj. Consider using the "Routing" keys in the config
 
