@@ -1,3 +1,6 @@
+"""
+CLI command to scan the incoming directory and route files to the correct show directories, optionally using LLM and auto-adding missing shows.
+"""
 import os
 import click
 from click.testing import CliRunner
@@ -19,6 +22,7 @@ from utils.file_filters import EXCLUDED_FILENAMES
 def route_files(ctx, incoming, dry_run, use_llm, llm_confidence, auto_add):
     """
     Scan the incoming path and move files to the appropriate show directories.
+    Optionally uses LLM for filename parsing and can auto-add missing shows.
     """
     if not ctx.obj:
         click.echo("Error: No context object found")
@@ -34,10 +38,12 @@ def route_files(ctx, incoming, dry_run, use_llm, llm_confidence, auto_add):
     # Initialize LLM service if requested
     llm_service = ctx.obj["llm_service"] if use_llm else None
 
+    # Optionally auto-add missing shows before routing
     if auto_add:
         _auto_add_missing_shows(ctx, incoming_path, dry_run)
 
     try:
+        # Route files using the file_routing utility
         routed_files = file_routing(
             incoming_path=incoming_path,
             anime_tv_path=anime_tv_path,

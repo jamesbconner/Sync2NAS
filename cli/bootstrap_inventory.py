@@ -4,6 +4,10 @@ import datetime
 from pathlib import Path
 from utils.file_filters import is_valid_media_file
 
+"""
+CLI command to populate the anime_tv_inventory table based on files already present in the media path.
+"""
+
 @click.command("bootstrap-inventory")
 @click.option("--dry-run", is_flag=True, help="Simulate without modifying the DB.")
 @click.pass_context

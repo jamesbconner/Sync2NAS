@@ -2,6 +2,10 @@ import click
 from utils.sync2nas_config import parse_sftp_paths
 from utils.sftp_orchestrator import bootstrap_downloaded_files
 
+"""
+CLI command to bootstrap the downloaded_files table from the current SFTP remote listing.
+"""
+
 @click.command("bootstrap-downloads")
 @click.option("--dry-run", is_flag=True, help="Simulate without writing to DB")
 @click.pass_context

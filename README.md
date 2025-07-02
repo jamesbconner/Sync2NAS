@@ -38,7 +38,7 @@ Sync2NAS is a comprehensive Python tool for managing TV shows, synchronizing fil
 ### Advanced Features
 - **AI-Powered Filename Parsing**: Uses modular LLM backends (Ollama or OpenAI) for accurate show name extraction, configurable via the config file
 - **Confidence Scoring**: LLM provides confidence levels for parsing decisions
-- **Fallback Support**: Automatic fallback to regex if LLM fails
+- **Fallback Support**: Automatic fallback to regex if LLM fails at show name parsing
 - **Search Capabilities**: Search local database and TMDB for shows
 - **Show Management**: Add, fix, and manage show metadata
 

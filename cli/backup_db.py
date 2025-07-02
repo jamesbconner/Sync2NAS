@@ -3,6 +3,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+"""
+CLI command to back up the database, with dry-run support.
+"""
+
 @click.command('backup-db', help='Backs up the database.')
 @click.option('--dry-run', is_flag=True, help='Simulate the backup without making changes.')
 @click.pass_context

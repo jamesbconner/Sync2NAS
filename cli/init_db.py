@@ -1,3 +1,6 @@
+"""
+CLI command to initialize the SQLite database.
+"""
 import click
 from services.db_implementations.db_interface import DatabaseInterface
 

@@ -7,6 +7,10 @@ from utils.episode_updater import refresh_episodes_for_show
 
 logger = logging.getLogger(__name__)
 
+"""
+CLI command to refresh episodes for a show from TMDB and update the local database.
+"""
+
 @click.command("update-episodes", help="Refresh episodes for a show from TMDB and update the local database.")
 @click.argument("show_name", required=False)
 @click.option("--tmdb-id", type=int, help="TMDB ID of the show (overrides show_name search)")

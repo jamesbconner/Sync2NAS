@@ -2,6 +2,10 @@ import click
 from pathlib import Path
 from datetime import datetime
 
+"""
+CLI command to list files on the remote SFTP server, with options for recursion, dry-run, and populating the sftp_temp table.
+"""
+
 @click.command("list-remote")
 @click.option("--path", "-p", type=str, help="Path to list")
 @click.option("--recursive", "-r", is_flag=True, help="List recursively")

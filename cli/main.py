@@ -1,3 +1,8 @@
+"""
+Main entry point for the Sync2NAS CLI.
+- Sets up the Click command group and context object.
+- Dynamically loads all CLI commands from this directory.
+"""
 import os
 import importlib
 import click
@@ -16,6 +21,10 @@ from services.llm_factory import create_llm_service
 @click.option('--config', '-c', type=click.Path(exists=True), default='./config/sync2nas_config.ini', help="Path to config file")
 @click.pass_context
 def sync2nas_cli(ctx, verbose, logfile, config):
+    """
+    Main CLI group. Sets up the context object with configuration, database, SFTP, TMDB, and LLM services.
+    All subcommands share this context.
+    """
     # If the context object is already set, return it without reinitializing it
     if ctx.obj and all(k in ctx.obj for k in ("config", "db", "tmdb", "sftp", "anime_tv_path", "incoming_path", "llm_service")):
         return
@@ -28,6 +37,7 @@ def sync2nas_cli(ctx, verbose, logfile, config):
         
     setup_logging(verbosity=verbose, logfile=logfile)
 
+    # Load configuration and initialize shared services
     cfg = load_configuration(config)
     ctx.obj = {
         "config": cfg,
@@ -39,9 +49,10 @@ def sync2nas_cli(ctx, verbose, logfile, config):
         "llm_service": create_llm_service(cfg)
     }
 
-# Dynamic discovery loop
+# Dynamic discovery loop: auto-register all CLI commands in this directory
 COMMAND_DIR = os.path.dirname(__file__)
 for filename in os.listdir(COMMAND_DIR):
+    # Only import .py files that are not main.py or __init__.py
     if filename.endswith(".py") and filename not in {"main.py", "__init__.py"}:
         command_name = filename[:-3]
         module_name = f"cli.{command_name}"
@@ -51,7 +62,7 @@ for filename in os.listdir(COMMAND_DIR):
             if cli_function:
                 sync2nas_cli.add_command(cli_function)
             else:
-                pass
+                pass  # No command function found in module
         except Exception as e:
             print(f"Failed to import {module_name}: {e}")
             pass

@@ -6,6 +6,10 @@ from services.db_implementations.db_interface import DatabaseInterface
 from services.tmdb_service import TMDBService
 from models.show import Show
 
+"""
+CLI command for one-time population of the tv_shows table from the anime_tv_path directory, using TMDB for metadata.
+"""
+
 @click.command(name="bootstrap-tv-shows")
 @click.option('--dry-run', is_flag=True, help="Simulate without writing to DB")
 @click.pass_context

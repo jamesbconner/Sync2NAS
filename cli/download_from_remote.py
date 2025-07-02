@@ -2,6 +2,10 @@ import click
 from utils.sync2nas_config import parse_sftp_paths
 from utils.sftp_orchestrator import download_from_remote as downloader
 
+"""
+CLI command to download new files or directories from the remote SFTP server and record them in the database.
+"""
+
 @click.command("download-from-remote")
 @click.option("--dry-run", "-d", is_flag=True, help="Simulate downloads without writing files or updating the DB.")
 @click.pass_context

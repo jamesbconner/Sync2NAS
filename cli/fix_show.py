@@ -1,3 +1,6 @@
+"""
+CLI command to correct a misclassified show in the database, optionally using TMDB search interactively.
+"""
 import logging
 import click
 from rich.console import Console
@@ -14,7 +17,10 @@ from services.tmdb_service import TMDBService
 @click.option("--dry-run", is_flag=True, help="Simulate correction without writing to database")
 @click.pass_context
 def fix_show(ctx, show_name, tmdb_id, dry_run):
-    """Correct a misclassified show in the database."""
+    """
+    Correct a misclassified show in the database by updating its metadata from TMDB.
+    Allows interactive selection of the correct show from TMDB search results.
+    """
     # ToDo: add a --file option to read the show details from a file
     # ToDo: add an audit log for show corrections
 
