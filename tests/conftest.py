@@ -40,6 +40,7 @@ def test_config_path():
         "port": "22",
         "username": "testuser",
         "ssh_key_path": str(temp_dir / "test_key"),
+        "paths": "/remote"
     }
     config["TMDB"] = {"api_key": "test_api_key"}
     config["llm"] = {"service": "ollama"}
@@ -69,7 +70,7 @@ def db_service(config):
     return db
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def initialized_db(db_service):
     """Alias for an initialized DBService (backwards-compatible)."""
     return db_service
@@ -79,7 +80,7 @@ def initialized_db(db_service):
 # MOCK FIXTURES
 # ────────────────────────────────────────────────
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def mock_tmdb_service(mocker):
     """Mocked TMDBService instance with stubbed return values."""
     mock = mocker.Mock(spec=TMDBService)
@@ -145,7 +146,7 @@ def mock_tmdb_service(mocker):
 
     return mock
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def mock_sftp_service(mocker):
     """Mocked SFTPService instance with stubbed return values."""
     # Create a MagicMock with the spec
