@@ -58,12 +58,12 @@ def search_tmdb(ctx, show_name, tmdb_id, dry_run, verbose, limit, year):
         # Case 1: Search by TMDB ID (highest priority)
         if tmdb_id:
             logger.info(f"cli/search_tmdb.py::search_tmdb - Searching by TMDB ID: {tmdb_id}")
-            _search_by_tmdb_id(tmdb_id, tmdb, verbose, console)
+            _search_by_tmdb_id(tmdb_id, tmdb, verbose, console, ctx)
 
         # Case 2: Search by show name
         elif show_name:
             logger.info(f"cli/search_tmdb.py::search_tmdb - Searching by show name: {show_name}")
-            _search_by_show_name(show_name, tmdb, verbose, console, limit, year)
+            _search_by_show_name(show_name, tmdb, verbose, console, limit, year, ctx)
 
         # Case 3: No arguments - show usage
         else:
@@ -80,7 +80,7 @@ def search_tmdb(ctx, show_name, tmdb_id, dry_run, verbose, limit, year):
         ctx.exit(1)
 
 
-def _search_by_tmdb_id(tmdb_id: int, tmdb: TMDBService, verbose: bool, console: Console):
+def _search_by_tmdb_id(tmdb_id: int, tmdb: TMDBService, verbose: bool, console: Console, ctx):
     """
     Search for a show by TMDB ID and display details.
     
@@ -106,9 +106,10 @@ def _search_by_tmdb_id(tmdb_id: int, tmdb: TMDBService, verbose: bool, console: 
     except Exception as e:
         logger.exception(f"cli/search_tmdb.py::_search_by_tmdb_id - Error fetching show details: {e}")
         click.secho(f"❌ Error fetching show details: {e}", fg="red", bold=True)
+        ctx.exit(1)
 
 
-def _search_by_show_name(show_name: str, tmdb: TMDBService, verbose: bool, console: Console, limit: int, year: int):
+def _search_by_show_name(show_name: str, tmdb: TMDBService, verbose: bool, console: Console, limit: int, year: int, ctx):
     """
     Search for shows by name and display results.
     
@@ -154,6 +155,7 @@ def _search_by_show_name(show_name: str, tmdb: TMDBService, verbose: bool, conso
     except Exception as e:
         logger.exception(f"cli/search_tmdb.py::_search_by_show_name - Error searching TMDB: {e}")
         click.secho(f"❌ Error searching TMDB: {e}", fg="red", bold=True)
+        ctx.exit(1)
 
 
 def _display_tmdb_show_details(show_info: dict, full_details: dict, verbose: bool, console: Console):
