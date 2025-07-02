@@ -176,32 +176,31 @@ def mock_episodes():
     ]
 
 
-def create_click_context(mock_db, mock_tmdb, anime_tv_path="/test/path"):
+def create_click_context(mock_db, mock_tmdb, tmp_path):
     """Helper function to create a proper Click context"""
     ctx = Context(fix_show)
     parser = configparser.ConfigParser()
     parser["SQLite"] = {"db_file": "test.db"}
-    parser["Routing"] = {"anime_tv_path": str(anime_tv_path)}
-    parser["Transfers"] = {"incoming": "incoming"}
+    parser["Routing"] = {"anime_tv_path": str(tmp_path / "anime_tv_path")}
+    parser["Transfers"] = {"incoming": str(tmp_path / "incoming")}
     parser["SFTP"] = {
         "host": "localhost",
         "port": "22",
         "username": "testuser",
-        "ssh_key_path": "test_key",
+        "ssh_key_path": str(tmp_path / "test_key"),
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
     parser["ollama"] = {"model": "ollama3.2"}
-    config_path = write_temp_config(parser, ".")
+    config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     ctx.obj = {
         "config": config,
         "db": mock_db,
         "tmdb": mock_tmdb,
-        "sftp": Mock(),
-        "anime_tv_path": str(anime_tv_path),
-        "incoming_path": "incoming",
-        "llm_service": create_llm_service(config),
+        "anime_tv_path": str(tmp_path / "anime_tv_path"),
+        "incoming_path": str(tmp_path / "incoming"),
+        "llm_service": create_llm_service(config)
     }
     return ctx
 
@@ -215,7 +214,7 @@ def test_fix_show_with_tmdb_id(tmp_path, mock_db, mock_tmdb, mock_show_details, 
     mock_tmdb.get_show_details.return_value = mock_show_details
     with patch('models.episode.Episode.parse_from_tmdb', return_value=mock_episodes):
         # Setup context
-        ctx = create_click_context(mock_db, mock_tmdb)
+        ctx = create_click_context(mock_db, mock_tmdb, tmp_path)
 
         # Run command
         runner = CliRunner()
@@ -238,7 +237,7 @@ def test_fix_show_interactive(tmp_path, mock_db, mock_tmdb, mock_show_details, m
     mock_tmdb.get_show_details.return_value = mock_show_details
     with patch('models.episode.Episode.parse_from_tmdb', return_value=mock_episodes):
         # Setup context
-        ctx = create_click_context(mock_db, mock_tmdb)
+        ctx = create_click_context(mock_db, mock_tmdb, tmp_path)
 
         # Run command with input
         runner = CliRunner()
@@ -260,7 +259,7 @@ def test_fix_show_dry_run(tmp_path, mock_db, mock_tmdb, mock_show_details, mock_
     mock_tmdb.get_show_details.return_value = mock_show_details
     with patch('models.episode.Episode.parse_from_tmdb', return_value=mock_episodes):
         # Setup context
-        ctx = create_click_context(mock_db, mock_tmdb)
+        ctx = create_click_context(mock_db, mock_tmdb, tmp_path)
 
         # Run command
         runner = CliRunner()
@@ -280,7 +279,7 @@ def test_fix_show_not_found(tmp_path, mock_db):
     mock_db.get_all_shows.return_value = []
 
     # Setup context
-    ctx = create_click_context(mock_db, Mock())
+    ctx = create_click_context(mock_db, Mock(), tmp_path)
 
     # Run command
     runner = CliRunner()
@@ -301,7 +300,7 @@ def test_fix_show_no_tmdb_results(tmp_path, mock_db, mock_tmdb):
     mock_tmdb.search_show.return_value = {"results": []}
 
     # Setup context
-    ctx = create_click_context(mock_db, mock_tmdb)
+    ctx = create_click_context(mock_db, mock_tmdb, tmp_path)
 
     # Run command
     runner = CliRunner()
@@ -322,7 +321,7 @@ def test_fix_show_invalid_index(tmp_path, mock_db, mock_tmdb, mock_search_result
     mock_tmdb.search_show.return_value = mock_search_results
 
     # Setup context
-    ctx = create_click_context(mock_db, mock_tmdb)
+    ctx = create_click_context(mock_db, mock_tmdb, tmp_path)
 
     # Run command with invalid index
     runner = CliRunner()
@@ -343,7 +342,7 @@ def test_fix_show_tmdb_error(tmp_path, mock_db, mock_tmdb, mock_show_details):
     mock_tmdb.get_show_details.return_value = None
 
     # Setup context
-    ctx = create_click_context(mock_db, mock_tmdb)
+    ctx = create_click_context(mock_db, mock_tmdb, tmp_path)
 
     # Run command
     runner = CliRunner()
@@ -366,7 +365,7 @@ def test_fix_show_database_error(tmp_path, mock_db, mock_tmdb, mock_show_details
         mock_db.delete_show_and_episodes.side_effect = Exception("Database error")
 
         # Setup context
-        ctx = create_click_context(mock_db, mock_tmdb)
+        ctx = create_click_context(mock_db, mock_tmdb, tmp_path)
 
         # Run command
         runner = CliRunner()
