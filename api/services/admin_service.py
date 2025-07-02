@@ -101,7 +101,7 @@ class AdminService:
 
                     if not dry_run:
                         for episode_data in episodes:
-                            episode = Episode.from_tmdb(episode_data, show.id)
+                            episode = Episode.parse_from_tmdb(episode_data, show.id)
                             self.db.add_episode(episode)
                     
                     added += 1

@@ -46,7 +46,7 @@ class RemoteService:
                               dry_run: bool = False) -> Dict[str, Any]:
         """List files on remote SFTP server"""
         try:
-            remote_path = path if path else self.config["SFTP"]["path"]
+            remote_path = path if path else self.config["SFTP"]["paths"]
 
             with self.sftp as sftp:
                 if recursive:
