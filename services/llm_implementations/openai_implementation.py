@@ -39,13 +39,13 @@ class OpenAILLMService(BaseLLMService):
         """
         logger.info(f"openai_implementation.py::parse_filename - Parsing filename with OpenAI LLM: {filename}")
         cleaned_filename = self._clean_filename_for_llm(filename)
-        prompt = self._create_filename_parsing_prompt(cleaned_filename)
+        prompt = self._get_system_prompt()
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": self._get_system_prompt()},
-                    {"role": "user", "content": prompt}
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": cleaned_filename}
                 ],
                 max_tokens=max_tokens,
                 temperature=0.1,
@@ -66,80 +66,77 @@ class OpenAILLMService(BaseLLMService):
             return self._fallback_parse(filename)
 
     def _get_system_prompt(self) -> str:
-        return """You are an expert at parsing TV show filenames. Your task is to extract the show name, season number, and episode number from filenames.
+        return """
+You are an expert at parsing TV and anime episode filenames and extracting structured metadata. Your job is to extract the following information and return it as strict JSON:
 
-IMPORTANT RULES:
-1. Return ONLY valid JSON with the exact structure shown below
-2. Show names should be the official/canonical name, not release group names
-3. Season and episode numbers should be integers or null
-4. Confidence should be a float between 0.0 and 1.0
-5. Reasoning should explain your parsing decision
+- "show_name": The full show name as it appears in the filename. This may include dashes, alternate titles, or unusual letter sequences like "GQuuuuuuX" — these are not metadata tags or suffixes, but part of the true name.
+- "season": The season number as an integer, or null if not explicitly present.
+- "episode": The episode number as an integer, or null if not explicitly present.
+- "confidence": A float between 0.0 and 1.0 that reflects how certain you are in ALL extracted fields.
+- "reasoning": A short explanation that justifies each extracted field and explains why the confidence is high or low.
 
-EXAMPLES:
-- 'Breaking.Bad.S01E01.1080p.mkv' → {\"show_name\": \"Breaking Bad\", \"season\": 1, \"episode\": 1, \"confidence\": 0.95, \"reasoning\": \"Clear S01E01 format\"}
-- 'One.Piece.Episode.1000.1080p.mkv' → {\"show_name\": \"One Piece\", \"season\": null, \"episode\": 1000, \"confidence\": 0.9, \"reasoning\": \"Episode number without season\"}
-- 'Game.of.Thrones.S08E06.1080p.mkv' → {\"show_name\": \"Game of Thrones\", \"season\": 8, \"episode\": 6, \"confidence\": 0.95, \"reasoning\": \"Standard S08E06 format\"}
+---
 
-RESPONSE FORMAT:
+Important Rules:
+1. There is never a valid scenario with a season number but no episode number. If a season is detected but no episode, return episode: null and reduce confidence sharply.
+2. It is common for filenames to include only a show name and episode number. This is valid and should not be interpreted as season 1 unless explicitly stated.
+3. Dashes (-) are commonly used separators, but they can also appear within show names. Use heuristics: if a dash is between the show title and a number, it may be a separator; if it's inside a quoted or known title structure, or if there are words on both sides of the dash, keep it in the title.
+4. Show names are often in Japanese or English, and may contain underscores, romanization artifacts, or substitutions. Normalize to readable title case.
+5. Season and episode numbers are always expressed using Arabic numerals, often formatted as:
+   - S02E03 / SO2 EO3 / 2nd Season 03 / Ep 03 / - 03 / 03 / 3
+6. Tags such as [GroupName], [1080p], [BDRip], and hex hashes like [89F3A28D] must be ignored.
+7. If any field is unclear or inferred, confidence should not exceed 0.7.
+8. The output MUST BE STRICT JSON, with no markdown, code blocks, or commentary. Return ONLY the raw JSON object.
+
+---
+
+Output Constraints:
+- Return a valid JSON object with exactly these fields:
+  - show_name: string
+  - season: integer or null
+  - episode: integer or null
+  - confidence: float (0.0 to 1.0)
+  - reasoning: string
+- Do not include any markdown, code blocks, or commentary. Return only the raw JSON object.
+
+---
+
+Example 1:
+Given:
+[Erai-raws] Kidou Senshi Gundam GQuuuuuuX - 12 [1080p AMZN WEB-DL AVC EAC3][MultiSub][CC001E26].mkv
+
+Return:
 {
-    'show_name': 'string',
-    'season': integer or null,
-    'episode': integer or null,
-    'confidence': float (0.0-1.0),
-    'reasoning': 'string'
-}"""
+  "show_name": "Kidou Senshi Gundam GQuuuuuuX",
+  "season": null,
+  "episode": 12,
+  "confidence": 0.95,
+  "reasoning": "Episode number 12 appears clearly after the show name; no season is indicated."
+}
 
-    def _create_filename_parsing_prompt(self, filename: str) -> str:
-        return (f"Parse this TV show filename and extract the show name, season, and episode information:\n\n"
-                f"Filename: {filename}\n\n"
-                "Please analyze this filename and return the parsed information in JSON format.")
+Example 2:
+Given:
+[Asakura] Tensei Shitara Slime Datta Ken 3rd Season 49 [BDRip x265 IObit FLAC] [36E425AB].mkv
 
-    def _validate_and_clean_result(self, result: Dict[str, Any], original_filename: str) -> Dict[str, Any]:
-        validated = {
-            "show_name": result.get("show_name", "").strip(),
-            "season": result.get("season"),
-            "episode": result.get("episode"),
-            "confidence": result.get("confidence", 0.0),
-            "reasoning": result.get("reasoning", "No reasoning provided")
-        }
-        try:
-            if validated["season"] is not None:
-                validated["season"] = int(validated["season"])
-            if validated["episode"] is not None:
-                validated["episode"] = int(validated["episode"])
-            validated["confidence"] = float(validated["confidence"])
-        except (ValueError, TypeError):
-            logger.warning(f"openai_implementation.py::_validate_and_clean_result - Invalid data types in LLM response, using fallback")
-            return self._fallback_parse(original_filename)
-        validated["confidence"] = max(0.0, min(1.0, validated["confidence"]))
-        if not validated["show_name"]:
-            logger.warning(f"openai_implementation.py::_validate_and_clean_result - Empty show name from LLM, using fallback")
-            return self._fallback_parse(original_filename)
-        return validated
+Return:
+{
+  "show_name": "Tensei Shitara Slime Datta Ken",
+  "season": 3,
+  "episode": 49,
+  "confidence": 0.95,
+  "reasoning": "Season number is explicitly stated as '3rd Season'"
+}
 
-    def _fallback_parse(self, filename: str) -> Dict[str, Any]:
-        logger.info(f"openai_implementation.py::_fallback_parse - Using fallback parsing for: {filename}")
-        base = re.sub(r"\.[a-z0-9]{2,4}$", "", filename, flags=re.IGNORECASE)
-        cleaned = re.sub(r"[\[\(].*?[\]\)]", "", base)
-        cleaned = re.sub(r"[_.]", " ", cleaned)
-        cleaned = re.sub(r"\s+", " ", cleaned).strip()
-        season_episode_pattern = r"(.*?)[\s\-]+[Ss](\d{1,2})[Ee](\d{1,3})"
-        match = re.search(season_episode_pattern, cleaned, re.IGNORECASE)
-        if match:
-            show_name = match.group(1).strip(" -_")
-            season = int(match.group(2))
-            episode = int(match.group(3))
-            return {
-                "show_name": show_name,
-                "season": season,
-                "episode": episode,
-                "confidence": 0.5,
-                "reasoning": "Fallback regex parsing"
-            }
-        return {
-            "show_name": cleaned,
-            "season": None,
-            "episode": None,
-            "confidence": 0.1,
-            "reasoning": "Fallback parsing - no clear pattern"
-        } 
+Example 3:
+Given:
+[SubsPlease] Zatsu Tabi - That's Journey - 01 (1080p) [EC01EEB3].mkv
+
+Return:
+{
+  "show_name": "Zatsu Tabi - That's Journey",
+  "season": null,
+  "episode": 1,
+  "confidence": 0.80,
+  "reasoning": "Episode number 1 appears clearly after the show name; no season is indicated. Full title retained with suffix."
+}
+""" 
