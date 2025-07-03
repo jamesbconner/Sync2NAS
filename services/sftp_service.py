@@ -10,6 +10,7 @@ from datetime import datetime
 from datetime import timedelta
 from utils.file_filters import is_valid_media_file
 from utils.file_filters import is_valid_directory
+from utils.filename_parser import parse_filename
 
 logger = logging.getLogger(__name__)
 
@@ -38,13 +39,14 @@ def retry_sftp_operation(func):
         
 
 class SFTPService:
-    def __init__(self, host, port, username, ssh_key_path):
+    def __init__(self, host, port, username, ssh_key_path, llm_service=None):
         self.host = host
         self.port = port
         self.username = username
         self.ssh_key_path = ssh_key_path
         self.client = None
         self.transport = None
+        self.llm_service = llm_service
 
     def __enter__(self):
         try:
@@ -234,11 +236,72 @@ class SFTPService:
     
     @retry_sftp_operation
     def download_dir(self, remote_path, local_path):
+        """
+        Download a directory and all its contents from the SFTP server to the local path.
+        
+
+        Args:
+            remote_path (sftp directory path): The path to the directory on the SFTP server
+            local_path (incoming directory path): The path to the directory on the local 
+                machine where the files will be downloaded (will be created if doesn't exist).
+        """
         os.makedirs(local_path, exist_ok=True)
+        # Iterate over all objects in the remote directory
         for entry in self.client.listdir_attr(remote_path):
             remote_entry = f"{remote_path.rstrip('/')}/{entry.filename}"
+            
+            # Check if adding this directory/file to the local path will exceed 260 chars
             local_entry = os.path.join(local_path, entry.filename)
-
+            if len(os.path.abspath(local_entry)) > 260:
+                # Truncate directory name if it's a directory, else truncate file name
+                logger.debug(f"Truncating directory name due to path length > 260: {local_entry}")
+                if stat.S_ISDIR(entry.st_mode):
+                    orig_name = entry.filename
+                    # If LLM service is available, use it to suggest a shorter name
+                    if self.llm_service:
+                        short_name = self.llm_service.suggest_short_dirname(orig_name, max_length=20)
+                    else:
+                        # If LLM service is not available, use a simple truncation
+                        short_name = orig_name[:20]
+                    local_entry = os.path.join(local_path, short_name)
+                    # Check if the new path is still too long
+                    if len(os.path.abspath(local_entry)) > 260:
+                        # If still too long, fallback to unique hash or further truncate
+                        import hashlib
+                        logger.debug(f"Falling back to unique hash due to path length > 260: {local_entry}")
+                        short_name = hashlib.md5(orig_name.encode()).hexdigest()[:5]
+                        local_entry = os.path.join(local_path, short_name)
+                        logger.debug(f"New path after unique hash: {local_entry}")
+                else:
+                    # For files, also truncate the file name if > 260 chars
+                    #    Remove any non-critical information from the file name
+                    #    We need show name, season, episode and extension as a minimum
+                    #    If we can't get the show name, season, episode and extension, skip the file
+                    #    TODO: If possible, include the CRC checksum in the file name if it exists
+                    orig_name = entry.filename
+                    # If LLM service is available, use it to suggest a shorter name
+                    if self.llm_service:
+                        short_name = self.llm_service.suggest_short_filename(orig_name, max_length=20)
+                    else:
+                        # If LLM service is not available, brute force the filename with regex parsing
+                        parser_result = parse_filename(orig_name)
+                        extension = os.path.splitext(orig_name)[1][1:].lower()
+                        # If we can get the show name, season, episode and extension, use it to suggest a shorter name
+                        if parser_result.get("show_name") and parser_result.get("season") and parser_result.get("episode"):
+                            short_name = f"{parser_result['show_name']}.S{parser_result['season']}E{parser_result['episode']}.{extension}"
+                        # If we can get the show name and episode, use it to suggest a shorter name
+                        elif parser_result.get("show_name") and parser_result.get("episode"):
+                            short_name = f"{parser_result['show_name']}.E{parser_result['episode']}.{extension}"
+                        # If we can't get any of the above, pass on downloading the file
+                        else:
+                            logger.debug(f"Filename too long and regex fallback failed, skipping: {orig_name}")
+                            continue
+                    logger.debug(f"Short name after LLM or regex fallback: {short_name}")
+                    local_entry = os.path.join(local_path, short_name)
+                    if len(os.path.abspath(local_entry)) > 260:
+                        logger.debug(f"Short name still too long, skipping: {local_entry}")
+                        continue
+                    
             if stat.S_ISDIR(entry.st_mode):
                 if not is_valid_directory(entry.filename):
                     logger.debug(f"Skipping directory due to filter: {entry.filename}")

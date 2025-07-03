@@ -140,3 +140,59 @@ Return:
   "reasoning": "Episode number 1 appears clearly after the show name; no season is indicated. Full title retained with suffix."
 }
 """ 
+
+    def suggest_short_dirname(self, long_name: str, max_length: int = 20) -> str:
+        """
+        Suggest a short, human-readable directory name for a given long name using the LLM.
+        Fallback to truncation if LLM fails.
+        """
+        prompt = (
+            f"Suggest a short, human-readable directory name (max {max_length} characters) for the following long directory name. "
+            f"Avoid special characters and keep it unique and recognizable. Return only the name, no commentary.\n\n"
+            f"Long name: {long_name}"
+        )
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "You are an expert at generating short, unique directory names."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=max_length,
+                temperature=0.1
+            )
+            content = response.choices[0].message.content.strip()
+            short_name = content.splitlines()[0][:max_length]
+            short_name = re.sub(r'[^\w\- ]', '', short_name)
+            return short_name or long_name[:max_length]
+        except Exception as e:
+            logger.error(f"openai_implementation.py::suggest_short_name - LLM error: {e}.")
+            return long_name[:max_length]
+
+    def suggest_short_filename(self, long_name: str, max_length: int = 20) -> str:
+        """
+        Suggest a short, human-readable filename for a given long filename using the LLM.
+        Fallback to truncation if LLM fails.
+        """
+        prompt = (
+            f"Suggest a short, human-readable filename (max {max_length} characters) for the following long filename. "
+            f"Preserve key information like show name, season, episode, and extension. Avoid special characters. Return only the filename, no commentary.\n\n"
+            f"Long filename: {long_name}"
+        )
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "You are an expert at generating short, unique filenames."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=max_length,
+                temperature=0.1
+            )
+            content = response.choices[0].message.content.strip()
+            short_name = content.splitlines()[0][:max_length]
+            short_name = re.sub(r'[^\w\-. ]', '', short_name)
+            return short_name or long_name[:max_length]
+        except Exception as e:
+            logger.error(f"openai_implementation.py::suggest_short_filename - LLM error: {e}.")
+            return long_name[:max_length] 

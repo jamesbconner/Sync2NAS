@@ -31,4 +31,28 @@ class LLMInterface(ABC):
         Returns:
             list: List of parsing results
         """
+        pass
+
+    @abstractmethod
+    def suggest_short_dirname(self, long_name: str, max_length: int = 20) -> str:
+        """
+        Suggest a short, human-readable directory name for a given long name using the LLM.
+        Args:
+            long_name: The original long directory name
+            max_length: The maximum allowed length for the short name
+        Returns:
+            str: Suggested short directory name
+        """
         pass 
+    
+    @abstractmethod
+    def suggest_short_filename(self, long_name: str, max_length: int = 20) -> str:
+        """
+        Suggest a short, human-readable filename for a given long name using the LLM.
+        Args:
+            long_name: The original long filename
+            max_length: The maximum allowed length for the short name
+        Returns:
+            str: Suggested short filename
+        """
+        pass

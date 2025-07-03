@@ -14,7 +14,8 @@ def process_sftp_diffs(
     diffs: List[Dict],
     remote_base: str,
     local_base: str,
-    dry_run: bool = False):
+    dry_run: bool = False,
+    llm_service=None):
     """
     Process a list of SFTP diffs: download new files or directories and record them.
 
@@ -25,6 +26,7 @@ def process_sftp_diffs(
         remote_base: Root remote path.
         local_base: Root local path.
         dry_run: If True, perform no download or DB writes.
+        llm_service: LLMService instance for directory name suggestions.
     """
     for entry in diffs:
         name = entry["name"]
@@ -51,6 +53,7 @@ def process_sftp_diffs(
         try:
             logger.info(f"Starting download of {entry_type}: {remote_path} -> {local_path}")
             if entry["is_dir"]:
+                sftp_service.llm_service = llm_service
                 sftp_service.download_dir(remote_path, local_path)
             else:
                 sftp_service.download_file(remote_path, local_path)

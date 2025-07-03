@@ -107,6 +107,11 @@ def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, 
                 season_dir = show.sys_path
             target_path = os.path.join(season_dir, filename)
 
+            # Check for Windows path length limitation
+            if len(os.path.abspath(target_path)) > 260:
+                logger.error(f"Skipping file due to path length > 260: {target_path}")
+                continue
+
             # Perform or simulate the move operation
             if dry_run:
                 logger.info(f"utils/file_routing.py::file_routing - [DRY RUN] Would move {source_path} to {target_path}")
