@@ -149,6 +149,11 @@ Return:
         prompt = (
             f"Suggest a short, human-readable directory name (max {max_length} characters) for the following long directory name. "
             f"Avoid special characters and keep it unique and recognizable. Return only the name, no commentary.\n\n"
+            f"The directory name represents the title of a show.  If there is a season number in the original filename, always include it in the directory name in the format of 'S1', 'S2', etc."
+            f"If there is no season number, but there is a year, include that in the directory name in the format of '2024', '2025', etc."
+            f"The season number or year should be the last part of the directory name if available."
+            f"Do not make up words for the directory name."
+            f"It is valid to use CamelCase for the directory name if the max_length is less than 50 characters."
             f"Long name: {long_name}"
         )
         try:
@@ -164,6 +169,7 @@ Return:
             content = response.choices[0].message.content.strip()
             short_name = content.splitlines()[0][:max_length]
             short_name = re.sub(r'[^\w\- ]', '', short_name)
+            logger.debug(f"openai_implementation.py::suggest_short_dirname - LLM recommended: {short_name}")
             return short_name or long_name[:max_length]
         except Exception as e:
             logger.error(f"openai_implementation.py::suggest_short_name - LLM error: {e}.")
@@ -192,6 +198,7 @@ Return:
             content = response.choices[0].message.content.strip()
             short_name = content.splitlines()[0][:max_length]
             short_name = re.sub(r'[^\w\-. ]', '', short_name)
+            logger.debug(f"openai_implementation.py::suggest_short_filename - LLM recommended: {short_name}")
             return short_name or long_name[:max_length]
         except Exception as e:
             logger.error(f"openai_implementation.py::suggest_short_filename - LLM error: {e}.")

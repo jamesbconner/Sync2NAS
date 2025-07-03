@@ -78,6 +78,11 @@ ssh/
 anime_tv_path/
 incoming/
 ssh_test/
+testing/
+testing/*
+testing/anime_tv
+testing/incoming
+
 
 # Future Work
 next_step.py

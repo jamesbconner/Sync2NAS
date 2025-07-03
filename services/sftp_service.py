@@ -47,13 +47,18 @@ class SFTPService:
         self.client = None
         self.transport = None
         self.llm_service = llm_service
+        
+        if llm_service is None:
+            logger.warning("sftp_service.py::__init__ - No LLM service provided.")
+        else:
+            logger.info(f"sftp_service.py::__init__ - LLM service: {llm_service}")
 
     def __enter__(self):
         try:
             self.connect()
             return self
         except Exception as e:
-            logger.error(f"Error establishing SFTP connection: {e}")
+            logger.error(f"sftp_service.py::__enter__ - Error establishing SFTP connection: {e}")
             self.__exit__(None, None, None)
             raise
 
@@ -63,14 +68,14 @@ class SFTPService:
                 self.client.close()
                 self.client = None
         except Exception as e:
-            logger.error(f"Error closing SFTP client: {e}")
+            logger.error(f"sftp_service.py::__exit__ - Error closing SFTP client: {e}")
         
         try:
             if self.transport:
                 self.transport.close()
                 self.transport = None
         except Exception as e:
-            logger.error(f"Error closing transport: {e}")
+            logger.error(f"sftp_service.py::__exit__ - Error closing transport: {e}")
 
     def connect(self):
         """Establish a new SFTP connection."""
@@ -79,10 +84,10 @@ class SFTPService:
             self.transport = paramiko.Transport((self.host, self.port))
             self.transport.connect(username=self.username, pkey=key)
             self.client = paramiko.SFTPClient.from_transport(self.transport)
-            logger.debug(f"SFTP connection established successfully to {self.host}:{self.port}")
+            logger.debug(f"sftp_service.py::connect - SFTP connection established successfully to {self.host}:{self.port}")
             return self
         except Exception as e:
-            logger.error(f"Failed to establish SFTP connection to {self.host}:{self.port} with error: {e}")
+            logger.error(f"sftp_service.py::connect - Failed to establish SFTP connection to {self.host}:{self.port} with error: {e}")
             self.__exit__(None, None, None)
             raise RuntimeError(f"Failed to connect to SFTP server: {e}")
 
@@ -95,18 +100,18 @@ class SFTPService:
             if self.transport:
                 self.transport.close()
                 self.transport = None
-            logger.debug("SFTP connection closed successfully.")
+            logger.debug("sftp_service.py::disconnect - SFTP connection closed successfully.")
         except Exception as e:
-            logger.error(f"Error closing SFTP connection: {e}")
+            logger.error(f"sftp_service.py::disconnect - Error closing SFTP connection: {e}")
 
     def reconnect(self):
         """Reconnect to the SFTP server."""
-        logger.debug("Attempting to reconnect to SFTP server...")
+        logger.debug("sftp_service.py::reconnect - Attempting to reconnect to SFTP server...")
         try:
             self.disconnect()
             return self.connect()
         except Exception as e:
-            logger.error(f"Failed to reconnect to SFTP server: {e}")
+            logger.error(f"sftp_service.py::reconnect - Failed to reconnect to SFTP server: {e}")
             raise RuntimeError(f"Failed to reconnect to SFTP server: {e}")
         
     @retry_sftp_operation
@@ -116,9 +121,10 @@ class SFTPService:
         fetched_at = datetime.now()
 
         entries = []
+        remote_path = remote_path.replace('\\', '/')
         for attr in self.client.listdir_attr(remote_path):
             name = attr.filename
-            path = os.path.join(remote_path, name)
+            path = remote_path.rstrip('/') + '/' + name.replace('\\', '/')
             is_dir = stat.S_ISDIR(attr.st_mode)
             modified_time = datetime.fromtimestamp(attr.st_mtime)
 
@@ -143,6 +149,7 @@ class SFTPService:
                 "fetched_at": fetched_at
             })
 
+        logger.debug(f"sftp_service.py::list_remote_dir - Listed {len(entries)} entries in {remote_path}")
         return entries
 
     @retry_sftp_operation
@@ -154,11 +161,13 @@ class SFTPService:
         fetched_at = datetime.now()
         
         entries = []
+        remote_path = remote_path.replace('\\', '/')
         for entry in self.client.listdir_attr(remote_path):
-            path = os.path.join(remote_path, entry.filename)
+            name = entry.filename
+            path = remote_path.rstrip('/') + '/' + name.replace('\\', '/')
             is_dir = stat.S_ISDIR(entry.st_mode)
-            ext = os.path.splitext(entry.filename)[1][1:].lower()
-            lower_name = entry.filename.lower()
+            ext = os.path.splitext(name)[1][1:].lower()
+            lower_name = name.lower()
             modified_time = datetime.fromtimestamp(entry.st_mtime)
             
             if is_dir:
@@ -172,7 +181,7 @@ class SFTPService:
                 continue
             
             entries.append({
-                "name": entry.filename,
+                "name": name,
                 "path": path,
                 "size": entry.st_size,
                 "modified_time": modified_time,
@@ -180,6 +189,7 @@ class SFTPService:
                 "fetched_at": fetched_at
             })
 
+        logger.debug(f"sftp_service.py::list_remote_files - Listed {len(entries)} entries in {remote_path}")
         return entries
 
     @retry_sftp_operation
@@ -188,9 +198,10 @@ class SFTPService:
         cutoff_time = datetime.now() - timedelta(minutes=1)
         fetched_at = datetime.now()
 
+        remote_path = remote_path.replace('\\', '/')
         for attr in self.client.listdir_attr(remote_path):
             name = attr.filename
-            path = os.path.join(remote_path, name)
+            path = remote_path.rstrip('/') + '/' + name.replace('\\', '/')
             is_dir = stat.S_ISDIR(attr.st_mode)
             modified_time = datetime.fromtimestamp(attr.st_mtime)
 
@@ -215,6 +226,7 @@ class SFTPService:
                 "is_dir": False,
                 "fetched_at": fetched_at
             })
+        logger.debug(f"sftp_service.py::_list_remote_files_recursive_helper - Listed {len(entries)} files in {remote_path}")
 
     @retry_sftp_operation
     def list_remote_files_recursive(self, remote_path):
@@ -224,93 +236,123 @@ class SFTPService:
         except those excluded by is_valid_media_file().
         """
         entries = []
+        remote_path = remote_path.replace('\\', '/')
         self._list_remote_files_recursive_helper(remote_path, entries)
+        logger.debug(f"sftp_service.py::list_remote_files_recursive - Listed {len(entries)} entries in {remote_path}")
         return entries
 
+    def _truncate_filename(self, fname, llm_service, max_path_length, local_base, truncated_dir_name):
+        """
+        Truncate a filename to fit within max_path_length when combined with the local_base and truncated_dir_name.
+        Uses LLM if available, then regex parsing, then fallback truncation.
+        """
+        # Try LLM for filename truncation first if available
+        if llm_service:
+            base_name = llm_service.suggest_short_filename(fname, max_length=max_path_length - len(os.path.abspath(os.path.join(local_base, truncated_dir_name, ''))))
+            logger.debug(f"sftp_service.py::_truncate_filename - LLM suggested filename: {base_name} for original: {fname}")
+            if len(os.path.abspath(os.path.join(local_base, truncated_dir_name, base_name))) <= max_path_length:
+                return base_name
+        # Fallback to regex parsing
+        parser_result = parse_filename(fname, llm_service=llm_service)
+        extension = os.path.splitext(fname)[1][1:].lower()
+        if parser_result.get('show_name') and parser_result.get('season') and parser_result.get('episode'):
+            base_name = f"{parser_result['show_name']}.S{parser_result['season']}E{parser_result['episode']}.{extension}"
+            if len(os.path.abspath(os.path.join(local_base, truncated_dir_name, base_name))) > max_path_length:
+                show = parser_result['show_name']
+                show_short = show[:10]
+                base_name = f"{show_short}.S{parser_result['season']}E{parser_result['episode']}.{extension}"
+            return base_name
+        elif parser_result.get('show_name') and parser_result.get('episode'):
+            base_name = f"{parser_result['show_name']}.E{parser_result['episode']}.{extension}"
+            if len(os.path.abspath(os.path.join(local_base, truncated_dir_name, base_name))) > max_path_length:
+                show = parser_result['show_name']
+                show_short = show[:10]
+                base_name = f"{show_short}.E{parser_result['episode']}.{extension}"
+            return base_name
+        # fallback: just truncate filename
+        base_name = fname[:max(1, max_path_length - len(os.path.abspath(os.path.join(local_base, truncated_dir_name, ''))))]
+        return base_name
+
+    def _truncate_for_windows_path(self, local_base, dir_name, remote_path, max_path_length=250):
+        """
+        Given a local base path, a directory name, and the remote path, determine if truncation is needed for the directory and/or filenames so that all resulting paths are <= max_path_length (default 250 chars).
+        Returns (truncated_dir_name, filename_map) where filename_map is {original: truncated} or None if not needed.
+        """
+        entries = []
+        self._list_remote_files_recursive_helper(remote_path, entries)
+        filenames = [entry['name'] for entry in entries if not entry.get('is_dir', False)]
+        truncated_dir_name = dir_name
+        filename_map = None
+
+        # Initial check: is any path too long with the original dir name?
+        max_path = max((len(os.path.abspath(os.path.join(local_base, dir_name, fname))) for fname in filenames), default=0)
+        if max_path <= max_path_length:
+            logger.debug(f"sftp_service.py::_truncate_for_windows_path - No truncation needed for dir {dir_name} in {local_base}")
+            return truncated_dir_name, None
+
+        # Find the longest filename
+        max_filename_length = max((len(fname) for fname in filenames), default=0)
+        # Calculate max allowed dirname length
+        max_dirname_length = max_path_length - max_filename_length - len(os.path.abspath(os.path.join(local_base, ''))) - 1
+
+        # Try truncating the directory name (always try LLM if available)
+        if self.llm_service:
+            truncated_dir_name = self.llm_service.suggest_short_dirname(dir_name, max_length=max_dirname_length)
+        else:
+            truncated_dir_name = dir_name[:max_dirname_length]
+
+        # Check again: is any path too long with the truncated dir name?
+        max_path = max((len(os.path.abspath(os.path.join(local_base, truncated_dir_name, fname))) for fname in filenames), default=0)
+        if max_path <= max_path_length:
+            logger.debug(f"sftp_service.py::_truncate_for_windows_path - Truncated dir name to {truncated_dir_name} in {local_base}")
+            return truncated_dir_name, None
+
+        # Only now, if still too long, parse and truncate filenames
+        filename_map = {}
+        for fname in filenames:
+            base_name = self._truncate_filename(fname, self.llm_service, max_path_length, local_base, truncated_dir_name)
+            filename_map[fname] = base_name
+        logger.debug(f"sftp_service.py::_truncate_for_windows_path - Truncated filenames for dir {truncated_dir_name} in {local_base}")
+        return truncated_dir_name, filename_map
+
     @retry_sftp_operation
-    def download_file(self, remote_path, local_path):
-        logger.debug(f"Downloading file from {remote_path} to {local_path}")
+    def download_dir(self, remote_path, local_path, filename_map=None):
+        remote_path = remote_path.replace('\\', '/')
+        dir_name = os.path.basename(remote_path.rstrip('/'))
+        parent_path = os.path.dirname(local_path)
+        truncated_dir_name, new_filename_map = self._truncate_for_windows_path(parent_path, dir_name, remote_path)
+        local_path = os.path.join(parent_path, truncated_dir_name)
+        os.makedirs(local_path, exist_ok=True)
+        for entry in self.client.listdir_attr(remote_path):
+            # Always use forward slashes for remote paths
+            remote_entry = remote_path.rstrip('/') + '/' + entry.filename.replace('\\', '/')
+            if stat.S_ISDIR(entry.st_mode):
+                self.download_dir(remote_entry, os.path.join(local_path, entry.filename), new_filename_map)
+            else:
+                # Use mapped/truncated filename for local, but always use original for remote
+                local_filename = new_filename_map[entry.filename] if new_filename_map and entry.filename in new_filename_map else entry.filename
+                logger.info(f"sftp_service.py::download_dir - Downloading file {remote_entry} to {os.path.join(local_path, local_filename)}")
+                self.download_file(remote_entry, os.path.join(local_path, local_filename))
+
+    @retry_sftp_operation
+    def download_file(self, remote_path, local_path, max_path_length=250):
+        remote_path = remote_path.replace('\\', '/')
+        # Final check for path length
+        if len(os.path.abspath(local_path)) > max_path_length:
+            logger.warning(f"sftp_service.py::download_file - Local path too long, attempting to truncate filename: {local_path}")
+            dir_path = os.path.dirname(local_path)
+            orig_filename = os.path.basename(local_path)
+            dir_name = os.path.basename(dir_path)
+            base_name = self._truncate_filename(orig_filename, self.llm_service, max_path_length, os.path.dirname(dir_path), dir_name)
+            truncated_path = os.path.join(dir_path, base_name)
+            logger.info(f"sftp_service.py::download_file - Truncated filename to: {base_name}")
+            local_path = truncated_path
+            # Final check again
+            if len(os.path.abspath(local_path)) > max_path_length:
+                logger.error(f"sftp_service.py::download_file - Skipping file due to path length > 260 after truncation: {local_path}")
+                return
+        # Always use forward slashes for remote paths
+        logger.debug(f"sftp_service.py::download_file - Downloading file from {remote_path} to {local_path}")
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
         self.client.get(remote_path, local_path)
-        logger.debug(f"Downloaded file from {remote_path} to {local_path}")
-    
-    @retry_sftp_operation
-    def download_dir(self, remote_path, local_path):
-        """
-        Download a directory and all its contents from the SFTP server to the local path.
-        
-
-        Args:
-            remote_path (sftp directory path): The path to the directory on the SFTP server
-            local_path (incoming directory path): The path to the directory on the local 
-                machine where the files will be downloaded (will be created if doesn't exist).
-        """
-        os.makedirs(local_path, exist_ok=True)
-        # Iterate over all objects in the remote directory
-        for entry in self.client.listdir_attr(remote_path):
-            remote_entry = f"{remote_path.rstrip('/')}/{entry.filename}"
-            
-            # Check if adding this directory/file to the local path will exceed 260 chars
-            local_entry = os.path.join(local_path, entry.filename)
-            if len(os.path.abspath(local_entry)) > 260:
-                # Truncate directory name if it's a directory, else truncate file name
-                logger.debug(f"Truncating directory name due to path length > 260: {local_entry}")
-                if stat.S_ISDIR(entry.st_mode):
-                    orig_name = entry.filename
-                    # If LLM service is available, use it to suggest a shorter name
-                    if self.llm_service:
-                        short_name = self.llm_service.suggest_short_dirname(orig_name, max_length=20)
-                    else:
-                        # If LLM service is not available, use a simple truncation
-                        short_name = orig_name[:20]
-                    local_entry = os.path.join(local_path, short_name)
-                    # Check if the new path is still too long
-                    if len(os.path.abspath(local_entry)) > 260:
-                        # If still too long, fallback to unique hash or further truncate
-                        import hashlib
-                        logger.debug(f"Falling back to unique hash due to path length > 260: {local_entry}")
-                        short_name = hashlib.md5(orig_name.encode()).hexdigest()[:5]
-                        local_entry = os.path.join(local_path, short_name)
-                        logger.debug(f"New path after unique hash: {local_entry}")
-                else:
-                    # For files, also truncate the file name if > 260 chars
-                    #    Remove any non-critical information from the file name
-                    #    We need show name, season, episode and extension as a minimum
-                    #    If we can't get the show name, season, episode and extension, skip the file
-                    #    TODO: If possible, include the CRC checksum in the file name if it exists
-                    orig_name = entry.filename
-                    # If LLM service is available, use it to suggest a shorter name
-                    if self.llm_service:
-                        short_name = self.llm_service.suggest_short_filename(orig_name, max_length=20)
-                    else:
-                        # If LLM service is not available, brute force the filename with regex parsing
-                        parser_result = parse_filename(orig_name)
-                        extension = os.path.splitext(orig_name)[1][1:].lower()
-                        # If we can get the show name, season, episode and extension, use it to suggest a shorter name
-                        if parser_result.get("show_name") and parser_result.get("season") and parser_result.get("episode"):
-                            short_name = f"{parser_result['show_name']}.S{parser_result['season']}E{parser_result['episode']}.{extension}"
-                        # If we can get the show name and episode, use it to suggest a shorter name
-                        elif parser_result.get("show_name") and parser_result.get("episode"):
-                            short_name = f"{parser_result['show_name']}.E{parser_result['episode']}.{extension}"
-                        # If we can't get any of the above, pass on downloading the file
-                        else:
-                            logger.debug(f"Filename too long and regex fallback failed, skipping: {orig_name}")
-                            continue
-                    logger.debug(f"Short name after LLM or regex fallback: {short_name}")
-                    local_entry = os.path.join(local_path, short_name)
-                    if len(os.path.abspath(local_entry)) > 260:
-                        logger.debug(f"Short name still too long, skipping: {local_entry}")
-                        continue
-                    
-            if stat.S_ISDIR(entry.st_mode):
-                if not is_valid_directory(entry.filename):
-                    logger.debug(f"Skipping directory due to filter: {entry.filename}")
-                    continue
-                logger.debug(f"Downloading directory: {remote_entry}")
-                self.download_dir(remote_entry, local_entry)
-            else:
-                if not is_valid_media_file(entry.filename):
-                    logger.debug(f"Skipping file due to filter: {entry.filename}")
-                    continue
-                logger.debug(f"Downloading file: {remote_entry}")
-                self.download_file(remote_entry, local_entry)
+        logger.debug(f"sftp_service.py::download_file - Downloaded file from {remote_path} to {local_path}")

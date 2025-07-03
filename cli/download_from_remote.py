@@ -18,7 +18,6 @@ def download_from_remote(ctx, dry_run):
     sftp = ctx.obj["sftp"]
     db = ctx.obj["db"]
     incoming_path = config["Transfers"]["incoming"]
-
     remote_paths = parse_sftp_paths(config)
 
     if not remote_paths:

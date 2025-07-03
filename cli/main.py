@@ -29,8 +29,9 @@ def sync2nas_cli(ctx, verbose, logfile, config):
     if ctx.obj and all(k in ctx.obj for k in ("config", "db", "tmdb", "sftp", "anime_tv_path", "incoming_path", "llm_service")):
         return
     else:
-        print(f"ctx.obj does not contain all required keys")
-        print(f"ctx.obj: {ctx.obj}")
+        if ctx.obj is not None:
+            print(f"ctx.obj: {ctx.obj}")
+            print(f"ctx.obj does not contain all required keys")
     
     if logfile:
         os.makedirs(os.path.dirname(logfile), exist_ok=True)
@@ -39,14 +40,16 @@ def sync2nas_cli(ctx, verbose, logfile, config):
 
     # Load configuration and initialize shared services
     cfg = load_configuration(config)
+    llm_service = create_llm_service(cfg)
+    db_service = create_db_service(cfg)
     ctx.obj = {
         "config": cfg,
-        "db": create_db_service(cfg),
-        "sftp": SFTPService(cfg["SFTP"]["host"], int(cfg["SFTP"]["port"]), cfg["SFTP"]["username"], cfg["SFTP"]["ssh_key_path"]),
+        "db": db_service,
+        "llm_service": llm_service,
+        "sftp": SFTPService(cfg["SFTP"]["host"], int(cfg["SFTP"]["port"]), cfg["SFTP"]["username"], cfg["SFTP"]["ssh_key_path"], llm_service=llm_service),
         "tmdb": TMDBService(cfg["TMDB"]["api_key"]),
         "anime_tv_path": cfg["Routing"]["anime_tv_path"],
-        "incoming_path": cfg["Transfers"]["incoming"],
-        "llm_service": create_llm_service(cfg)
+        "incoming_path": cfg["Transfers"]["incoming"]
     }
 
 # Dynamic discovery loop: auto-register all CLI commands in this directory
