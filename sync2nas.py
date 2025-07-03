@@ -24,15 +24,15 @@ from cli.main import sync2nas_cli
 # TODO: Semantic search and content-based retrieval of shows and episodes
 # TODO: MCP Server RSS Feed integration for new show notifications
 # TODO: Add discord integration for notifications of scene releases
-# TODO: Implement Anthropic LLM support in the LLM factory and as a service implementation
+# Done: Implement Anthropic LLM support in the LLM factory and as a service implementation
 # TODO: Add a CRC32 hash check to the file routing function to confirm file integrity
 # TODO: Add LLM checks to API health checks
-# TODO: Improve the prompt engineering for OpenAI models
-# TODO: Add test coverage for the LLMs & factory
+# Done: Improve the prompt engineering for OpenAI models
+# Done: Add test coverage for the LLMs & factory
 # TODO: Add test coverage for database factory
 # TODO: Add show name to sys_name logic for LLM when using --auto-add and --auto-fix flags
 # Done: Move some of the file routing logic from the utils/, since it's not really a common function
-# TODO: Add more comments to the codebase to improve readability
+# Done: Add more comments to the codebase to improve readability
 # TODO: Generalize the application away from hardcoding variable name of anime_tv in the ctx.obj. Consider using the "Routing" keys in the config
 
 
