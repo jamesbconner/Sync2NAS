@@ -3,6 +3,7 @@ CLI command to scan the incoming directory and route files to the correct show d
 """
 import os
 import click
+import logging
 from click.testing import CliRunner
 from pathlib import Path
 from utils.file_routing import file_routing
@@ -11,6 +12,7 @@ from utils.cli_helpers import pass_sync2nas_context
 from cli.add_show import add_show
 from utils.file_filters import EXCLUDED_FILENAMES
 
+logger = logging.getLogger(__name__)
 
 @click.command("route-files", help="Scan the incoming path and move files to the appropriate show directories.")
 @click.option("--incoming", "-i", type=click.Path(exists=True), help="Incoming directory to scan")
@@ -24,6 +26,7 @@ def route_files(ctx, incoming, dry_run, use_llm, llm_confidence, auto_add):
     Scan the incoming path and move files to the appropriate show directories.
     Optionally uses LLM for filename parsing and can auto-add missing shows.
     """
+    logger.info(f"cli/route_files.py::route_files - Called with incoming={incoming}, dry_run={dry_run}, use_llm={use_llm}, llm_confidence={llm_confidence}, auto_add={auto_add}")
     if not ctx.obj:
         click.echo("Error: No context object found")
         return 1
@@ -44,6 +47,7 @@ def route_files(ctx, incoming, dry_run, use_llm, llm_confidence, auto_add):
 
     try:
         # Route files using the file_routing utility
+        logger.info("cli/route_files.py::route_files - Calling file_routing")
         routed_files = file_routing(
             incoming_path=incoming_path,
             anime_tv_path=anime_tv_path,
@@ -53,6 +57,7 @@ def route_files(ctx, incoming, dry_run, use_llm, llm_confidence, auto_add):
             llm_service=llm_service,
             llm_confidence_threshold=llm_confidence
         )
+        logger.info("cli/route_files.py::route_files - file_routing completed successfully")
 
         if dry_run:
             click.echo(f"Dry run: Would route {len(routed_files)} files")
@@ -66,11 +71,12 @@ def route_files(ctx, incoming, dry_run, use_llm, llm_confidence, auto_add):
                 click.echo(f"  {file_info['original_path']} -> {file_info['routed_path']}")
 
     except Exception as e:
+        logger.error(f"cli/route_files.py::route_files - Exception: {e}", exc_info=True)
         click.secho(f"Error routing files: {str(e)}", fg="red")
         return 1
 
 
-def _auto_add_missing_shows(ctx, incoming_path: str, dry_run: bool, ignore_files: set[str] = None):
+def _auto_add_missing_shows(ctx, incoming_path: str, dry_run: bool, ignore_files: set[str] = None, use_llm: bool = False, llm_confidence: float = None):
     """
     Helper function to scan incoming files and auto-add missing shows to the database.
 
@@ -79,13 +85,23 @@ def _auto_add_missing_shows(ctx, incoming_path: str, dry_run: bool, ignore_files
         incoming_path: Path to scan for unrecognized show files
         dry_run: If True, simulate add-show operations
         ignore_files: Optional set of filenames to skip
+        use_llm: If True, use the LLM to parse the filename
+        llm_confidence: If use_llm is True, the minimum confidence threshold for the LLM to parse the filename
     """
+    # Get the database and LLM service from the context object
+    # DB is used to check if the show already exists in the database
+    # LLM service is used to parse the filename if use_llm is True
     db = ctx.obj["db"]
+    llm_service = ctx.obj["llm_service"] if use_llm else None
+
+    # Initialize the CLI runner
     runner = CliRunner()
 
+    # Set the default ignore files
     if ignore_files is None:
         ignore_files = EXCLUDED_FILENAMES
 
+    # Set of show names that have already been processed
     seen = set()
 
     # Walk through incoming directories and identify candidate shows
@@ -100,15 +116,24 @@ def _auto_add_missing_shows(ctx, incoming_path: str, dry_run: bool, ignore_files
                 continue
 
             # Parse filename to extract show name
-            metadata = parse_filename(fname)
+            # If use_llm is True, use the LLM to parse the filename, otherwise use the regex parser.
+            #   the llm parser will fall back to the regex parser if the confidence answer is 
+            #   below the llm_confidence threshold.
+            if use_llm:
+                metadata = parse_filename(fname, llm_service=llm_service)
+            else:
+                metadata = parse_filename(fname)
+            
+            # This is the object that we'll use to search TMDB to find the show details.
+            # Note that we aren't using a TMDB ID because this is an auto-add operation.
             show_name = metadata["show_name"]
 
-            # Skip if parsing failed or already processed
+            # Skip if parsing failed or already processed (do not duplicate shows)
             if not show_name or show_name in seen:
                 continue
             seen.add(show_name)
 
-            # Skip if show already exists in DB
+            # Skip if show already exists in DB (do not duplicate shows)
             if db.show_exists(show_name):
                 continue
 
@@ -118,9 +143,16 @@ def _auto_add_missing_shows(ctx, incoming_path: str, dry_run: bool, ignore_files
             add_show_args = [show_name]
             if dry_run:
                 add_show_args.append("--dry-run")
+            if use_llm:
+                add_show_args.append("--use-llm")
+            if llm_confidence:
+                add_show_args.append("--llm-confidence")
+                add_show_args.append(str(llm_confidence)) # The CLI runner expects a string, not a float
 
+            # Invoke the add-show CLI command
             add_show_result = runner.invoke(add_show, add_show_args, obj=ctx.obj)
 
+            # If the add-show command was successful, print a success message
             if add_show_result.exit_code == 0:
                 click.secho(f"✅ Auto-added: {show_name}", fg="green")
             else:

@@ -37,36 +37,36 @@ Given:
 [Erai-raws] Kidou Senshi Gundam GQuuuuuuX - 12 [1080p AMZN WEB-DL AVC EAC3][MultiSub][CC001E26].mkv
 
 Return:
-{
+{{
   "show_name": "Kidou Senshi Gundam GQuuuuuuX",
   "season": null,
   "episode": 12,
   "confidence": 0.95,
   "reasoning": "Episode number 12 appears clearly after the show name; no season is indicated. Full title retained with suffix."
-}
+}}
 
 Example 2:
 Given:
 [Asakura] Tensei Shitara Slime Datta Ken 3rd Season 49 [BDRip x265 IObit FLAC] [36E425AB].mkv
 
 Return:
-{
+{{
   "show_name": "Tensei Shitara Slime Datta Ken",
   "season": 3,
   "episode": 49,
   "confidence": 0.95,
   "reasoning": "Season number is explicitly stated as '3rd Season'"
-}
+}}
 
 Example 3:
 Given:
 [SubsPlease] Zatsu Tabi - That's Journey - 01 (1080p) [EC01EEB3].mkv
 
 Return:
-{
+{{
   "show_name": "Zatsu Tabi - That's Journey",
   "season": null,
   "episode": 1,
   "confidence": 0.80,
   "reasoning": "Episode number 1 appears clearly after the show name; no season is indicated. Full title retained with suffix."
-} 
+}} 

@@ -4,6 +4,7 @@ import anthropic
 import logging
 from services.llm_implementations.base_llm_service import BaseLLMService
 import re
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -105,3 +106,39 @@ class AnthropicLLMService(BaseLLMService):
         except Exception as e:
             logger.error(f"anthropic_implementation.py::suggest_short_filename - LLM error: {e}.")
             return long_name[:max_length]
+
+    def suggest_show_name(self, show_name: str, detailed_results: list) -> dict:
+        candidates = []
+        for det in detailed_results:
+            info = det.get('info', {})
+            candidates.append({
+                'id': info.get('id'),
+                'tmdb_id': info.get('id'),
+                'name': info.get('name'),
+                'original_name': info.get('original_name'),
+                'first_air_date': info.get('first_air_date'),
+                'overview': info.get('overview'),
+                'alternative_titles': det.get('alternative_titles', {}).get('results', [])
+            })
+        logger.debug(f"anthropic_implementation.py::suggest_show_name - Candidates: {candidates}")
+        prompt_template = self.load_prompt('select_show_name')
+        candidates_json = json.dumps(candidates, ensure_ascii=False, indent=2)
+        prompt = prompt_template.format(show_name=show_name, candidates=candidates_json)
+        logger.debug(f"anthropic_implementation.py::suggest_show_name - Prompt: {prompt}")
+        try:
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=256,
+                temperature=self.temperature,
+                system="You are an expert at selecting the best TV show match from TMDB results.",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            text = response.content[0].text if response.content else ""
+            logger.debug(f"anthropic_implementation.py::suggest_show_name - LLM response: {text}")
+            result = json.loads(text)
+            if 'tmdb_id' in result and 'show_name' in result:
+                return result
+        except Exception as e:
+            logger.error(f"anthropic_implementation.py::suggest_show_name - LLM error: {e}")
+        first = candidates[0]
+        return {'tmdb_id': first['id'], 'show_name': first['name']}

@@ -116,4 +116,42 @@ class OpenAILLMService(BaseLLMService):
             return short_name or long_name[:max_length]
         except Exception as e:
             logger.error(f"openai_implementation.py::suggest_short_filename - LLM error: {e}.")
-            return long_name[:max_length] 
+            return long_name[:max_length]
+
+    def suggest_show_name(self, show_name: str, detailed_results: list) -> dict:
+        candidates = []
+        for det in detailed_results:
+            info = det.get('info', {})
+            candidates.append({
+                'id': info.get('id'),
+                'tmdb_id': info.get('id'),
+                'name': info.get('name'),
+                'original_name': info.get('original_name'),
+                'first_air_date': info.get('first_air_date'),
+                'overview': info.get('overview'),
+                'alternative_titles': det.get('alternative_titles', {}).get('results', [])
+            })
+        logger.debug(f"openai_implementation.py::suggest_show_name - Candidates: {candidates}")
+        prompt_template = self.load_prompt('select_show_name')
+        candidates_json = json.dumps(candidates, ensure_ascii=False, indent=2)
+        prompt = prompt_template.format(show_name=show_name, candidates=candidates_json)
+        logger.debug(f"openai_implementation.py::suggest_show_name - Prompt: {prompt}")
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "You are an expert at selecting the best TV show match from TMDB results."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=256,
+                temperature=0.1
+            )
+            content = response.choices[0].message.content
+            logger.debug(f"openai_implementation.py::suggest_show_name - LLM response: {content}")
+            result = json.loads(content)
+            if 'tmdb_id' in result and 'show_name' in result:
+                return result
+        except Exception as e:
+            logger.error(f"openai_implementation.py::suggest_show_name - LLM error: {e}")
+        first = candidates[0]
+        return {'tmdb_id': first['id'], 'show_name': first['name']} 

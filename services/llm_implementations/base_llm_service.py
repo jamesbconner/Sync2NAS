@@ -114,4 +114,11 @@ class BaseLLMService(LLMInterface):
                 "filename": filename,
                 "parsed": result
             })
-        return results 
+        return results
+
+    def suggest_show_name(self, show_name: str, detailed_results: list) -> dict:
+        """
+        Suggest the best show match and English name from TMDB results using the LLM.
+        Should return a dict with keys: tmdb_id, show_name
+        """
+        raise NotImplementedError("LLM implementation must override suggest_show_name") 

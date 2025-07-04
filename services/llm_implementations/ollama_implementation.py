@@ -119,4 +119,50 @@ class OllamaLLMService(BaseLLMService):
             return short_name or long_name[:max_length]
         except Exception as e:
             logger.error(f"ollama_implementation.py::suggest_short_filename - LLM error: {e}.")
-            return long_name[:max_length] 
+            return long_name[:max_length]
+
+    def suggest_show_name(self, show_name: str, detailed_results: list) -> dict:
+        """
+        Suggest the best show match and English name from TMDB results using the LLM.
+        Should return a dict with keys: tmdb_id, show_name
+        """
+        # Build a summary of candidates for the prompt
+        candidates = []
+        for det in detailed_results:
+            info = det.get('info', {})
+            candidates.append({
+                'id': info.get('id'),
+                'tmdb_id': info.get('id'),
+                'name': info.get('name'),
+                'original_name': info.get('original_name'),
+                'first_air_date': info.get('first_air_date'),
+                'overview': info.get('overview'),
+                'alternative_titles': det.get('alternative_titles', {}).get('results', [])
+            })
+        
+        logger.debug(f"ollama_implementation.py::suggest_show_name - Candidates: {candidates}")
+        
+        # Format the prompt with the candidates and execute the LLM
+        prompt_template = self.load_prompt('select_show_name')
+        candidates_json = json.dumps(candidates, ensure_ascii=False, indent=2)
+        prompt = prompt_template.format(show_name=show_name, candidates=candidates_json)
+        try:
+            response = self.client.generate(
+                model=self.model,
+                prompt=prompt,
+                stream=False,
+                options={"num_predict": 256, "temperature": 0.1}
+            )
+            content = response.response if hasattr(response, 'response') else response
+            result = json.loads(content)
+            
+            logger.debug(f"ollama_implementation.py::suggest_show_name - LLM response: {content}")
+
+
+            if 'tmdb_id' in result and 'show_name' in result:
+                return result
+        except Exception as e:
+            logger.error(f"ollama_implementation.py::suggest_show_name - LLM error: {e}")
+        # Fallback: pick first candidate
+        first = candidates[0]
+        return {'tmdb_id': first['id'], 'show_name': first['name']} 

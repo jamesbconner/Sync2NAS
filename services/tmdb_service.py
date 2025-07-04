@@ -47,7 +47,45 @@ class TMDBService:
         except Exception as e:
             logger.error(f"Error searching for show {name}: {e}")
             return None
-    
+
+    def search_movie(self, name: str) -> dict:
+        """ Search for a movie by name
+        
+        Args:
+            name: The name of the movie to search for
+        
+        Returns:
+            A dictionary containing the search results with the following keys:
+            - page: The page number of the search results
+            - results: A list of dicts containing the search results
+                - adult: Whether the movie is an adult movie
+                - backdrop_path: The backdrop path of the movie
+                - genre_ids: A list of genre IDs
+                - id: The ID of the movie
+                - original_language: The original language of the movie
+                - original_title: The original title of the movie
+                - overview: The overview of the movie
+                - popularity: The popularity of the movie
+                - poster_path: The poster path of the movie
+                - release_date: The release date of the movie
+                - title: The title of the movie
+                - vote_average: The vote average of the movie
+                - vote_count: The vote count of the movie
+            - total_pages: The total number of pages of search results
+            - total_results: The total number of search results
+            None if an error occurs.
+        """
+        try:
+            search = tmdb.Search()
+            response = search.movie(query=name, include_adult=True)
+            return response
+        except requests.exceptions.HTTPError as e:
+            logger.error(f"Error searching for movie {name}: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Error searching for movie {name}: {e}")
+            return None
+
     def get_show_details(self, id: int) -> dict:
         """ Get the details of a specific show
         
