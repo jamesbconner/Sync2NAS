@@ -3,26 +3,19 @@ import re
 import json
 from typing import Dict, Any, List, Optional
 from services.llm_implementations.llm_interface import LLMInterface
+import os
 
 logger = logging.getLogger(__name__)
 
 class BaseLLMService(LLMInterface):
-    """
-    Base class for LLM services, providing shared logic for filename parsing, validation, and fallback.
-    """
-    def _create_filename_parsing_prompt(self, filename: str) -> str:
-        """
-        Create the user prompt for filename parsing.
-        Args:
-            filename: Cleaned filename
-        Returns:
-            str: User prompt
-        """
-        return (
-            f"Parse this TV show filename and extract the show name, season, and episode information:\n\n"
-            f"Filename: {filename}\n\n"
-            "Please analyze this filename and return the parsed information in JSON format."
-        )
+    PROMPT_DIR = os.path.join(os.path.dirname(__file__), "prompts")
+
+    def load_prompt(self, prompt_name: str) -> str:
+        prompt_path = os.path.join(self.PROMPT_DIR, f"{prompt_name}.txt")
+        if not os.path.exists(prompt_path):
+            raise FileNotFoundError(f"Prompt file not found: {prompt_path}")
+        with open(prompt_path, "r", encoding="utf-8") as f:
+            return f.read()
 
     def _validate_and_clean_result(self, result: Dict[str, Any], original_filename: str) -> Dict[str, Any]:
         """

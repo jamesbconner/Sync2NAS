@@ -40,45 +40,31 @@ class AnthropicLLMService(BaseLLMService):
 
 
     def parse_filename(self, filename: str) -> Dict:
-        prompt = self._create_filename_parsing_prompt(filename)
+        cleaned_filename = self._clean_filename_for_llm(filename)
+        system_prompt = self.load_prompt('parse_filename')
+        user_prompt = self.load_prompt('parse_filename').format(filename=cleaned_filename)
         response = self.client.messages.create(
             model=self.model,
             max_tokens=self.max_tokens,
             temperature=self.temperature,
-            system=self._get_system_prompt(),
+            system=system_prompt,
             messages=[
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": user_prompt}
             ]
         )
-
         text = response.content[0].text if response.content else ""
         return self._validate_and_clean_result(text, filename)
 
     def batch_parse_filenames(self, filenames: List[str]) -> List[Dict]:
         return super().batch_parse_filenames(filenames)
 
-    def _get_system_prompt(self) -> str:
-        return (
-            "You are an expert at parsing anime file names. "
-            "Return a JSON object with keys 'show_name', 'season', and 'episode'. "
-            "Use numeric values for season and episode. Do not include extra commentary."
-        )
-
     def suggest_short_dirname(self, long_name: str, max_length: int = 20) -> str:
         """
         Suggest a short, human-readable directory name for a given long name using the LLM.
         Fallback to truncation if LLM fails.
         """
-        prompt = (
-            f"Suggest a short, human-readable directory name (max {max_length} characters) for the following long directory name. "
-            f"Avoid special characters and keep it unique and recognizable. Return only the name, no commentary.\n\n"
-            f"The directory name represents the title of a show.  If there is a season number in the original filename, always include it in the directory name in the format of 'S1', 'S2', etc."
-            f"If there is no season number, but there is a year, include that in the directory name in the format of '2024', '2025', etc."
-            f"The season number or year should be the last part of the directory name if available."
-            f"Do not make up words for the directory name."
-            f"It is valid to use CamelCase for the directory name if the max_length is less than 50 characters."
-            f"Long name: {long_name}"
-        )
+        prompt = self.load_prompt('suggest_short_dirname')
+        prompt = prompt.format(max_length=max_length, long_name=long_name)
         try:
             response = self.client.messages.create(
                 model=self.model,
@@ -101,11 +87,8 @@ class AnthropicLLMService(BaseLLMService):
         Suggest a short, human-readable filename for a given long filename using the LLM.
         Fallback to truncation if LLM fails.
         """
-        prompt = (
-            f"Suggest a short, human-readable filename (max {max_length} characters) for the following long filename. "
-            f"Preserve key information like show name, season, episode, and extension. Avoid special characters. Return only the filename, no commentary.\n\n"
-            f"Long filename: {long_name}"
-        )
+        prompt = self.load_prompt('suggest_short_filename')
+        prompt = prompt.format(max_length=max_length, long_name=long_name)
         try:
             response = self.client.messages.create(
                 model=self.model,

@@ -1,0 +1,3 @@
+Suggest a short, human-readable filename (max {max_length} characters) for the following long filename. Preserve key information like show name, season, episode, and extension. Avoid special characters. Return only the filename, no commentary.
+
+Long filename: {long_name} 

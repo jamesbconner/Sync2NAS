@@ -39,13 +39,14 @@ class OpenAILLMService(BaseLLMService):
         """
         logger.info(f"openai_implementation.py::parse_filename - Parsing filename with OpenAI LLM: {filename}")
         cleaned_filename = self._clean_filename_for_llm(filename)
-        prompt = self._get_system_prompt()
+        system_prompt = self.load_prompt('parse_filename')
+        user_prompt = self.load_prompt('parse_filename').format(filename=cleaned_filename)
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": prompt},
-                    {"role": "user", "content": cleaned_filename}
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
                 ],
                 max_tokens=max_tokens,
                 temperature=0.1,
@@ -65,97 +66,13 @@ class OpenAILLMService(BaseLLMService):
             logger.exception(f"openai_implementation.py::parse_filename - OpenAI API error: {e}")
             return self._fallback_parse(filename)
 
-    def _get_system_prompt(self) -> str:
-        return """
-You are an expert at parsing TV and anime episode filenames and extracting structured metadata. Your job is to extract the following information and return it as strict JSON:
-
-- "show_name": The full show name as it appears in the filename. This may include dashes, alternate titles, or unusual letter sequences like "GQuuuuuuX" — these are not metadata tags or suffixes, but part of the true name.
-- "season": The season number as an integer, or null if not explicitly present.
-- "episode": The episode number as an integer, or null if not explicitly present.
-- "confidence": A float between 0.0 and 1.0 that reflects how certain you are in ALL extracted fields.
-- "reasoning": A short explanation that justifies each extracted field and explains why the confidence is high or low.
-
----
-
-Important Rules:
-1. There is never a valid scenario with a season number but no episode number. If a season is detected but no episode, return episode: null and reduce confidence sharply.
-2. It is common for filenames to include only a show name and episode number. This is valid and should not be interpreted as season 1 unless explicitly stated.
-3. Dashes (-) are commonly used separators, but they can also appear within show names. Use heuristics: if a dash is between the show title and a number, it may be a separator; if it's inside a quoted or known title structure, or if there are words on both sides of the dash, keep it in the title.
-4. Show names are often in Japanese or English, and may contain underscores, romanization artifacts, or substitutions. Normalize to readable title case.
-5. Season and episode numbers are always expressed using Arabic numerals, often formatted as:
-   - S02E03 / SO2 EO3 / 2nd Season 03 / Ep 03 / - 03 / 03 / 3
-6. Tags such as [GroupName], [1080p], [BDRip], and hex hashes like [89F3A28D] must be ignored.
-7. If any field is unclear or inferred, confidence should not exceed 0.7.
-8. The output MUST BE STRICT JSON, with no markdown, code blocks, or commentary. Return ONLY the raw JSON object.
-
----
-
-Output Constraints:
-- Return a valid JSON object with exactly these fields:
-  - show_name: string
-  - season: integer or null
-  - episode: integer or null
-  - confidence: float (0.0 to 1.0)
-  - reasoning: string
-- Do not include any markdown, code blocks, or commentary. Return only the raw JSON object.
-
----
-
-Example 1:
-Given:
-[Erai-raws] Kidou Senshi Gundam GQuuuuuuX - 12 [1080p AMZN WEB-DL AVC EAC3][MultiSub][CC001E26].mkv
-
-Return:
-{
-  "show_name": "Kidou Senshi Gundam GQuuuuuuX",
-  "season": null,
-  "episode": 12,
-  "confidence": 0.95,
-  "reasoning": "Episode number 12 appears clearly after the show name; no season is indicated."
-}
-
-Example 2:
-Given:
-[Asakura] Tensei Shitara Slime Datta Ken 3rd Season 49 [BDRip x265 IObit FLAC] [36E425AB].mkv
-
-Return:
-{
-  "show_name": "Tensei Shitara Slime Datta Ken",
-  "season": 3,
-  "episode": 49,
-  "confidence": 0.95,
-  "reasoning": "Season number is explicitly stated as '3rd Season'"
-}
-
-Example 3:
-Given:
-[SubsPlease] Zatsu Tabi - That's Journey - 01 (1080p) [EC01EEB3].mkv
-
-Return:
-{
-  "show_name": "Zatsu Tabi - That's Journey",
-  "season": null,
-  "episode": 1,
-  "confidence": 0.80,
-  "reasoning": "Episode number 1 appears clearly after the show name; no season is indicated. Full title retained with suffix."
-}
-""" 
-
     def suggest_short_dirname(self, long_name: str, max_length: int = 20) -> str:
         """
         Suggest a short, human-readable directory name for a given long name using the LLM.
         Fallback to truncation if LLM fails.
         """
-        prompt = (
-            f"Suggest a short, human-readable directory name (max {max_length} characters) for the following long directory name. "
-            f"Avoid special characters and keep it unique and recognizable. Return only the name, no commentary.\n\n"
-            f"The directory name represents the title of a show.  If there is a season number in the original filename, always include it in the directory name in the format of 'S1', 'S2', etc."
-            f"If there is no season number, but there is a year, include that in the directory name in the format of '2024', '2025', etc."
-            f"The season number or year should be the last part of the directory name if available."
-            f"Do not make up words for the directory name."
-            f"It is valid to use CamelCase for the directory name if the max_length is less than 50 characters."
-            f"Long name: {long_name}"
-        )
+        prompt = self.load_prompt('suggest_short_dirname')
+        prompt = prompt.format(max_length=max_length, long_name=long_name)
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -180,11 +97,8 @@ Return:
         Suggest a short, human-readable filename for a given long filename using the LLM.
         Fallback to truncation if LLM fails.
         """
-        prompt = (
-            f"Suggest a short, human-readable filename (max {max_length} characters) for the following long filename. "
-            f"Preserve key information like show name, season, episode, and extension. Avoid special characters. Return only the filename, no commentary.\n\n"
-            f"Long filename: {long_name}"
-        )
+        prompt = self.load_prompt('suggest_short_filename')
+        prompt = prompt.format(max_length=max_length, long_name=long_name)
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
