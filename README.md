@@ -1,6 +1,29 @@
 # Sync2NAS - TV Show Management and File Synchronization Tool
 ![Service Test Coverage](https://img.shields.io/badge/Service%20Test%20Coverage-86%25-success?style=flat-square&logo=pytest&logoColor=white)
 
+## What's New (July 2025)
+
+**LLM-Powered Show Name Selection**
+- When adding a show (via `add-show` or `route-files --auto-add`), Sync2NAS now uses an LLM to automatically select the best TMDB match and English show name—even if your search is in Japanese, Chinese, or another language. No more manual picking or mismatched names!
+
+**Editable LLM Prompts**
+- All LLM prompts (for filename parsing, show selection, directory/filename suggestion, etc.) are now stored as plain text files in `services/llm_implementations/prompts/`. You can easily tune or localize LLM behavior by editing these files—no code changes required.
+
+**Windows Path Length Handling**
+- Sync2NAS now automatically shortens directory and file names (using LLM or regex fallback) to avoid Windows path length errors. This applies to SFTP downloads and file routing.
+
+**Anthropic LLM Support**
+- You can now use Anthropic models (Claude) as your LLM backend, in addition to OpenAI and Ollama. Configure your preferred LLM in the config file.
+
+**Improved Logging and Error Messages**
+- All CLI commands and core utilities now include more detailed logging (with file/function context) and clearer error messages for easier troubleshooting.
+
+**Configuration and Breaking Changes**
+- If you have custom LLM prompts, move them to the new `services/llm_implementations/prompts/` directory and escape curly braces in JSON examples (use `{{` and `}}`).
+- Review your config file for new LLM and path handling options.
+
+---
+
 ## Table of Contents
 
 - [Overview](#overview)
@@ -64,7 +87,7 @@ Sync2NAS is a comprehensive Python tool for managing TV shows, synchronizing fil
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/sync2nas.git
+   git clone https://github.com/jamesbconner/sync2nas.git
    cd sync2nas
    ```
 
@@ -163,7 +186,7 @@ api_key = your_tmdb_api_key_here
 #### LLM Backend Selection
 ```ini
 [llm]
-service = ollama  # ollama or openai
+service = ollama  # or openai, anthropic
 ```
 
 #### Ollama LLM Backend
@@ -205,7 +228,7 @@ incoming = ./incoming
 api_key = your_tmdb_api_key_here
 
 [llm]
-service = ollama  # or openai
+service = ollama  # or openai, anthropic
 
 [ollama]
 model = llama3
@@ -217,6 +240,12 @@ model = gpt-3.5-turbo
 max_tokens = 150
 temperature = 0.1
 llm_confidence_threshold = 0.7
+
+[anthropic]
+model = claude-3-5-sonnet-20240620
+api_key = your_anthropic_api_key
+max_tokens = 250
+temperature = 0.1
 
 [Routing]
 anime_tv_path = d:/anime_tv/
@@ -468,5 +497,5 @@ We welcome contributions! Please see our [Contributing Guide](docs/contributing.
 **Need Help?**
 - Check the [documentation](docs/)
 - Review [API documentation](api/README.md)
-- Open an [issue](https://github.com/yourusername/sync2nas/issues)
-- Join our [discussions](https://github.com/yourusername/sync2nas/discussions)
+- Open an [issue](https://github.com/jamesbconner/sync2nas/issues)
+- Join our [discussions](https://github.com/jamesbconner/sync2nas/discussions)
