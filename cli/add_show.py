@@ -12,11 +12,12 @@ logger = logging.getLogger(__name__)
 @click.command("add-show")
 @click.argument("show_name", required=False)
 @click.option("--use-llm", is_flag=True, help="Use the LLM to suggest the show name and directory name.")
+@click.option("--llm-confidence", default=0.7, type=float, help="Confidence threshold for LLM suggestions (0.0-1.0)")
 @click.option("--tmdb-id", default=None, type=int, help="TMDB ID of the show (overrides show_name search)")
 @click.option("--override-dir", is_flag=True, help="Use the provided show_name directly for the folder name.")
 @click.option("--dry-run", is_flag=True, help="Simulate without writing to database or creating directory")
 @click.pass_context
-def add_show(ctx, show_name, override_dir, dry_run, use_llm, tmdb_id):
+def add_show(ctx, show_name, override_dir, dry_run, use_llm, llm_confidence, tmdb_id):
     logger.info(f"cli/add_show.py::add_show - Called with show_name={show_name}, tmdb_id={tmdb_id}, override_dir={override_dir}, dry_run={dry_run}, use_llm={use_llm}")
     """
     Add a show to the tv_shows table by searching TMDB or using TMDB ID.
@@ -45,7 +46,8 @@ def add_show(ctx, show_name, override_dir, dry_run, use_llm, tmdb_id):
             dry_run=dry_run,
             override_dir=override_dir,
             llm_service=llm_service,
-            use_llm=use_llm
+            use_llm=use_llm,
+            llm_confidence=llm_confidence
         )
         logger.debug("cli/add_show.py::add_show - add_show_interactively completed successfully")
     except Exception as e:

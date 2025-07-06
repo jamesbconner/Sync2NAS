@@ -77,10 +77,11 @@ Sync2NAS is a comprehensive Python tool for managing TV shows, synchronizing fil
 ### Prerequisites
 - Python 3.12 or higher
 - SFTP server access
-- TMDB API key (optional but recommended)
-- OpenAI API key (optional, for AI-powered parsing)
-- Ollama service running your preferred model (default llama3.2)
-**Note:** Sync2NAS does not manage Ollama models. You must ensure that any model specified here (e.g., `llama3.2`) is already installed and available in your local Ollama instance. Use `ollama pull <model>` to install models as needed.
+- TMDB API key (Required, but free.  Read the [TMDB FAQ](https://developer.themoviedb.org/docs/faq#how-do-i-apply-for-an-api-key) to learn how to get one.)
+- [OpenAI](https://openai.com/api/) API key (Optional, for AI-powered actions like filename parsing and automatic show matching)
+- [Anthropic](https://www.anthropic.com/api) API key (Optional, for AI-powered actions like filename parsing and automatic show matching)
+- [Ollama](https://ollama.com/) local LLM service running your preferred model (Default [gemma3:12b](https://ollama.com/library/gemma3). It's the best tradeoff between accuracy, compute resource and speed as of July 2025.)
+**Note:** Sync2NAS does not manage Ollama models. You must ensure that any model specified here (e.g., `gemma3:12b`) is already installed and available in your local Ollama instance. Use `ollama pull gemma3:12b` to install models as needed.
 
 
 ### Installation
@@ -192,7 +193,7 @@ service = ollama  # or openai, anthropic
 #### Ollama LLM Backend
 ```ini
 [ollama]
-model = llama3.2
+model = gemma3:12b
 llm_confidence_threshold = 0.7
 ```
 
@@ -231,7 +232,7 @@ api_key = your_tmdb_api_key_here
 service = ollama  # or openai, anthropic
 
 [ollama]
-model = llama3
+model = gemma3:12b
 llm_confidence_threshold = 0.7
 
 [openai]
@@ -372,12 +373,12 @@ python sync2nas.py init-db
 
 #### AI-Powered Parsing
 ```bash
-# Route files with LLM parsing
-python sync2nas.py route-files --use-llm
+# The backend (Ollama, Anthropic, or OpenAI) is selected via the [llm] config section
+# Route files with LLM parsing and automatic show creation
+python sync2nas.py route-files --use-llm --auto-add
 
 # Custom confidence threshold (overrides config value)
 python sync2nas.py route-files --use-llm --llm-confidence 0.8
-# The backend (Ollama or OpenAI) is selected via the [llm] config section
 ```
 
 #### Verbose Output and Debugging
@@ -397,6 +398,7 @@ python sync2nas.py -v --logfile sync2nas.log route-files
 If you are upgrading from a previous version:
 - The `[llm]` section is required to select the LLM backend (`ollama` or `openai`).
 - The `[openAI]` section is now optional and only used if `[llm] service = openai`.
+- The `[anthropic]` section is now optional and only used if `[llm] service = anthropic`.
 - The `[ollama]` section is required if using Ollama.
 - All LLM configuration is now modular and extensible; see [docs/configuration.md](docs/configuration.md) for details.
 - Deprecated references to `llm_service.py` and `LLMService` have been removed; see migration notes in the documentation if you have custom integrations.

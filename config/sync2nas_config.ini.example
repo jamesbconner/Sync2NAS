@@ -36,7 +36,7 @@ anime_tv_path = d:/anime_tv/
 service = ollama  # ollama or openai
 
 [ollama]
-model = llama3.2
+model = gemma3:12b
 llm_confidence_threshold = 0.7
 
 [openai]

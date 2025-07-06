@@ -1,12 +1,26 @@
 import logging
 import json
 import re
+from pydantic import BaseModel, Field, ValidationError
 from typing import Dict, Any, List
 from ollama import Client
 from utils.sync2nas_config import load_configuration
 from services.llm_implementations.base_llm_service import BaseLLMService
 
 logger = logging.getLogger(__name__)
+
+class ParsedFilename(BaseModel):
+    show_name: str = Field(..., description="Full show name, as extracted from filename")
+    season: int | None = Field(..., description="Season number as integer, or null if not present")
+    episode: int = Field(..., description="Episode number as integer, or null if not present")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence between 0.0 and 1.0")
+    reasoning: str = Field(..., description="Explanation of field choices and confidence")
+
+class SuggestedShowName(BaseModel):
+    tmdb_id: int = Field(..., description="TMDB ID of the show")
+    show_name: str = Field(..., description="Full show name, as extracted from filename")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence between 0.0 and 1.0")
+    reasoning: str = Field(..., description="Explanation of field choices and confidence")
 
 class OllamaLLMService(BaseLLMService):
     """
@@ -41,8 +55,10 @@ class OllamaLLMService(BaseLLMService):
                 model=self.model,
                 prompt=prompt,
                 stream=False,
-                options={"num_predict": max_tokens, "temperature": 0.1}
+                format=ParsedFilename.model_json_schema(),
+                options={"num_predict": max_tokens, "temperature": 0.0}
             )
+
             # Extract the JSON string from the response object
             if hasattr(response, 'response'):
                 content = response.response
@@ -51,9 +67,20 @@ class OllamaLLMService(BaseLLMService):
             else:
                 content = response  # fallback
             logger.debug(f"ollama_implementation.py::parse_filename - Ollama response: {content}")
+            
+            # validate the response matches the expected schema
+            try:
+                
+                parsed_result = ParsedFilename.model_validate_json(response.response)
+                logger.info(f"ollama_implementation.py::parse_filename - Successfully validated response schema: {parsed_result}")
+            except ValidationError as e:
+                logger.error(f"ollama_implementation.py::parse_filename - Failed to parse JSON response: {e}")
+                return self._fallback_parse(filename)
+            
+            # parse the response into a dictionary
             try:
                 result = json.loads(content)
-                parsed_result = self._validate_and_clean_result(result, filename)
+                parsed_result = self._validate_and_clean_result(result, filename) # TODO: remove this later, but still need cleaning of result
                 logger.info(f"ollama_implementation.py::parse_filename - Successfully parsed: {parsed_result}")
                 return parsed_result
             except json.JSONDecodeError as e:
@@ -151,6 +178,7 @@ class OllamaLLMService(BaseLLMService):
                 model=self.model,
                 prompt=prompt,
                 stream=False,
+                format=SuggestedShowName.model_json_schema(),
                 options={"num_predict": 256, "temperature": 0.1}
             )
             content = response.response if hasattr(response, 'response') else response

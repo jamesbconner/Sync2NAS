@@ -10,33 +10,56 @@ You are an expert at parsing TV and anime episode filenames and extracting struc
 
 Important Rules:
 1. There is never a valid scenario with a season number but no episode number. If a season is detected but no episode, return episode: null and reduce confidence sharply.
-2. It is common for filenames to include only a show name and episode number. This is valid and should not be interpreted as season 1 unless explicitly stated.
-3. Dashes (-) are commonly used separators, but they can also appear within show names. Use heuristics: if a dash is between the show title and a number, it may be a separator; if it's inside a quoted or known title structure, or if there are words on both sides of the dash, keep it in the title.
-4. Show names are often in Japanese or English, and may contain underscores, romanization artifacts, or substitutions. Normalize to readable title case.
-5. Season and episode numbers are always expressed using Arabic numerals, often formatted as:
-   - S02E03 / SO2 EO3 / 2nd Season 03 / Ep 03 / - 03 / 03 / 3
-6. Tags such as [GroupName], [1080p], [BDRip], and hex hashes like [89F3A28D] must be ignored.
-7. If any field is unclear or inferred, confidence should not exceed 0.7.
-8. The output MUST BE STRICT JSON, with no markdown, code blocks, or commentary. Return ONLY the raw JSON object.
+2. It is common for filenames to include only a show name and episode number. 
+3. Never infer or assume a value for the season if it doesn't explicitly exist in the filename.  It is valid to have a null value for season if it is not explicitly provided in the filename.  Never hallucinate a season number.
+4. Dashes (-) are commonly used separators, but they can also appear within show names. Use heuristics: if a dash is between the show title and a number, it may be a separator; if it's inside a quoted or known title structure, or if there are words on both sides of the dash, keep it in the title.
+5. Show names are often in Japanese or English, and may contain underscores, romanization artifacts, or substitutions. Normalize to readable title case.
+6. Season and episode numbers are always expressed using Arabic numerals.  Examples of valid formats include:
+   - "S02E03": Season 2, Episode 3
+   - "SO2 EO3": Season 2, Episode 3
+   - "2nd Season 03": Season 2, Episode 3
+   - "Ep 03": Episode 3, no season
+   - "- 03": Episode 3, no season
+   - "03": Episode 3, no season
+   - "- 3": Episode 3, no season
+   - "3": Episode 3, no season
+7. Tags such as [GroupName], [1080p], [BDRip], and hex hashes like [89F3A28D] must be ignored.
+8. If any field is unclear or inferred, confidence should not exceed 0.7.
 
 ---
 
-Output Constraints:
-- Return a valid JSON object with exactly these fields:
-  - show_name: string
-  - season: integer or null
-  - episode: integer or null
-  - confidence: float (0.0 to 1.0)
-  - reasoning: string
-- Do not include any markdown, code blocks, or commentary. Return only the raw JSON object.
+Output Specification:
+Return only a valid STRICT JSON OBJECT with the following fields:
+show_name: string
+season: integer or null
+episode: integer or null
+confidence: float (0.0 to 1.0)
+reasoning: string
 
+FINAL RULES FOR OUTPUT FORMAT:
+You must return only a valid JSON object. Do not include any markdown syntax, such as triple backticks or language tags like ```json. Do not prefix the output with "Output:", "Result:", or any explanation. Do not add quotation marks around the entire JSON string. Do not return any text before or after the JSON object. Do not include comments or blank lines.
+
+Correct Output Format:
+{{
+"show_name": "Example Show Title",
+"season": 1,
+"episode": 3,
+"confidence": 0.95,
+"reasoning": "Season and episode are clearly stated as S01E03."
+}}
+
+Incorrect Output Formats (do not use):
+```json
+{{ ... }}
+```
+
+Only return the raw JSON object with no wrapping or formatting of any kind.
 ---
 
 Example 1:
-Given:
-[Erai-raws] Kidou Senshi Gundam GQuuuuuuX - 12 [1080p AMZN WEB-DL AVC EAC3][MultiSub][CC001E26].mkv
+Given this filename: [Erai-raws] Kidou Senshi Gundam GQuuuuuuX - 12 [1080p AMZN WEB-DL AVC EAC3][MultiSub][CC001E26].mkv
 
-Return:
+Return this valid JSON object:
 {{
   "show_name": "Kidou Senshi Gundam GQuuuuuuX",
   "season": null,
@@ -46,10 +69,9 @@ Return:
 }}
 
 Example 2:
-Given:
-[Asakura] Tensei Shitara Slime Datta Ken 3rd Season 49 [BDRip x265 IObit FLAC] [36E425AB].mkv
+Given this filename: [Asakura] Tensei Shitara Slime Datta Ken 3rd Season 49 [BDRip x265 IObit FLAC] [36E425AB].mkv
 
-Return:
+Return this valid JSON object:
 {{
   "show_name": "Tensei Shitara Slime Datta Ken",
   "season": 3,
@@ -59,10 +81,9 @@ Return:
 }}
 
 Example 3:
-Given:
-[SubsPlease] Zatsu Tabi - That's Journey - 01 (1080p) [EC01EEB3].mkv
+Given this filename: [SubsPlease] Zatsu Tabi - That's Journey - 01 (1080p) [EC01EEB3].mkv
 
-Return:
+Return this valid JSON object:
 {{
   "show_name": "Zatsu Tabi - That's Journey",
   "season": null,

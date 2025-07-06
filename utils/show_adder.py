@@ -9,7 +9,7 @@ from utils.file_filters import sanitize_filename
 
 logger = logging.getLogger(__name__)
 
-def add_show_interactively(show_name, tmdb_id, db: DatabaseInterface, tmdb: TMDBService, anime_tv_path: str, dry_run: bool = False, override_dir: bool = False, llm_service=None, use_llm: bool = False, max_tmdb_results: int = 20):
+def add_show_interactively(show_name, tmdb_id, db: DatabaseInterface, tmdb: TMDBService, anime_tv_path: str, dry_run: bool = False, override_dir: bool = False, llm_service=None, use_llm: bool = False, max_tmdb_results: int = 20, llm_confidence: float = 0.7):
     """
     Add a show interactively, optionally using LLM to select the best TMDB match.
     max_tmdb_results: Maximum number of TMDB search results to consider for LLM selection (default 5)
@@ -57,6 +57,11 @@ def add_show_interactively(show_name, tmdb_id, db: DatabaseInterface, tmdb: TMDB
             if not llm_response or not llm_response.get("tmdb_id") or not llm_response.get("show_name"):
                 logger.error(f"utils/show_adder.py::add_show_interactively - LLM Branch - LLM could not determine the best show match. Response: {llm_response}")
                 raise ValueError("LLM Branch - Could not determine the best show match.")
+            
+            # If LLM confidence is below the threshold, raise an error
+            if llm_response.get("confidence") < llm_confidence:
+                logger.error(f"utils/show_adder.py::add_show_interactively - LLM Branch - LLM confidence is below the threshold: {llm_confidence}")
+                raise ValueError(f"LLM Branch - LLM confidence is below the threshold: {llm_confidence}")
 
             # Use LLM to set the tmdb_id and sys_name vars
             tmdb_id = llm_response["tmdb_id"]

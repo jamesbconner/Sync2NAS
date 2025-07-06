@@ -43,7 +43,7 @@ def route_files(ctx, incoming, dry_run, use_llm, llm_confidence, auto_add):
 
     # Optionally auto-add missing shows before routing
     if auto_add:
-        _auto_add_missing_shows(ctx, incoming_path, dry_run)
+        _auto_add_missing_shows(ctx=ctx, incoming_path=incoming_path, dry_run=dry_run, use_llm=use_llm, llm_confidence=llm_confidence)
 
     try:
         # Route files using the file_routing utility
@@ -120,8 +120,10 @@ def _auto_add_missing_shows(ctx, incoming_path: str, dry_run: bool, ignore_files
             #   the llm parser will fall back to the regex parser if the confidence answer is 
             #   below the llm_confidence threshold.
             if use_llm:
+                logger.info(f"cli/route_files.py::_auto_add_missing_shows - Using LLM to parse filename: {fname}")
                 metadata = parse_filename(fname, llm_service=llm_service)
             else:
+                logger.info(f"cli/route_files.py::_auto_add_missing_shows - Using regex to parse filename: {fname}")
                 metadata = parse_filename(fname)
             
             # This is the object that we'll use to search TMDB to find the show details.
@@ -129,12 +131,19 @@ def _auto_add_missing_shows(ctx, incoming_path: str, dry_run: bool, ignore_files
             show_name = metadata["show_name"]
 
             # Skip if parsing failed or already processed (do not duplicate shows)
-            if not show_name or show_name in seen:
+            if not show_name:
+                logger.info(f"cli/route_files.py::_auto_add_missing_shows - Skipping show because there's no show_name value: {show_name}")
                 continue
+            if show_name in seen:
+                logger.info(f"cli/route_files.py::_auto_add_missing_shows - Skipping show because it's already been processed: {show_name}")
+                continue
+            
+            logger.info(f"cli/route_files.py::_auto_add_missing_shows - Adding show to seen set: {show_name}")
             seen.add(show_name)
 
             # Skip if show already exists in DB (do not duplicate shows)
             if db.show_exists(show_name):
+                logger.info(f"cli/route_files.py::_auto_add_missing_shows - Show already exists in DB: {show_name}")
                 continue
 
             click.secho(f"📥 Auto-adding show: {show_name}", fg="yellow")
@@ -148,6 +157,8 @@ def _auto_add_missing_shows(ctx, incoming_path: str, dry_run: bool, ignore_files
             if llm_confidence:
                 add_show_args.append("--llm-confidence")
                 add_show_args.append(str(llm_confidence)) # The CLI runner expects a string, not a float
+
+            logger.info(f"cli/route_files.py::_auto_add_missing_shows - Invoking add-show command with args: {add_show_args}")
 
             # Invoke the add-show CLI command
             add_show_result = runner.invoke(add_show, add_show_args, obj=ctx.obj)
