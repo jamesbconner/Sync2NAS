@@ -105,7 +105,8 @@ def add_show_interactively(show_name, tmdb_id, db: DatabaseInterface, tmdb: TMDB
         if db.show_exists(sys_name):
             if not override_dir:
                 logger.error(f"utils/show_adder.py::add_show_interactively - Show already exists in DB: {sys_name}")
-                raise FileExistsError(f"Show already exists in DB: {sys_name}")
+                #raise FileExistsError(f"Show already exists in DB: {sys_name}")
+                return(f"Show already exists in DB: {sys_name}")
             else:
                 logger.info(f"utils/show_adder.py::add_show_interactively - Show already exists in DB: {sys_name}, but overriding directory. Likely a remake.")
 

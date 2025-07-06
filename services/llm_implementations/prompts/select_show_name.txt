@@ -14,6 +14,7 @@ Instructions:
 - Higher vote_count and vote_average scores should increase confidence in a match if the names are identical.
 - If the name or original_name fields perfectly match the user provided show name, that is a match.
 - If you are unsure, pick the most likely match.
+- Always remove all commas, semi-colons and colons from the show name.
 - The output MUST BE STRICT JSON, with no markdown, code blocks, or commentary. Return ONLY the raw JSON object with the fields of tmdb_id, show_name, confidence and reasoning.
 
 

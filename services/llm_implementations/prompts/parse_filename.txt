@@ -14,9 +14,13 @@ Important Rules:
 3. Never infer or assume a value for the season if it doesn't explicitly exist in the filename.  It is valid to have a null value for season if it is not explicitly provided in the filename.  Never hallucinate a season number.
 4. Dashes (-) are commonly used separators, but they can also appear within show names. Use heuristics: if a dash is between the show title and a number, it may be a separator; if it's inside a quoted or known title structure, or if there are words on both sides of the dash, keep it in the title.
 5. Show names are often in Japanese or English, and may contain underscores, romanization artifacts, or substitutions. Normalize to readable title case.
-6. Season and episode numbers are always expressed using Arabic numerals.  Examples of valid formats include:
+6. Season and episode numbers are always expressed using Arabic numerals.  Examples of the most common valid formats include:
    - "S02E03": Season 2, Episode 3
    - "SO2 EO3": Season 2, Episode 3
+   - "S2E3": Season 2, Episode 3
+   - "S2 E3": Season 2, Episode 3
+   - "S2 - E3": Season 2, Episode 3
+   - "S02 - E03": Season 2, Episode 3
    - "2nd Season 03": Season 2, Episode 3
    - "Ep 03": Episode 3, no season
    - "- 03": Episode 3, no season

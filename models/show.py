@@ -67,10 +67,11 @@ class Show:
         # Create the individual dicts for each section of the show_details
         info = show_details["info"]
         episode_groups = show_details["episode_groups"]
-        alternative_titles = show_details["alternative_titles"]
         external_ids = show_details["external_ids"]
-        
+        original_name = info.get("original_name")
         name = info.get("name")
+        alternative_titles = show_details["alternative_titles"]
+        alternative_titles = alternative_titles.append(original_name).append(name).append(sys_name)
         first_air = info.get("first_air_date")
         last_air = info.get("last_air_date")
         year = int(first_air[:4]) if first_air else None
