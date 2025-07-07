@@ -71,7 +71,6 @@ class Show:
         original_name = info.get("original_name")
         name = info.get("name")
         alternative_titles = show_details["alternative_titles"]
-        alternative_titles = alternative_titles.append(original_name).append(name).append(sys_name)
         first_air = info.get("first_air_date")
         last_air = info.get("last_air_date")
         year = int(first_air[:4]) if first_air else None
@@ -87,6 +86,9 @@ class Show:
         else:
             show_episode_groups = []
 
+        logger.debug(f"Alternative titles: {alternative_titles}, name: {name}, sys_name: {sys_name}, original_name: {original_name}")
+        alternative_titles['results'].extend([{'title':original_name},{'title':name},{'title':sys_name}])
+        logger.debug(f"Alternative titles after extend: {alternative_titles}")
         aliases = sorted(set(x['title'] for x in alternative_titles.get('results', [])))
         aliases = ",".join(aliases)
 
