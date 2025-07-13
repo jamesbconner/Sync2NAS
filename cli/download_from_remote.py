@@ -8,8 +8,9 @@ CLI command to download new files or directories from the remote SFTP server and
 
 @click.command("download-from-remote")
 @click.option("--dry-run", "-d", is_flag=True, help="Simulate downloads without writing files or updating the DB.")
+@click.option("--max-workers", "-m", default=4, show_default=True, type=int, help="Number of concurrent downloads")
 @click.pass_context
-def download_from_remote(ctx, dry_run):
+def download_from_remote(ctx, dry_run, max_workers):
     """
     Download new files or directories from the remote SFTP server and record them.
     """
@@ -33,7 +34,8 @@ def download_from_remote(ctx, dry_run):
             db=db,
             remote_paths=remote_paths,
             incoming_path=incoming_path,
-            dry_run=dry_run)
+            dry_run=dry_run,
+            max_workers=max_workers)
 
     # ToDo: If dry-run is true without -vv then no file information is printed.  Should always print the files that would be downloaded.
     if dry_run:

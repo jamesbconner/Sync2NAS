@@ -11,6 +11,7 @@ from datetime import timedelta
 from utils.file_filters import is_valid_media_file
 from utils.file_filters import is_valid_directory
 from utils.filename_parser import parse_filename
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logger = logging.getLogger(__name__)
 
@@ -329,23 +330,81 @@ class SFTPService:
         return truncated_dir_name, filename_map
 
     @retry_sftp_operation
-    def download_dir(self, remote_path, local_path, filename_map=None):
+    def download_dir(self, remote_path, local_path, filename_map=None, max_workers=4):
+        """
+        Download all files and subdirectories in a directory in parallel using a thread pool.
+        Each file/subdir download uses a new SFTPService instance.
+        Preserves filename mapping for path truncation.
+        """
         remote_path = remote_path.replace('\\', '/')
         dir_name = os.path.basename(remote_path.rstrip('/'))
         parent_path = os.path.dirname(local_path)
-        truncated_dir_name, new_filename_map = self._truncate_for_windows_path(parent_path, dir_name, remote_path)
-        local_path = os.path.join(parent_path, truncated_dir_name)
+        # If this is a recursive call, use the provided filename_map and local_path (already truncated)
+        # Otherwise, compute truncation and filename mapping for this directory
+        if filename_map is not None:
+            truncated_dir_name = os.path.basename(local_path)
+            new_filename_map = filename_map
+        else:
+            # Compute truncation and filename mapping for the top-level directory
+            truncated_dir_name, new_filename_map = self._truncate_for_windows_path(parent_path, dir_name, remote_path)
+            local_path = os.path.join(parent_path, truncated_dir_name)
         os.makedirs(local_path, exist_ok=True)
+
+        # Gather files and subdirectories for parallel download
+        files = []
+        subdirs = []
         for entry in self.client.listdir_attr(remote_path):
             # Always use forward slashes for remote paths
             remote_entry = remote_path.rstrip('/') + '/' + entry.filename.replace('\\', '/')
             if stat.S_ISDIR(entry.st_mode):
-                self.download_dir(remote_entry, os.path.join(local_path, entry.filename), new_filename_map)
+                # For each subdirectory, precompute its truncation and filename mapping
+                subdir_local_path = os.path.join(local_path, entry.filename)
+                subdir_trunc_name, subdir_filename_map = self._truncate_for_windows_path(local_path, entry.filename, remote_entry)
+                subdir_local_path = os.path.join(local_path, subdir_trunc_name)
+                # Pass the mapping and truncated name to the parallel task
+                subdirs.append((remote_entry, subdir_local_path, subdir_filename_map))
             else:
-                # Use mapped/truncated filename for local, but always use original for remote
+                # Use the filename mapping for this directory if present
                 local_filename = new_filename_map[entry.filename] if new_filename_map and entry.filename in new_filename_map else entry.filename
-                logger.info(f"Downloading file {remote_entry} to {os.path.join(local_path, local_filename)}")
-                self.download_file(remote_entry, os.path.join(local_path, local_filename))
+                files.append((remote_entry, os.path.join(local_path, local_filename)))
+
+        # Prepare SFTP connection parameters for new instances (each thread gets its own connection)
+        sftp_params = {
+            "host": self.host,
+            "port": self.port,
+            "username": self.username,
+            "ssh_key_path": self.ssh_key_path,
+            "llm_service": self.llm_service,
+        }
+
+        # Task for downloading a single file (runs in a thread)
+        def file_download_task(remote_entry, local_file):
+            sftp = SFTPService(**sftp_params)
+            with sftp:
+                sftp.download_file(remote_entry, local_file)
+
+        # Task for downloading a subdirectory (runs in a thread, recurses in parallel)
+        def dir_download_task(remote_entry, local_dir, subdir_filename_map):
+            sftp = SFTPService(**sftp_params)
+            with sftp:
+                # Recursively call download_dir with the correct filename mapping for this subdir
+                sftp.download_dir(remote_entry, local_dir, filename_map=subdir_filename_map, max_workers=max_workers)
+
+        # Use a thread pool to download all files and subdirectories in parallel
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = []
+            # Submit all file download tasks
+            for remote_entry, local_file in files:
+                futures.append(executor.submit(file_download_task, remote_entry, local_file))
+            # Submit all subdirectory download tasks (each will recurse in parallel)
+            for remote_entry, local_dir, subdir_filename_map in subdirs:
+                futures.append(executor.submit(dir_download_task, remote_entry, local_dir, subdir_filename_map))
+            # Wait for all downloads to complete, logging any exceptions
+            for future in as_completed(futures):
+                try:
+                    future.result()
+                except Exception as e:
+                    logger.exception(f"Failed to download entry in {remote_path}: {e}")
 
     @retry_sftp_operation
     def download_file(self, remote_path, local_path, max_path_length=250):
