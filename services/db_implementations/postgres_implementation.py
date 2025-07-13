@@ -13,7 +13,33 @@ from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 logger = logging.getLogger(__name__)
 
 class PostgresDBService(DatabaseInterface):
-    """PostgreSQL implementation of the DatabaseInterface."""
+    """
+    PostgreSQL implementation of the DatabaseInterface for Sync2NAS.
+
+    Provides methods for managing TV shows, episodes, and file metadata using PostgreSQL as the backend.
+
+    Attributes:
+        connection_string (str): PostgreSQL connection string.
+
+    Methods:
+        initialize(): Initialize the database schema.
+        add_show(show): Add a show to the database.
+        add_episode(episode): Add an episode to the database.
+        add_episodes(episodes): Add multiple episodes to the database.
+        show_exists(name): Check if a show exists.
+        get_show_by_sys_name(sys_name): Get a show by its system name.
+        get_show_by_name_or_alias(name): Get a show by name or alias.
+        get_show_by_tmdb_id(tmdb_id): Get a show by TMDB ID.
+        get_show_by_id(show_id): Get a show by database ID.
+        get_all_shows(): Get all shows.
+        episodes_exist(tmdb_id): Check if episodes exist for a show.
+        get_episodes_by_tmdb_id(tmdb_id): Get all episodes for a show.
+        get_inventory_files(): Get all inventory files.
+        get_downloaded_files(): Get all downloaded files.
+        add_downloaded_files(files): Add multiple downloaded files.
+        get_sftp_diffs(): Get differences between SFTP and downloaded files.
+        backup_database(): Backup the database.
+    """
     
     def __init__(self, connection_string: str) -> None:
         """Initialize the repository with a connection string.
@@ -31,7 +57,7 @@ class PostgresDBService(DatabaseInterface):
             yield conn
             conn.commit()
         except psycopg2.Error as e:
-            logger.error(f"Error in database operation: {e}")
+            logger.exception(f"Error in database operation: {e}")
             conn.rollback()
             raise
         finally:
@@ -569,8 +595,8 @@ class PostgresDBService(DatabaseInterface):
             )
             cursor.close()
             return backup_db_name
-        except psycopg2.Error as e:
-            logger.error(f"PostgreSQL backup failed: {e}")
+        except Exception as e:
+            logger.exception(f"PostgreSQL backup failed: {e}")
             raise
         finally:
             if conn:

@@ -5,6 +5,17 @@ import requests
 logger = logging.getLogger(__name__)
 
 class TMDBService:
+    """
+    Service for interacting with the TMDB API to search for shows and movies, and retrieve detailed metadata.
+
+    Methods:
+        search_show(name): Search for a show by name.
+        search_movie(name): Search for a movie by name.
+        get_show_details(id): Get detailed metadata for a show.
+        get_show_season_details(id, season): Get details for a specific season of a show.
+        get_show_episode_details(id, season, episode): Get details for a specific episode of a show.
+        get_episode_group_details(id): Get details for a specific episode group.
+    """
     def __init__(self, api_key: str):
         self.api_key = api_key
         tmdb.API_KEY = self.api_key
@@ -45,8 +56,8 @@ class TMDBService:
             logger.error(f"Error searching for show {name}: {e}")
             return None
         except Exception as e:
-            logger.error(f"Error searching for show {name}: {e}")
-            return None
+            logger.exception(f"Unexpected error: {e}")
+            raise
 
     def search_movie(self, name: str) -> dict:
         """ Search for a movie by name
@@ -83,8 +94,8 @@ class TMDBService:
             logger.error(f"Error searching for movie {name}: {e}")
             return None
         except Exception as e:
-            logger.error(f"Error searching for movie {name}: {e}")
-            return None
+            logger.exception(f"Unexpected error: {e}")
+            raise
 
     def get_show_details(self, id: int) -> dict:
         """ Get the details of a specific show
@@ -200,8 +211,8 @@ class TMDBService:
             logger.error(f"Error getting show details for show {id}: {e}")
             return None
         except Exception as e:
-            logger.error(f"Error getting show details for show {id}: {e}")
-            return None
+            logger.exception(f"Unexpected error: {e}")
+            raise
     
     def get_show_season_details(self, id: int, season: int) -> dict:
         """ Get the details of a specific season for a show
@@ -237,8 +248,8 @@ class TMDBService:
             logger.error(f"Error getting season details for show {id} season {season}: {e}")
             return None
         except Exception as e:
-            logger.error(f"Error getting season details for show {id} season {season}: {e}")
-            return None
+            logger.exception(f"Unexpected error: {e}")
+            raise
     
     def get_show_episode_details(self, id: int, season: int, episode: int) -> dict:
         """ Get the details of a specific episode for a show
@@ -283,8 +294,8 @@ class TMDBService:
             logger.error(f"Error getting episode details for show {id} season {season} episode {episode}: {e}")
             return None
         except Exception as e:
-            logger.error(f"Error getting episode details for show {id} season {season} episode {episode}: {e}")
-            return None
+            logger.exception(f"Unexpected error: {e}")
+            raise
 
     def get_episode_group_details(self, id: str) -> dict:
         """ Get the details of a specific episode group
@@ -345,5 +356,5 @@ class TMDBService:
             logger.error(f"Error getting episode group details for show {id}: {e}")
             return None
         except Exception as e:
-            logger.error(f"Error getting episode group details for show {id}: {e}")
-            return None
+            logger.exception(f"Unexpected error: {e}")
+            raise

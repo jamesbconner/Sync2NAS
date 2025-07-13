@@ -3,6 +3,14 @@ from typing import Optional
 
 
 class AddShowRequest(BaseModel):
+    """
+    Request model for adding a new show.
+
+    Fields:
+        show_name (Optional[str]): Name of the show to add.
+        tmdb_id (Optional[int]): TMDB ID of the show.
+        override_dir (bool): Use show_name directly for folder name.
+    """
     show_name: Optional[str] = Field(None, description="Name of the show to add")
     tmdb_id: Optional[int] = Field(None, description="TMDB ID of the show")
     override_dir: bool = Field(False, description="Use show_name directly for folder name")
@@ -18,6 +26,13 @@ class AddShowRequest(BaseModel):
 
 
 class UpdateEpisodesRequest(BaseModel):
+    """
+    Request model for updating episodes for a show.
+
+    Fields:
+        show_name (Optional[str]): Name of the show.
+        tmdb_id (Optional[int]): TMDB ID of the show.
+    """
     show_name: Optional[str] = Field(None, description="Name of the show")
     tmdb_id: Optional[int] = Field(None, description="TMDB ID of the show")
     
@@ -30,6 +45,13 @@ class UpdateEpisodesRequest(BaseModel):
 
 
 class RouteFilesRequest(BaseModel):
+    """
+    Request model for routing files from incoming directory.
+
+    Fields:
+        dry_run (bool): Simulate without moving files.
+        auto_add (bool): Auto-add missing shows.
+    """
     dry_run: bool = Field(False, description="Simulate without moving files")
     auto_add: bool = Field(False, description="Auto-add missing shows")
     
@@ -43,6 +65,12 @@ class RouteFilesRequest(BaseModel):
 
 
 class DownloadFromRemoteRequest(BaseModel):
+    """
+    Request model for downloading files from remote SFTP server.
+
+    Fields:
+        dry_run (bool): Simulate without downloading.
+    """
     dry_run: bool = Field(False, description="Simulate without downloading")
     
     class Config:
@@ -54,6 +82,15 @@ class DownloadFromRemoteRequest(BaseModel):
 
 
 class ListRemoteRequest(BaseModel):
+    """
+    Request model for listing files on remote SFTP server.
+
+    Fields:
+        path (Optional[str]): Path to list.
+        recursive (bool): List recursively.
+        populate_sftp_temp (bool): Populate sftp_temp table.
+        dry_run (bool): Simulate without listing.
+    """
     path: Optional[str] = Field(None, description="Path to list")
     recursive: bool = Field(False, description="List recursively")
     populate_sftp_temp: bool = Field(False, description="Populate sftp_temp table")
@@ -71,6 +108,12 @@ class ListRemoteRequest(BaseModel):
 
 
 class BootstrapShowsRequest(BaseModel):
+    """
+    Request model for bootstrapping TV shows from the anime_tv_path directory.
+
+    Fields:
+        dry_run (bool): Simulate without writing to DB.
+    """
     dry_run: bool = Field(False, description="Simulate without writing to DB")
     
     class Config:
@@ -82,6 +125,12 @@ class BootstrapShowsRequest(BaseModel):
 
 
 class BootstrapEpisodesRequest(BaseModel):
+    """
+    Request model for bootstrapping episodes for all shows in the database.
+
+    Fields:
+        dry_run (bool): Simulate without writing to DB.
+    """
     dry_run: bool = Field(False, description="Simulate without writing to DB")
     
     class Config:
@@ -93,6 +142,13 @@ class BootstrapEpisodesRequest(BaseModel):
 
 
 class LLMParseFilenameRequest(BaseModel):
+    """
+    Request model for parsing a filename using LLM.
+
+    Fields:
+        filename (str): Filename to parse using LLM.
+        llm_confidence_threshold (float): Minimum confidence to accept LLM result.
+    """
     filename: str = Field(..., description="Filename to parse using LLM")
     llm_confidence_threshold: float = Field(0.7, description="Minimum confidence to accept LLM result")
 

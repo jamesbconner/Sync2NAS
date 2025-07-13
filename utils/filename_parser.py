@@ -1,6 +1,6 @@
 """
 Filename parsing utilities for extracting show metadata from filenames.
-Includes LLM-based and regex-based parsing methods.
+Supports both LLM-based and regex-based parsing methods for use in Sync2NAS.
 """
 import logging
 from typing import Optional
@@ -13,50 +13,44 @@ def parse_filename(filename: str, llm_service: Optional[LLMInterface] = None, ll
     Extract show metadata from a filename using LLM or fallback to regex.
 
     Args:
-        filename (str): Raw filename (e.g., "Show.Name.S01E01.1080p.mkv")
-        llm_service (LLMInterface, optional): LLM service for intelligent parsing
-        llm_confidence_threshold (float, optional): Minimum confidence to accept LLM result
+        filename (str): Raw filename (e.g., "Show.Name.S01E01.1080p.mkv").
+        llm_service (Optional[LLMInterface]): LLM service for intelligent parsing.
+        llm_confidence_threshold (float): Minimum confidence to accept LLM result.
 
     Returns:
-        dict: {
-            "show_name": str,
-            "season": int | None,
-            "episode": int | None,
-            "confidence": float,
-            "reasoning": str
-        }
+        dict: Parsed metadata with keys: show_name, season, episode, confidence, reasoning.
     """
-    logger.debug(f"utils/filename_parser.py::parse_filename - Parsing filename: {filename}")
+    logger.debug(f"Parsing filename: {filename}")
 
     # Try LLM parsing first if available
     if llm_service:
         try:
             llm_result = llm_service.parse_filename(filename)
-            logger.debug(f"utils/filename_parser.py::parse_filename - LLM result: {llm_result}")
+            logger.debug(f"LLM result: {llm_result}")
             
             # If LLM confidence is high enough, use it
             if llm_result.get("confidence", 0.0) >= llm_confidence_threshold:
-                logger.info(f"utils/filename_parser.py::parse_filename - Using LLM parsing (confidence: {llm_result['confidence']})")
+                logger.info(f"Using LLM parsing (confidence: {llm_result['confidence']})")
                 return llm_result
             else:
-                logger.info(f"utils/filename_parser.py::parse_filename - LLM confidence too low ({llm_result['confidence']}), falling back to regex")
+                logger.info(f"LLM confidence too low ({llm_result['confidence']}), falling back to regex")
         except Exception as e:
-            logger.warning(f"utils/filename_parser.py::parse_filename - LLM parsing failed: {e}, falling back to regex")
+            logger.exception(f"LLM parsing failed: {e}, falling back to regex")
 
     # Fallback to original regex parsing
-    logger.debug(f"utils/filename_parser.py::parse_filename - Using regex fallback parsing")
+    logger.debug(f"Using regex fallback parsing")
     return _regex_parse_filename(filename)
 
 
 def _regex_parse_filename(filename: str) -> dict:
     """
     Original regex-based filename parsing (fallback method).
-    
+
     Args:
-        filename (str): Raw filename
-        
+        filename (str): Raw filename.
+
     Returns:
-        dict: Parsed metadata with confidence and reasoning
+        dict: Parsed metadata with confidence and reasoning.
     """
     import re
     # Remove file extension
@@ -87,7 +81,7 @@ def _regex_parse_filename(filename: str) -> dict:
             show_name = groups.get("name", "").strip(" -_")
             season = int(groups["season"]) if groups.get("season") else None
             episode = int(groups["episode"]) if groups.get("episode") else None
-            logger.debug(f"utils/filename_parser.py::_regex_parse_filename - Parsed: Show={show_name}, Season={season}, Episode={episode} - Pattern {index}")
+            logger.debug(f"Parsed: Show={show_name}, Season={season}, Episode={episode} - Pattern {index}")
             return {
                 "show_name": show_name, 
                 "season": season, 
@@ -96,7 +90,7 @@ def _regex_parse_filename(filename: str) -> dict:
                 "reasoning": f"Regex pattern {index} matched"
             }
 
-    logger.debug(f"utils/filename_parser.py::_regex_parse_filename - No match found; fallback name: {cleaned}")
+    logger.debug(f"No match found; fallback name: {cleaned}")
     return {
         "show_name": cleaned, 
         "season": None, 

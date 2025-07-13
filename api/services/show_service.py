@@ -50,7 +50,7 @@ class ShowService:
         self.db = db
         self.tmdb = tmdb
         self.anime_tv_path = anime_tv_path
-        logger.debug(f"api/services/show_service.py::__init__ - ShowService initialized with anime_tv_path: {anime_tv_path}")
+        logger.debug(f"ShowService initialized with anime_tv_path: {anime_tv_path}")
 
     async def add_show(self, show_name: Optional[str] = None, 
                       tmdb_id: Optional[int] = None,
@@ -83,16 +83,16 @@ class ShowService:
             FileExistsError: If show already exists and override_dir is False
             Exception: For other operational errors
         """
-        logger.info(f"api/services/show_service.py::add_show - Starting show addition: show_name={show_name}, tmdb_id={tmdb_id}, override_dir={override_dir}")
+        logger.info(f"Starting show addition: show_name={show_name}, tmdb_id={tmdb_id}, override_dir={override_dir}")
         
         # Input validation
         if not show_name and not tmdb_id:
-            logger.error("api/services/show_service.py::add_show - Missing required parameters: neither show_name nor tmdb_id provided")
+            logger.exception("Missing required parameters: neither show_name nor tmdb_id provided")
             raise ValueError("Either show_name or tmdb_id must be provided")
 
         try:
             # Delegate to existing utility function for show addition logic
-            logger.debug("api/services/show_service.py::add_show - Calling add_show_interactively utility")
+            logger.debug("Calling add_show_interactively utility")
             result = add_show_interactively(
                 show_name=show_name,
                 tmdb_id=tmdb_id,
@@ -112,17 +112,17 @@ class ShowService:
                 "message": f"Show added successfully: {result['tmdb_name']}"
             }
             
-            logger.info(f"api/services/show_service.py::add_show - Successfully added show: {result['tmdb_name']} with {result['episode_count']} episodes")
+            logger.info(f"Successfully added show: {result['tmdb_name']} with {result['episode_count']} episodes")
             return api_result
             
         except ValueError as e:
-            logger.error(f"api/services/show_service.py::add_show - Validation error: {e}")
+            logger.exception(f"Validation error: {e}")
             raise
         except FileExistsError as e:
-            logger.error(f"api/services/show_service.py::add_show - Show already exists: {e}")
+            logger.exception(f"Show already exists: {e}")
             raise
         except Exception as e:
-            logger.exception(f"api/services/show_service.py::add_show - Unexpected error during show addition: {e}")
+            logger.exception(f"Unexpected error during show addition: {e}")
             raise
 
     async def get_shows(self) -> List[Dict[str, Any]]:
@@ -141,7 +141,7 @@ class ShowService:
         Raises:
             Exception: If database operation fails
         """
-        logger.info("api/services/show_service.py::get_shows - Retrieving all shows from database")
+        logger.info("Retrieving all shows from database")
         
         try:
             shows = self.db.get_all_shows()
@@ -159,11 +159,11 @@ class ShowService:
                 for show in shows
             ]
             
-            logger.info(f"api/services/show_service.py::get_shows - Successfully retrieved {len(api_shows)} shows")
+            logger.info(f"Successfully retrieved {len(api_shows)} shows")
             return api_shows
             
         except Exception as e:
-            logger.exception(f"api/services/show_service.py::get_shows - Failed to retrieve shows: {e}")
+            logger.exception(f"Failed to retrieve shows: {e}")
             raise
 
     async def get_show(self, show_id: int) -> Optional[Dict[str, Any]]:
@@ -179,13 +179,13 @@ class ShowService:
         Raises:
             Exception: If database operation fails
         """
-        logger.info(f"api/services/show_service.py::get_show - Retrieving show with ID: {show_id}")
+        logger.info(f"Retrieving show with ID: {show_id}")
         
         try:
             show = self.db.get_show_by_id(show_id)
             
             if not show:
-                logger.warning(f"api/services/show_service.py::get_show - Show with ID {show_id} not found")
+                logger.warning(f"Show with ID {show_id} not found")
                 return None
             
             # Transform database record to API response format
@@ -198,11 +198,11 @@ class ShowService:
                 "aliases": show.get("aliases")
             }
             
-            logger.info(f"api/services/show_service.py::get_show - Successfully retrieved show: {show['tmdb_name']}")
+            logger.info(f"Successfully retrieved show: {show['tmdb_name']}")
             return api_show
             
         except Exception as e:
-            logger.exception(f"api/services/show_service.py::get_show - Failed to retrieve show {show_id}: {e}")
+            logger.exception(f"Failed to retrieve show {show_id}: {e}")
             raise
 
     async def update_episodes(self, show_name: Optional[str] = None,
@@ -230,37 +230,37 @@ class ShowService:
             ValueError: If neither show_name nor tmdb_id is provided, or if show not found
             Exception: For other operational errors
         """
-        logger.info(f"api/services/show_service.py::update_episodes - Starting episode update: show_name={show_name}, tmdb_id={tmdb_id}")
+        logger.info(f"Starting episode update: show_name={show_name}, tmdb_id={tmdb_id}")
         
         # Input validation
         if not show_name and not tmdb_id:
-            logger.error("api/services/show_service.py::update_episodes - Missing required parameters: neither show_name nor tmdb_id provided")
+            logger.exception("Missing required parameters: neither show_name nor tmdb_id provided")
             raise ValueError("Either show_name or tmdb_id must be provided")
 
         try:
             # Resolve show record from database
             if tmdb_id:
-                logger.debug(f"api/services/show_service.py::update_episodes - Looking up show by TMDB ID: {tmdb_id}")
+                logger.debug(f"Looking up show by TMDB ID: {tmdb_id}")
                 show_row = self.db.get_show_by_tmdb_id(tmdb_id)
                 if not show_row:
-                    logger.error(f"api/services/show_service.py::update_episodes - No show found in DB for TMDB ID {tmdb_id}")
+                    logger.exception(f"No show found in DB for TMDB ID {tmdb_id}")
                     raise ValueError(f"No show found in DB for TMDB ID {tmdb_id}")
             else:
-                logger.debug(f"api/services/show_service.py::update_episodes - Looking up show by name: {show_name}")
+                logger.debug(f"Looking up show by name: {show_name}")
                 show_row = self.db.get_show_by_name_or_alias(show_name)
                 if not show_row:
-                    logger.error(f"api/services/show_service.py::update_episodes - No show found in DB for show name '{show_name}'")
+                    logger.exception(f"No show found in DB for show name '{show_name}'")
                     raise ValueError(f"No show found in DB for show name '{show_name}'")
 
             # Create Show object and refresh episodes
             show = Show.from_db_record(show_row)
-            logger.info(f"api/services/show_service.py::update_episodes - Found show: {show.sys_name} (TMDB ID {show.tmdb_id})")
+            logger.info(f"Found show: {show.sys_name} (TMDB ID {show.tmdb_id})")
             
-            logger.debug("api/services/show_service.py::update_episodes - Calling refresh_episodes_for_show utility")
+            logger.debug("Calling refresh_episodes_for_show utility")
             num_episodes = refresh_episodes_for_show(self.db, self.tmdb, show, dry_run=False)
             
             if num_episodes == 0:
-                logger.error(f"api/services/show_service.py::update_episodes - Failed to fetch or update episodes for {show.sys_name}")
+                logger.exception(f"Failed to fetch or update episodes for {show.sys_name}")
                 raise ValueError(f"Failed to fetch or update episodes for {show.sys_name}")
 
             # Format response for API consumption
@@ -271,14 +271,14 @@ class ShowService:
                 "message": f"{num_episodes} episodes added/updated for {show.sys_name}"
             }
             
-            logger.info(f"api/services/show_service.py::update_episodes - Successfully updated {num_episodes} episodes for {show.sys_name}")
+            logger.info(f"Successfully updated {num_episodes} episodes for {show.sys_name}")
             return api_result
             
         except ValueError as e:
-            logger.error(f"api/services/show_service.py::update_episodes - Validation error: {e}")
+            logger.exception(f"Validation error: {e}")
             raise
         except Exception as e:
-            logger.exception(f"api/services/show_service.py::update_episodes - Unexpected error during episode update: {e}")
+            logger.exception(f"Unexpected error during episode update: {e}")
             raise
 
     async def delete_show(self, show_id: int) -> Dict[str, Any]:
@@ -303,26 +303,26 @@ class ShowService:
             ValueError: If show not found
             Exception: For other operational errors
         """
-        logger.info(f"api/services/show_service.py::delete_show - Starting show deletion: show_id={show_id}")
+        logger.info(f"Starting show deletion: show_id={show_id}")
         
         try:
             # First verify the show exists and get its details
             show = self.db.get_show_by_id(show_id)
             if not show:
-                logger.error(f"api/services/show_service.py::delete_show - Show with ID {show_id} not found")
+                logger.exception(f"Show with ID {show_id} not found")
                 raise ValueError(f"Show with ID {show_id} not found")
             
             show_name = show["tmdb_name"]
             tmdb_id = show["tmdb_id"]
             
-            logger.info(f"api/services/show_service.py::delete_show - Found show to delete: {show_name} (TMDB ID {tmdb_id})")
+            logger.info(f"Found show to delete: {show_name} (TMDB ID {tmdb_id})")
             
             # Get episode count before deletion for reporting
             episodes = self.db.get_episodes_by_tmdb_id(tmdb_id)
             episode_count = len(episodes)
             
             # Delete the show and all episodes using existing database method
-            logger.debug(f"api/services/show_service.py::delete_show - Calling database delete_show_and_episodes method")
+            logger.debug(f"Calling database delete_show_and_episodes method")
             self.db.delete_show_and_episodes(tmdb_id)
             
             # Format response for API consumption
@@ -333,12 +333,12 @@ class ShowService:
                 "message": f"Successfully deleted show '{show_name}' and {episode_count} episodes"
             }
             
-            logger.info(f"api/services/show_service.py::delete_show - Successfully deleted show: {show_name} with {episode_count} episodes")
+            logger.info(f"Successfully deleted show: {show_name} with {episode_count} episodes")
             return api_result
             
         except ValueError as e:
-            logger.error(f"api/services/show_service.py::delete_show - Validation error: {e}")
+            logger.exception(f"Validation error: {e}")
             raise
         except Exception as e:
-            logger.exception(f"api/services/show_service.py::delete_show - Unexpected error during show deletion: {e}")
+            logger.exception(f"Unexpected error during show deletion: {e}")
             raise 

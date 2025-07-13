@@ -1,3 +1,6 @@
+"""
+File routing utility for scanning incoming directories and moving files to their destination paths.
+"""
 import os
 import re
 import shutil
@@ -12,24 +15,31 @@ from utils.filename_parser import parse_filename
 
 logger = logging.getLogger(__name__)
 
-def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, tmdb, 
-                dry_run: bool = False, llm_service: Optional[LLMInterface] = None, llm_confidence_threshold: float = 0.7) -> List[Dict[str, str]]:
+def file_routing(
+    incoming_path: str,
+    anime_tv_path: str,
+    db: DatabaseInterface,
+    tmdb,
+    dry_run: bool = False,
+    llm_service: Optional[LLMInterface] = None,
+    llm_confidence_threshold: float = 0.7
+) -> List[Dict[str, str]]:
     """
     Scan the incoming directory, identify files to route, and move them to their destination paths.
 
     Args:
-        incoming_path: The directory to scan for files
-        anime_tv_path: Base directory where shows should be routed
-        db: Database interface for show and episode lookup
-        tmdb: TMDB object for episode refreshing
-        dry_run: If True, simulate actions without moving files
-        llm_service: Optional LLM service for intelligent filename parsing
-        llm_confidence_threshold: Minimum confidence to accept LLM result
+        incoming_path (str): The directory to scan for files.
+        anime_tv_path (str): Base directory where shows should be routed.
+        db (DatabaseInterface): Database interface for show and episode lookup.
+        tmdb: TMDB object for episode refreshing.
+        dry_run (bool): If True, simulate actions without moving files.
+        llm_service (Optional[LLMInterface]): Optional LLM service for intelligent filename parsing.
+        llm_confidence_threshold (float): Minimum confidence to accept LLM result.
 
     Returns:
-        List of dicts describing routed files
+        List[Dict[str, str]]: List of dicts describing routed files.
     """
-    logger.info("utils/file_routing.py::file_routing - Starting file routing")
+    logger.info("Starting file routing")
     routed_files = []
 
     # Walk the incoming directory tree
@@ -47,17 +57,17 @@ def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, 
             reasoning = metadata.get("reasoning", "Unknown")
 
             # Log parsing details
-            logger.info(f"utils/file_routing.py::file_routing - Parsed '{filename}': {show_name} S{season}E{episode} (confidence: {confidence})")
+            logger.info(f"Parsed '{filename}': {show_name} S{season}E{episode} (confidence: {confidence})")
 
             # Skip files that don't contain a usable show name
             if not show_name:
-                logger.debug(f"utils/file_routing.py::file_routing - Skipping file due to missing show name: {filename}")
+                logger.debug(f"Skipping file due to missing show name: {filename}")
                 continue
 
             # Lookup the show in the database by sys_name or aliases
             matched_show_row = db.get_show_by_name_or_alias(show_name)
             if not matched_show_row:
-                logger.debug(f"utils/file_routing.py::file_routing - No matching show in DB for: {show_name}")
+                logger.debug(f"No matching show in DB for: {show_name}")
                 continue
 
             # Convert DB record into Show object
@@ -74,11 +84,11 @@ def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, 
             elif episode is not None:
                 matched_ep = db.get_episode_by_absolute_number(show.tmdb_id, episode)
                 if not matched_ep:
-                    logger.debug(f"utils/file_routing.py::file_routing - No episode match in DB for TMDB ID {show.tmdb_id}, absolute {episode}. Attempting to refresh episodes from TMDB.")
+                    logger.debug(f"No episode match in DB for TMDB ID {show.tmdb_id}, absolute {episode}. Attempting to refresh episodes from TMDB.")
                     refresh_episodes_for_show(db, tmdb, show, dry_run)
                     matched_ep = db.get_episode_by_absolute_number(show.tmdb_id, episode)
                     if not matched_ep:
-                        logger.error(f"utils/file_routing.py::file_routing - No episode info found for show '{show.sys_name}' (TMDB ID {show.tmdb_id}), absolute episode {episode} after TMDB refresh.")
+                        logger.exception(f"No episode info found for show '{show.sys_name}' (TMDB ID {show.tmdb_id}), absolute episode {episode} after TMDB refresh.")
                         # Continue routing, but leave season/episode as None
                         season_str = None
                         episode_str = None
@@ -97,7 +107,7 @@ def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, 
 
             # If neither is available, skip this file
             else:
-                logger.debug(f"utils/file_routing.py::file_routing - Insufficient episode metadata for file: {filename}")
+                logger.debug(f"Insufficient episode metadata for file: {filename}")
                 continue
 
             # Construct destination path using the show's sys_path and season folder
@@ -109,16 +119,16 @@ def file_routing(incoming_path: str, anime_tv_path: str, db: DatabaseInterface, 
 
             # Check for Windows path length limitation
             if len(os.path.abspath(target_path)) > 260:
-                logger.error(f"Skipping file due to path length > 260: {target_path}")
+                logger.exception(f"Skipping file due to path length > 260: {target_path}")
                 continue
 
             # Perform or simulate the move operation
             if dry_run:
-                logger.info(f"utils/file_routing.py::file_routing - [DRY RUN] Would move {source_path} to {target_path}")
+                logger.info(f"[DRY RUN] Would move {source_path} to {target_path}")
             else:
                 os.makedirs(season_dir, exist_ok=True)
                 shutil.move(source_path, target_path)
-                logger.info(f"utils/file_routing.py::file_routing - Moved {source_path} to {target_path}")
+                logger.info(f"Moved {source_path} to {target_path}")
 
             # Track successful routing operation
             routed_files.append({

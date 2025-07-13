@@ -11,6 +11,17 @@ logger = logging.getLogger(__name__)
 
 
 class AdminService:
+    """
+    Service class for administrative operations in Sync2NAS.
+
+    Handles bootstrapping shows and episodes from the filesystem, database backup, and database initialization.
+    
+    Attributes:
+        db (DatabaseInterface): Database interface for show and episode operations.
+        tmdb (TMDBService): TMDB service for external API calls.
+        anime_tv_path (str): Base path for TV show directories.
+        config (Dict[str, Any]): Configuration dictionary for admin operations.
+    """
     def __init__(self, db: DatabaseInterface, tmdb: TMDBService, 
                  anime_tv_path: str, config: Dict[str, Any]):
         self.db = db
@@ -57,7 +68,7 @@ class AdminService:
                     added.append(sys_name)
 
                 except Exception as e:
-                    logger.exception(f"Failed to process: {sys_name}")
+                    logger.exception(f"Unexpected error: {e}")
                     failed.append(sys_name)
 
             duration = time.time() - start_time

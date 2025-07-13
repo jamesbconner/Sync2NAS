@@ -1,3 +1,6 @@
+"""
+This module provides a factory for creating database service instances based on configuration.
+"""
 from typing import Dict, Any
 from services.db_implementations.db_interface import DatabaseInterface
 from services.db_implementations.sqlite_implementation import SQLiteDBService
@@ -5,16 +8,17 @@ from services.db_implementations.postgres_implementation import PostgresDBServic
 from services.db_implementations.milvus_implementation import MilvusDBService
 
 def create_db_service(config: Dict[str, Any]) -> DatabaseInterface:
-    """Create and return the appropriate database service based on configuration.
-    
+    """
+    Create and return the appropriate database service based on configuration.
+
     Args:
-        config: Configuration dictionary containing database settings
-        
+        config (Dict[str, Any]): Configuration dictionary containing database settings.
+
     Returns:
-        DatabaseInterface: An instance of the appropriate database service
-        
+        DatabaseInterface: An instance of the appropriate database service.
+
     Raises:
-        ValueError: If the database type is not supported
+        ValueError: If the database type is not supported.
     """
     db_type = config["Database"]["type"].lower()
     

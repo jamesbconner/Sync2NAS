@@ -21,12 +21,23 @@ logger = logging.getLogger(__name__)
 @click.option("--llm-confidence", type=float, default=0.7, help="Minimum LLM confidence threshold (0.0-1.0)")
 @click.option("--auto-add", is_flag=True, default=False, help="Attempt to add missing shows automatically before routing.")
 @pass_sync2nas_context
-def route_files(ctx, incoming, dry_run, use_llm, llm_confidence, auto_add):
+def route_files(ctx: click.Context, incoming: str, dry_run: bool, use_llm: bool, llm_confidence: float, auto_add: bool) -> int:
     """
     Scan the incoming path and move files to the appropriate show directories.
     Optionally uses LLM for filename parsing and can auto-add missing shows.
+
+    Args:
+        ctx (click.Context): Click context containing shared config and services.
+        incoming (str): Incoming directory to scan.
+        dry_run (bool): Simulate without moving files.
+        use_llm (bool): Use LLM for filename parsing.
+        llm_confidence (float): Minimum LLM confidence threshold (0.0-1.0).
+        auto_add (bool): Attempt to add missing shows automatically before routing.
+
+    Returns:
+        int: 0 on success, 1 on error.
     """
-    logger.info(f"cli/route_files.py::route_files - Called with incoming={incoming}, dry_run={dry_run}, use_llm={use_llm}, llm_confidence={llm_confidence}, auto_add={auto_add}")
+    logger.info(f"Called with incoming={incoming}, dry_run={dry_run}, use_llm={use_llm}, llm_confidence={llm_confidence}, auto_add={auto_add}")
     if not ctx.obj:
         click.echo("Error: No context object found")
         return 1
@@ -47,7 +58,7 @@ def route_files(ctx, incoming, dry_run, use_llm, llm_confidence, auto_add):
 
     try:
         # Route files using the file_routing utility
-        logger.info("cli/route_files.py::route_files - Calling file_routing")
+        logger.info("Calling file_routing")
         routed_files = file_routing(
             incoming_path=incoming_path,
             anime_tv_path=anime_tv_path,
@@ -57,7 +68,7 @@ def route_files(ctx, incoming, dry_run, use_llm, llm_confidence, auto_add):
             llm_service=llm_service,
             llm_confidence_threshold=llm_confidence
         )
-        logger.info("cli/route_files.py::route_files - file_routing completed successfully")
+        logger.info("file_routing completed successfully")
 
         if dry_run:
             click.echo(f"Dry run: Would route {len(routed_files)} files")
@@ -71,22 +82,25 @@ def route_files(ctx, incoming, dry_run, use_llm, llm_confidence, auto_add):
                 click.echo(f"  {file_info['original_path']} -> {file_info['routed_path']}")
 
     except Exception as e:
-        logger.error(f"cli/route_files.py::route_files - Exception: {e}", exc_info=True)
+        logger.exception(f"Error routing files: {str(e)}")
         click.secho(f"Error routing files: {str(e)}", fg="red")
         return 1
 
 
-def _auto_add_missing_shows(ctx, incoming_path: str, dry_run: bool, ignore_files: set[str] = None, use_llm: bool = False, llm_confidence: float = None):
+def _auto_add_missing_shows(ctx: click.Context, incoming_path: str, dry_run: bool, ignore_files: set[str] = None, use_llm: bool = False, llm_confidence: float = None) -> None:
     """
     Helper function to scan incoming files and auto-add missing shows to the database.
 
     Args:
-        ctx: Click context containing shared config and services
-        incoming_path: Path to scan for unrecognized show files
-        dry_run: If True, simulate add-show operations
-        ignore_files: Optional set of filenames to skip
-        use_llm: If True, use the LLM to parse the filename
-        llm_confidence: If use_llm is True, the minimum confidence threshold for the LLM to parse the filename
+        ctx (click.Context): Click context containing shared config and services.
+        incoming_path (str): Path to scan for unrecognized show files.
+        dry_run (bool): If True, simulate add-show operations.
+        ignore_files (set[str], optional): Set of filenames to skip.
+        use_llm (bool, optional): If True, use the LLM to parse the filename.
+        llm_confidence (float, optional): Minimum confidence threshold for the LLM to parse the filename.
+
+    Returns:
+        None
     """
     # Get the database and LLM service from the context object
     # DB is used to check if the show already exists in the database
@@ -120,10 +134,10 @@ def _auto_add_missing_shows(ctx, incoming_path: str, dry_run: bool, ignore_files
             #   the llm parser will fall back to the regex parser if the confidence answer is 
             #   below the llm_confidence threshold.
             if use_llm:
-                logger.info(f"cli/route_files.py::_auto_add_missing_shows - Using LLM to parse filename: {fname}")
+                logger.info(f"Using LLM to parse filename: {fname}")
                 metadata = parse_filename(fname, llm_service=llm_service)
             else:
-                logger.info(f"cli/route_files.py::_auto_add_missing_shows - Using regex to parse filename: {fname}")
+                logger.info(f"Using regex to parse filename: {fname}")
                 metadata = parse_filename(fname)
             
             # This is the object that we'll use to search TMDB to find the show details.
@@ -132,18 +146,18 @@ def _auto_add_missing_shows(ctx, incoming_path: str, dry_run: bool, ignore_files
 
             # Skip if parsing failed or already processed (do not duplicate shows)
             if not show_name:
-                logger.info(f"cli/route_files.py::_auto_add_missing_shows - Skipping show because there's no show_name value: {show_name}")
+                logger.info(f"Skipping show because there's no show_name value: {show_name}")
                 continue
             if show_name in seen:
-                logger.info(f"cli/route_files.py::_auto_add_missing_shows - Skipping show because it's already been processed: {show_name}")
+                logger.info(f"Skipping show because it's already been processed: {show_name}")
                 continue
             
-            logger.info(f"cli/route_files.py::_auto_add_missing_shows - Adding show to seen set: {show_name}")
+            logger.info(f"Adding show to seen set: {show_name}")
             seen.add(show_name)
 
             # Skip if show already exists in DB (do not duplicate shows)
             if db.show_exists(show_name):
-                logger.info(f"cli/route_files.py::_auto_add_missing_shows - Show already exists in DB: {show_name}")
+                logger.info(f"Show already exists in DB: {show_name}")
                 continue
 
             click.secho(f"📥 Auto-adding show: {show_name}", fg="yellow")
@@ -158,7 +172,7 @@ def _auto_add_missing_shows(ctx, incoming_path: str, dry_run: bool, ignore_files
                 add_show_args.append("--llm-confidence")
                 add_show_args.append(str(llm_confidence)) # The CLI runner expects a string, not a float
 
-            logger.info(f"cli/route_files.py::_auto_add_missing_shows - Invoking add-show command with args: {add_show_args}")
+            logger.info(f"Invoking add-show command with args: {add_show_args}")
 
             # Invoke the add-show CLI command
             add_show_result = runner.invoke(add_show, add_show_args, obj=ctx.obj)

@@ -38,14 +38,14 @@ async def get_shows(show_service: ShowService = Depends(get_show_service)):
     Raises:
         HTTPException: If database operation fails
     """
-    logger.info("api/routes/shows.py::get_shows - GET /api/shows/ endpoint accessed")
+    logger.info("GET /api/shows/ endpoint accessed")
     
     try:
         shows = await show_service.get_shows()
-        logger.info(f"api/routes/shows.py::get_shows - Successfully retrieved {len(shows)} shows")
+        logger.info(f"Successfully retrieved {len(shows)} shows")
         return shows
     except Exception as e:
-        logger.exception(f"api/routes/shows.py::get_shows - Failed to retrieve shows: {e}")
+        logger.exception(f"Failed to retrieve shows: {e}")
         # Return 500 error if DB operation fails
         raise HTTPException(status_code=500, detail=f"Failed to retrieve shows: {str(e)}")
 
@@ -61,24 +61,24 @@ async def get_show(show_id: int, show_service: ShowService = Depends(get_show_se
     Raises:
         HTTPException: If show not found or database operation fails
     """
-    logger.info(f"api/routes/shows.py::get_show - GET /api/shows/{show_id} endpoint accessed")
+    logger.info(f"GET /api/shows/{show_id} endpoint accessed")
     
     try:
         show = await show_service.get_show(show_id)
         
         if not show:
-            logger.warning(f"api/routes/shows.py::get_show - Show with ID {show_id} not found")
+            logger.warning(f"Show with ID {show_id} not found")
             # Return 404 if show is not found
             raise HTTPException(status_code=404, detail=f"Show with ID {show_id} not found")
         
-        logger.info(f"api/routes/shows.py::get_show - Successfully retrieved show: {show['tmdb_name']}")
+        logger.info(f"Successfully retrieved show: {show['tmdb_name']}")
         return show
         
     except HTTPException:
         # Re-raise HTTP exceptions as-is
         raise
     except Exception as e:
-        logger.exception(f"api/routes/shows.py::get_show - Failed to retrieve show {show_id}: {e}")
+        logger.exception(f"Failed to retrieve show {show_id}: {e}")
         # Return 500 error if DB operation fails
         raise HTTPException(status_code=500, detail=f"Failed to retrieve show: {str(e)}")
 
@@ -95,7 +95,7 @@ async def add_show(request: AddShowRequest,
     Raises:
         HTTPException: If validation fails or operation errors occur
     """
-    logger.info(f"api/routes/shows.py::add_show - POST /api/shows/ endpoint accessed with request: {request}")
+    logger.info(f"POST /api/shows/ endpoint accessed with request: {request}")
     
     try:
         result = await show_service.add_show(
@@ -104,19 +104,19 @@ async def add_show(request: AddShowRequest,
             override_dir=request.override_dir
         )
         
-        logger.info(f"api/routes/shows.py::add_show - Successfully added show: {result['tmdb_name']}")
+        logger.info(f"Successfully added show: {result['tmdb_name']}")
         return result
         
     except ValueError as e:
-        logger.error(f"api/routes/shows.py::add_show - Validation error: {e}")
+        logger.exception(f"Validation error: {e}")
         # Return 400 for validation errors
         raise HTTPException(status_code=400, detail=str(e))
     except FileExistsError as e:
-        logger.error(f"api/routes/shows.py::add_show - Show already exists: {e}")
+        logger.exception(f"Show already exists: {e}")
         # Return 409 for conflict (show exists)
         raise HTTPException(status_code=409, detail=str(e))
     except Exception as e:
-        logger.exception(f"api/routes/shows.py::add_show - Unexpected error: {e}")
+        logger.exception(f"Unexpected error: {e}")
         # Return 500 for other errors
         raise HTTPException(status_code=500, detail=f"Failed to add show: {str(e)}")
 
@@ -134,13 +134,13 @@ async def update_episodes(show_id: int, request: UpdateEpisodesRequest,
     Raises:
         HTTPException: If show not found, validation fails, or operation errors occur
     """
-    logger.info(f"api/routes/shows.py::update_episodes - POST /api/shows/{show_id}/episodes/refresh endpoint accessed")
+    logger.info(f"POST /api/shows/{show_id}/episodes/refresh endpoint accessed")
     
     try:
         # First verify the show exists
         show = await show_service.get_show(show_id)
         if not show:
-            logger.warning(f"api/routes/shows.py::update_episodes - Show with ID {show_id} not found")
+            logger.warning(f"Show with ID {show_id} not found")
             # Return 404 if show is not found
             raise HTTPException(status_code=404, detail=f"Show with ID {show_id} not found")
 
@@ -150,18 +150,18 @@ async def update_episodes(show_id: int, request: UpdateEpisodesRequest,
             tmdb_id=request.tmdb_id or show["tmdb_id"]
         )
         
-        logger.info(f"api/routes/shows.py::update_episodes - Successfully updated {result['episodes_updated']} episodes for {result['show_name']}")
+        logger.info(f"Successfully updated {result['episodes_updated']} episodes for {result['show_name']}")
         return result
         
     except ValueError as e:
-        logger.error(f"api/routes/shows.py::update_episodes - Validation error: {e}")
+        logger.exception(f"Validation error: {e}")
         # Return 400 for validation errors
         raise HTTPException(status_code=400, detail=str(e))
     except HTTPException:
         # Re-raise HTTP exceptions as-is
         raise
     except Exception as e:
-        logger.exception(f"api/routes/shows.py::update_episodes - Unexpected error: {e}")
+        logger.exception(f"Unexpected error: {e}")
         # Return 500 for other errors
         raise HTTPException(status_code=500, detail=f"Failed to update episodes: {str(e)}")
 
@@ -179,19 +179,19 @@ them from the database so they can be re-added with correct identification.
     Raises:
         HTTPException: If show not found or operation errors occur
     """
-    logger.info(f"api/routes/shows.py::delete_show - DELETE /api/shows/{show_id} endpoint accessed")
+    logger.info(f"DELETE /api/shows/{show_id} endpoint accessed")
     
     try:
         result = await show_service.delete_show(show_id)
         
-        logger.info(f"api/routes/shows.py::delete_show - Successfully deleted show: {result['show_name']}")
+        logger.info(f"Successfully deleted show: {result['show_name']}")
         return result
         
     except ValueError as e:
-        logger.error(f"api/routes/shows.py::delete_show - Validation error: {e}")
+        logger.exception(f"Validation error: {e}")
         # Return 404 if show is not found
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.exception(f"api/routes/shows.py::delete_show - Unexpected error: {e}")
+        logger.exception(f"Unexpected error: {e}")
         # Return 500 for other errors
         raise HTTPException(status_code=500, detail=f"Failed to delete show: {str(e)}") 

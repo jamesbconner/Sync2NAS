@@ -1,3 +1,6 @@
+"""
+File and directory filtering utilities for Sync2NAS, including extension/keyword exclusion and filename sanitization.
+"""
 import os
 import re
 
@@ -11,7 +14,15 @@ EXCLUDED_FILENAMES = {fn.lower() for fn in {"desktop.ini", "thumbs.db", ".DS_Sto
 ILLEGAL_CHARS_REGEX = re.compile(r'[<>:"/\\|?*]+')
 
 def is_valid_media_file(filepath: str) -> bool:
-    """Returns True if the file is valid for download based on extension and keyword rules."""
+    """
+    Returns True if the file is valid for download based on extension and keyword rules.
+
+    Args:
+        filepath (str): Path to the file.
+
+    Returns:
+        bool: True if file is valid, False otherwise.
+    """
     filename = os.path.basename(filepath).lower()
     ext = os.path.splitext(filename)[1].lower()
 
@@ -21,11 +32,27 @@ def is_valid_media_file(filepath: str) -> bool:
     )
 
 def is_valid_directory(dirname: str) -> bool:
-    """Returns True if the directory is valid for download based on keyword rules."""
+    """
+    Returns True if the directory is valid for download based on keyword rules.
+
+    Args:
+        dirname (str): Directory name.
+
+    Returns:
+        bool: True if directory is valid, False otherwise.
+    """
     dirname = os.path.basename(dirname).lower()
     return not any(keyword in dirname for keyword in EXCLUDED_KEYWORDS)
     
 
 def sanitize_filename(name: str) -> str:
-    """Remove characters that are illegal in file/directory names on most OSes."""
+    """
+    Remove characters that are illegal in file/directory names on most OSes.
+
+    Args:
+        name (str): Filename or directory name.
+
+    Returns:
+        str: Sanitized name with illegal characters removed.
+    """
     return ILLEGAL_CHARS_REGEX.sub('', name)

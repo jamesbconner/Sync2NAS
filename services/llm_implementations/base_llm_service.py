@@ -8,9 +8,37 @@ import os
 logger = logging.getLogger(__name__)
 
 class BaseLLMService(LLMInterface):
+    """
+    Base class for LLM-based filename parsing services.
+
+    Provides shared logic for prompt loading, result validation, fallback parsing, and batch operations.
+
+    Attributes:
+        PROMPT_DIR (str): Directory containing prompt templates.
+
+    Methods:
+        load_prompt(prompt_name): Load a prompt template by name.
+        _validate_and_clean_result(result, original_filename): Validate and clean LLM response.
+        _fallback_parse(filename): Fallback parsing if LLM fails.
+        _clean_filename_for_llm(filename): Clean filename for LLM processing.
+        batch_parse_filenames(filenames, max_tokens): Parse multiple filenames in batch.
+        suggest_show_name(show_name, detailed_results): Suggest best show match from TMDB results.
+    """
     PROMPT_DIR = os.path.join(os.path.dirname(__file__), "prompts")
 
     def load_prompt(self, prompt_name: str) -> str:
+        """
+        Load a prompt template by name.
+
+        Args:
+            prompt_name (str): The name of the prompt file (e.g., "parse_filename").
+
+        Returns:
+            str: The content of the prompt file.
+
+        Raises:
+            FileNotFoundError: If the prompt file does not exist.
+        """
         prompt_path = os.path.join(self.PROMPT_DIR, f"{prompt_name}.txt")
         if not os.path.exists(prompt_path):
             raise FileNotFoundError(f"Prompt file not found: {prompt_path}")
@@ -20,11 +48,16 @@ class BaseLLMService(LLMInterface):
     def _validate_and_clean_result(self, result: Dict[str, Any], original_filename: str) -> Dict[str, Any]:
         """
         Validate and clean the LLM response.
+
         Args:
-            result: Raw LLM response
-            original_filename: Original filename for fallback
+            result (Dict[str, Any]): Raw LLM response.
+            original_filename (str): Original filename for fallback.
+
         Returns:
-            dict: Validated and cleaned result
+            dict: Validated and cleaned result.
+
+        Raises:
+            ValueError: If data types are invalid.
         """
         validated = {
             "show_name": result.get("show_name", "").strip(),
@@ -40,23 +73,25 @@ class BaseLLMService(LLMInterface):
                 validated["episode"] = int(validated["episode"])
             validated["confidence"] = float(validated["confidence"])
         except (ValueError, TypeError):
-            logger.warning(f"base_llm_service.py::_validate_and_clean_result - Invalid data types in LLM response, using fallback")
+            logger.warning(f"Invalid data types in LLM response, using fallback")
             return self._fallback_parse(original_filename)
         validated["confidence"] = max(0.0, min(1.0, validated["confidence"]))
         if not validated["show_name"]:
-            logger.warning(f"base_llm_service.py::_validate_and_clean_result - Empty show name from LLM, using fallback")
+            logger.warning(f"Empty show name from LLM, using fallback")
             return self._fallback_parse(original_filename)
         return validated
 
     def _fallback_parse(self, filename: str) -> Dict[str, Any]:
         """
         Fallback parsing when LLM fails.
+
         Args:
-            filename: Original filename
+            filename (str): Original filename.
+
         Returns:
-            dict: Fallback parsing result
+            dict: Fallback parsing result.
         """
-        logger.info(f"base_llm_service.py::_fallback_parse - Using fallback parsing for: {filename}")
+        logger.info(f"Using fallback parsing for: {filename}")
         base = re.sub(r"\.[a-z0-9]{2,4}$", "", filename, flags=re.IGNORECASE)
         cleaned = re.sub(r"[\[\(].*?[\]\)]", "", base)
         cleaned = re.sub(r"[_.]", " ", cleaned)
@@ -85,10 +120,12 @@ class BaseLLMService(LLMInterface):
     def _clean_filename_for_llm(self, filename: str) -> str:
         """
         Clean filename for better LLM processing.
+
         Args:
-            filename: Raw filename
+            filename (str): Raw filename.
+
         Returns:
-            str: Cleaned filename
+            str: Cleaned filename.
         """
         base = re.sub(r"\.[a-z0-9]{2,4}$", "", filename, flags=re.IGNORECASE)
         cleaned = re.sub(r"\[.*?\]", "", base)
@@ -100,13 +137,15 @@ class BaseLLMService(LLMInterface):
     def batch_parse_filenames(self, filenames: List[str], max_tokens: int = 150) -> List[Dict[str, Any]]:
         """
         Parse multiple filenames in batch.
+
         Args:
-            filenames: List of filenames to parse
-            max_tokens: Maximum tokens per response
+            filenames (List[str]): List of filenames to parse.
+            max_tokens (int): Maximum tokens per response.
+
         Returns:
-            list: List of parsing results
+            list: List of parsing results.
         """
-        logger.info(f"{self.__class__.__name__}::batch_parse_filenames - Parsing {len(filenames)} filenames")
+        logger.info(f"Parsing {len(filenames)} filenames")
         results = []
         for filename in filenames:
             result = self.parse_filename(filename, max_tokens)

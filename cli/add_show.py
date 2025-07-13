@@ -17,8 +17,23 @@ logger = logging.getLogger(__name__)
 @click.option("--override-dir", is_flag=True, help="Use the provided show_name directly for the folder name.")
 @click.option("--dry-run", is_flag=True, help="Simulate without writing to database or creating directory")
 @click.pass_context
-def add_show(ctx, show_name, override_dir, dry_run, use_llm, llm_confidence, tmdb_id):
-    logger.info(f"cli/add_show.py::add_show - Called with show_name={show_name}, tmdb_id={tmdb_id}, override_dir={override_dir}, dry_run={dry_run}, use_llm={use_llm}")
+def add_show(ctx: click.Context, show_name: str, override_dir: bool, dry_run: bool, use_llm: bool, llm_confidence: float, tmdb_id: int) -> None:
+    """
+    Add a show to the tv_shows table by searching TMDB or using TMDB ID.
+
+    Args:
+        ctx (click.Context): Click context containing shared config and services.
+        show_name (str): Name of the show to add (optional if tmdb_id provided).
+        override_dir (bool): Use the provided show_name directly for the folder name.
+        dry_run (bool): Simulate without writing to database or creating directory.
+        use_llm (bool): Use the LLM to suggest the show name and directory name.
+        llm_confidence (float): Confidence threshold for LLM suggestions (0.0-1.0).
+        tmdb_id (int): TMDB ID of the show (overrides show_name search).
+
+    Returns:
+        None. Prints results to the console and exits on error.
+    """
+    logger.info(f"Called with show_name={show_name}, tmdb_id={tmdb_id}, override_dir={override_dir}, dry_run={dry_run}, use_llm={use_llm}")
     """
     Add a show to the tv_shows table by searching TMDB or using TMDB ID.
     If --dry-run is set, no changes are made to the database or filesystem.
@@ -34,7 +49,7 @@ def add_show(ctx, show_name, override_dir, dry_run, use_llm, llm_confidence, tmd
         ctx.exit(1)
 
     try:
-        logger.debug("cli/add_show.py::add_show - Calling add_show_interactively")
+        logger.debug("Calling add_show_interactively")
         # Use the interactive show adder utility to handle TMDB search and DB insert
         # The ctx is not passed to the add_show_interactively function, so pass the service objects directly
         result = add_show_interactively(
@@ -49,9 +64,9 @@ def add_show(ctx, show_name, override_dir, dry_run, use_llm, llm_confidence, tmd
             use_llm=use_llm,
             llm_confidence=llm_confidence
         )
-        logger.debug("cli/add_show.py::add_show - add_show_interactively completed successfully")
+        logger.debug("add_show_interactively completed successfully")
     except Exception as e:
-        logger.error(f"cli/add_show.py::add_show - Exception: {e}", exc_info=True)
+        logger.exception(f"Exception: {e}")
         click.secho("\u274c Failed to add show", fg="red", bold=True)
         click.secho(f"Reason: {e}", fg="red")
         ctx.exit(1)

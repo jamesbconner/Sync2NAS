@@ -20,10 +20,19 @@ from services.llm_factory import create_llm_service
 @click.option('--verbose', '-v', count=True, help="Set verbosity level (-v = INFO, -vv = DEBUG)")
 @click.option('--config', '-c', type=click.Path(exists=True), default='./config/sync2nas_config.ini', help="Path to config file")
 @click.pass_context
-def sync2nas_cli(ctx, verbose, logfile, config):
+def sync2nas_cli(ctx: click.Context, verbose: int, logfile: str, config: str) -> None:
     """
     Main CLI group. Sets up the context object with configuration, database, SFTP, TMDB, and LLM services.
     All subcommands share this context.
+
+    Args:
+        ctx (click.Context): Click context for Click command group.
+        verbose (int): Verbosity level (-v = INFO, -vv = DEBUG).
+        logfile (str): Path to log file.
+        config (str): Path to configuration file.
+
+    Returns:
+        None
     """
     # If the context object is already set, return it without reinitializing it
     if ctx.obj and all(k in ctx.obj for k in ("config", "db", "tmdb", "sftp", "anime_tv_path", "incoming_path", "llm_service")):

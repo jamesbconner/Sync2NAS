@@ -7,6 +7,14 @@ logger = logging.getLogger(__name__)
 class LLMInterface(ABC):
     """
     Abstract base class defining the interface for LLM-based filename parsing services.
+
+    All subclasses must implement methods for parsing filenames, batch parsing, and suggesting short directory/filenames.
+
+    Methods:
+        parse_filename(filename, max_tokens): Parse a filename using the LLM.
+        batch_parse_filenames(filenames, max_tokens): Parse multiple filenames in batch.
+        suggest_short_dirname(long_name, max_length): Suggest a short directory name.
+        suggest_short_filename(long_name, max_length): Suggest a short filename.
     """
 
     @abstractmethod

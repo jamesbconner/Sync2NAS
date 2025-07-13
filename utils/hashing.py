@@ -1,3 +1,6 @@
+"""
+Hashing utilities for calculating CRC32, MD5, and SHA1 hashes of files.
+"""
 import os
 import sys
 import hashlib
@@ -5,7 +8,16 @@ import binascii
 
 
 def calculate_crc32(file_path: str, chunk_size: int = 65536) -> str:
-    """Calculate the CRC32 hash of a file"""
+    """
+    Calculate the CRC32 hash of a file.
+
+    Args:
+        file_path (str): Path to the file.
+        chunk_size (int): Size of chunks to read at a time.
+
+    Returns:
+        str: CRC32 hash as an 8-character uppercase hex string.
+    """
     crc32 = 0
     with open(file_path, 'rb') as f:
         while True:
@@ -16,7 +28,15 @@ def calculate_crc32(file_path: str, chunk_size: int = 65536) -> str:
     return f"{crc32:08X}"
 
 def calculate_md5(file_path: str) -> str:
-    """Calculate the MD5 hash of a file"""
+    """
+    Calculate the MD5 hash of a file.
+
+    Args:
+        file_path (str): Path to the file.
+
+    Returns:
+        str: MD5 hash as a lowercase hex string.
+    """
     md5 = hashlib.md5()
     with open(file_path, 'rb') as f:
         for chunk in iter(lambda: f.read(4096), b""):
@@ -24,7 +44,15 @@ def calculate_md5(file_path: str) -> str:
     return md5.hexdigest()
 
 def sha1sum(file_path: str) -> str:
-    """Calculate the SHA1 hash of a file"""
+    """
+    Calculate the SHA1 hash of a file.
+
+    Args:
+        file_path (str): Path to the file.
+
+    Returns:
+        str: SHA1 hash as a lowercase hex string.
+    """
     sha1 = hashlib.sha1()
     with open(file_path, 'rb') as f:
         for chunk in iter(lambda: f.read(4096), b""):

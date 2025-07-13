@@ -467,7 +467,12 @@ api/
 The API uses structured logging with file and function context:
 
 ```python
-logger.info(f"api/routes/shows.py::add_show - Successfully added show: {show_name}")
+logger.info(f"Successfully added show: {show_name}")
+```
+
+Produces a message with the following structure:
+```
+2025-07-12 23:01:07,283 - INFO - utils/show_adder.py::add_show_interactively - ✅ Created directory and added show {show_name} with {n} episodes
 ```
 
 Log levels:

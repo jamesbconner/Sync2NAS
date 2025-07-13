@@ -90,3 +90,4 @@ def test_setup_logging_command_line_logging():
         # Verify command line and working directory were logged
         mock_logger.info.assert_any_call("Command line: test.py --verbose")
         mock_logger.info.assert_any_call("Current working directory: /test/dir")
+        # Optionally, check that formatter includes module and function name (not strictly required for mock)

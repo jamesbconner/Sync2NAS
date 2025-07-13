@@ -9,7 +9,30 @@ import os
 logger = logging.getLogger(__name__)
 
 class DatabaseInterface(ABC):
-    """Abstract base class defining the interface for database operations."""
+    """
+    Abstract base class defining the interface for database operations in Sync2NAS.
+
+    All subclasses must implement methods for initializing the database, adding and retrieving shows/episodes, and managing file metadata.
+
+    Methods:
+        initialize(): Initialize the database schema.
+        add_show(show): Add a show to the database.
+        add_episode(episode): Add an episode to the database.
+        add_episodes(episodes): Add multiple episodes to the database.
+        show_exists(name): Check if a show exists.
+        get_show_by_sys_name(sys_name): Get a show by its system name.
+        get_show_by_name_or_alias(name): Get a show by name or alias.
+        get_show_by_tmdb_id(tmdb_id): Fetch a show record by TMDB ID.
+        get_all_shows(): Get all shows from the database.
+        episodes_exist(tmdb_id): Check if episodes exist for the given show ID.
+        get_episodes_by_tmdb_id(tmdb_id): Get all episodes for a show by its TMDB ID.
+        get_inventory_files(): Get all inventory files.
+        get_downloaded_files(): Get all downloaded files.
+        add_downloaded_files(files): Add multiple downloaded files to the database.
+        get_sftp_diffs(): Get differences between SFTP and downloaded files.
+        backup_database(): Backup the database.
+        get_show_by_id(show_id): Get a show by its database ID.
+    """
     
     @abstractmethod
     def initialize(self) -> None:

@@ -9,6 +9,16 @@ logger = logging.getLogger(__name__)
 
 
 class RemoteService:
+    """
+    Service class for managing remote SFTP operations in Sync2NAS.
+
+    Handles downloading files from remote SFTP servers, listing remote files, and checking SFTP connection status.
+    
+    Attributes:
+        sftp (SFTPService): SFTP service instance for remote operations.
+        db (DatabaseInterface): Database interface for file tracking.
+        config (Dict[str, Any]): Configuration dictionary for SFTP and transfer settings.
+    """
     def __init__(self, sftp: SFTPService, db: DatabaseInterface, config: Dict[str, Any]):
         self.sftp = sftp
         self.db = db
@@ -38,7 +48,7 @@ class RemoteService:
                 "message": "Download completed successfully" if not dry_run else "Dry run completed"
             }
         except Exception as e:
-            logger.error(f"Failed to download from remote: {e}")
+            logger.exception(f"Failed to download from remote: {e}")
             raise
 
     async def list_remote_files(self, path: str = None, recursive: bool = False,

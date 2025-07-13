@@ -18,7 +18,35 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 class MilvusDBService(DatabaseInterface):
-    """Milvus implementation of the DatabaseInterface."""
+    """
+    Milvus implementation of the DatabaseInterface for Sync2NAS.
+
+    Provides methods for managing TV shows, episodes, and file metadata using Milvus as the backend.
+
+    Attributes:
+        host (str): Milvus server host.
+        port (str): Milvus server port.
+        connection_alias (str): Alias for Milvus connection.
+
+    Methods:
+        initialize(): Initialize the database schema.
+        add_show(show): Add a show to the database.
+        add_episode(episode): Add an episode to the database.
+        add_episodes(episodes): Add multiple episodes to the database.
+        show_exists(name): Check if a show exists.
+        get_show_by_sys_name(sys_name): Get a show by its system name.
+        get_show_by_name_or_alias(name): Get a show by name or alias.
+        get_show_by_tmdb_id(tmdb_id): Get a show by TMDB ID.
+        get_show_by_id(show_id): Get a show by database ID.
+        get_all_shows(): Get all shows.
+        episodes_exist(tmdb_id): Check if episodes exist for a show.
+        get_episodes_by_tmdb_id(tmdb_id): Get all episodes for a show.
+        get_inventory_files(): Get all inventory files.
+        get_downloaded_files(): Get all downloaded files.
+        add_downloaded_files(files): Add multiple downloaded files.
+        get_sftp_diffs(): Get differences between SFTP and downloaded files.
+        backup_database(): Backup the database.
+    """
     
     def __init__(self, host: str, port: str) -> None:
         """Initialize the Milvus connection.
@@ -498,7 +526,7 @@ class MilvusDBService(DatabaseInterface):
             logger.info(f"Milvus database backup completed in: {backup_dir}")
             return backup_dir
         except Exception as e:
-            logger.error(f"Milvus backup failed: {e}")
+            logger.exception(f"Milvus backup failed: {e}")
             raise
 
     def get_show_by_name(self, name: str) -> Optional[Show]:

@@ -14,7 +14,33 @@ from models.show import Show
 logger = logging.getLogger(__name__)
 
 class SQLiteDBService(DatabaseInterface):
-    """SQLite implementation of the DatabaseInterface."""
+    """
+    SQLite implementation of the DatabaseInterface for Sync2NAS.
+
+    Provides methods for managing TV shows, episodes, and file metadata using SQLite as the backend.
+
+    Attributes:
+        db_file (str): Path to the SQLite database file.
+
+    Methods:
+        initialize(): Initialize the database schema.
+        add_show(show): Add a show to the database.
+        add_episode(episode): Add an episode to the database.
+        add_episodes(episodes): Add multiple episodes to the database.
+        show_exists(name): Check if a show exists.
+        get_show_by_sys_name(sys_name): Get a show by its system name.
+        get_show_by_name_or_alias(name): Get a show by name or alias.
+        get_show_by_tmdb_id(tmdb_id): Get a show by TMDB ID.
+        get_show_by_id(show_id): Get a show by database ID.
+        get_all_shows(): Get all shows.
+        episodes_exist(tmdb_id): Check if episodes exist for a show.
+        get_episodes_by_tmdb_id(tmdb_id): Get all episodes for a show.
+        get_inventory_files(): Get all inventory files.
+        get_downloaded_files(): Get all downloaded files.
+        add_downloaded_files(files): Add multiple downloaded files.
+        get_sftp_diffs(): Get differences between SFTP and downloaded files.
+        backup_database(): Backup the database.
+    """
     
     def __init__(self, db_file: str) -> None:
         """Initialize the repository with a database file path.
@@ -33,7 +59,7 @@ class SQLiteDBService(DatabaseInterface):
             yield conn
             conn.commit()
         except sqlite3.Error as e:
-            logger.error(f"Error in database operation: {e}")
+            logger.exception(f"Error in database operation: {e}")
             conn.rollback()
             raise  # Re-raise the error
         finally:
@@ -64,29 +90,29 @@ class SQLiteDBService(DatabaseInterface):
             sqlite3.register_adapter(datetime.datetime, self._datetime_to_iso)
             sqlite3.register_converter("DATETIME", self._iso_to_datetime)
         except sqlite3.ProgrammingError as pe:
-            logger.error(f"SQLite adapter registration failed: {pe}")
+            logger.exception(f"SQLite adapter registration failed: {pe}")
         except sqlite3.OperationalError as oe:
-            logger.error(f"SQLite converter registration failed: {oe}")
+            logger.exception(f"SQLite converter registration failed: {oe}")
         except sqlite3.Error as e:
-            logger.error(f"Error registering SQLite adapters: {e}")
+            logger.exception(f"Error registering SQLite adapters: {e}")
         except Exception as unk:
-            logger.error(f"Unexpected error occurred while registering SQLite adapters: {unk}")
+            logger.exception(f"Unexpected error occurred while registering SQLite adapters: {unk}")
 
     def _check_database_path(self):
         """Verify the database file exists and create its directory if needed."""
         logger.debug(f"Resolved DB path: {os.path.abspath(self.db_file)}")
         
         if not os.path.exists(self.db_file):
-            logger.error(f"Database file does not exist: {self.db_file}")
+            logger.exception(f"Database file does not exist: {self.db_file}")
             try:
                 os.makedirs(os.path.dirname(self.db_file), exist_ok=True)
                 logger.info(f"Created database directory: {os.path.dirname(self.db_file)}")
                 return True
             except OSError as ose:
-                logger.error(f"Error creating database directory: {ose}")
+                logger.exception(f"Error creating database directory: {ose}")
                 raise
             except Exception as e:
-                logger.error(f"Unexpected error occurred while creating database directory: {e}")
+                logger.exception(f"Unexpected error occurred while creating database directory: {e}")
                 raise
         return True
 

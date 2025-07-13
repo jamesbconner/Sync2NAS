@@ -1,3 +1,6 @@
+"""
+Episode model for Sync2NAS, representing episode metadata and database serialization logic.
+"""
 import datetime
 import logging
 from typing import Optional, List
@@ -6,6 +9,25 @@ from services.tmdb_service import TMDBService
 logger = logging.getLogger(__name__)
 
 class Episode:
+    """
+    Represents a TV episode with metadata from TMDB and local system.
+
+    Attributes:
+        tmdb_id (int): TMDB ID of the show.
+        season (int): Season number.
+        episode (int): Episode number.
+        abs_episode (int): Absolute episode number.
+        episode_type (str): Type of episode (e.g., standard, special).
+        episode_id (int): TMDB episode ID.
+        air_date (Optional[datetime.datetime]): Air date.
+        fetched_at (datetime.datetime): Record creation timestamp.
+        name (str): Episode title.
+        overview (str): Episode overview.
+
+    Methods:
+        to_db_tuple(): Serialize for DB insertion.
+        parse_from_tmdb(): Construct episodes from TMDB API response.
+    """
     def __init__(self,
                  tmdb_id: int,
                  season: int,
@@ -29,7 +51,13 @@ class Episode:
         self.name = name
         self.overview = overview
 
-    def to_db_tuple(self):
+    def to_db_tuple(self) -> tuple:
+        """
+        Serialize the Episode object as a tuple for database insertion.
+
+        Returns:
+            tuple: Values for DB insertion.
+        """
         return (
             self.tmdb_id,
             self.season,
@@ -45,6 +73,15 @@ class Episode:
 
     @staticmethod
     def _parse_date(date_str: Optional[str]) -> Optional[datetime.datetime]:
+        """
+        Parse a date string in ISO format to a datetime object.
+
+        Args:
+            date_str (Optional[str]): Date string in ISO format.
+
+        Returns:
+            Optional[datetime.datetime]: Parsed datetime or None if invalid.
+        """
         if not date_str:
             return None
         try:
@@ -54,6 +91,18 @@ class Episode:
 
     @classmethod
     def parse_from_tmdb(cls, tmdb_id: int, tmdb_service: TMDBService, episode_groups: list, season_count: int) -> List["Episode"]:
+        """
+        Construct a list of Episode objects from TMDB API response.
+
+        Args:
+            tmdb_id (int): TMDB ID of the show.
+            tmdb_service (TMDBService): TMDB service instance.
+            episode_groups (list): Episode group metadata from TMDB.
+            season_count (int): Number of seasons.
+
+        Returns:
+            List[Episode]: List of Episode objects.
+        """
         try:
             return cls._from_production_groups(tmdb_id, tmdb_service, episode_groups)
         except Exception as e:
@@ -66,6 +115,17 @@ class Episode:
 
     @classmethod
     def _from_production_groups(cls, tmdb_id: int, tmdb_service: TMDBService, episode_groups_meta: list) -> List["Episode"]:
+        """
+        Construct episodes from TMDB production episode groups.
+
+        Args:
+            tmdb_id (int): TMDB ID of the show.
+            tmdb_service (TMDBService): TMDB service instance.
+            episode_groups_meta (list): Production episode group metadata.
+
+        Returns:
+            List[Episode]: List of Episode objects.
+        """
         prod_groups = [grp for grp in episode_groups_meta if grp.get("type") == 6]
         if not prod_groups:
             raise ValueError("No production episode groups found")
@@ -99,6 +159,17 @@ class Episode:
 
     @classmethod
     def _from_seasons(cls, tmdb_id: int, tmdb_service: TMDBService, season_count: int) -> List["Episode"]:
+        """
+        Construct episodes from TMDB season data.
+
+        Args:
+            tmdb_id (int): TMDB ID of the show.
+            tmdb_service (TMDBService): TMDB service instance.
+            season_count (int): Number of seasons.
+
+        Returns:
+            List[Episode]: List of Episode objects.
+        """
         episodes = []
         abs_ep = 1
 

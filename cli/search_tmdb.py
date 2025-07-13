@@ -22,17 +22,21 @@ logger = logging.getLogger(__name__)
 @click.option("--limit", "-l", type=int, default=10, help="Limit number of search results (default: 10)")
 @click.option("--year", "-y", type=int, help="Filter results by year")
 @click.pass_context
-def search_tmdb(ctx, show_name, tmdb_id, dry_run, verbose, limit, year):
+def search_tmdb(ctx: click.Context, show_name: str, tmdb_id: int, dry_run: bool, verbose: bool, limit: int, year: int) -> None:
     """
     Search for shows directly on TMDB by name or TMDB ID.
-    
-    This command searches the TMDB database directly, not your local database.
-    Use this to discover shows before adding them to your local database.
-    
-    Examples:
-        python sync2nas.py search-tmdb "One Piece"
-        python sync2nas.py search-tmdb --tmdb-id 37854
-        python sync2nas.py search-tmdb "One Piece" --limit 5 --verbose
+
+    Args:
+        ctx (click.Context): Click context containing shared config and services.
+        show_name (str): Name of the show to search for (optional if tmdb_id provided).
+        tmdb_id (int): TMDB ID of the show to search for.
+        dry_run (bool): Simulate search without displaying results.
+        verbose (bool): Show detailed show information.
+        limit (int): Limit number of search results (default: 10).
+        year (int): Filter results by year.
+
+    Returns:
+        None. Prints results to the console and exits on error.
     """
     if not ctx.obj:
         click.secho("❌ Error: No context object found", fg="red", bold=True)
@@ -41,7 +45,7 @@ def search_tmdb(ctx, show_name, tmdb_id, dry_run, verbose, limit, year):
     tmdb: TMDBService = ctx.obj["tmdb"]
     console = Console()
 
-    logger.info(f"cli/search_tmdb.py::search_tmdb - Starting TMDB search: show_name={show_name}, tmdb_id={tmdb_id}, dry_run={dry_run}, limit={limit}, year={year}")
+    logger.info(f"Starting TMDB search: show_name={show_name}, tmdb_id={tmdb_id}, dry_run={dry_run}, limit={limit}, year={year}")
 
     try:
         if dry_run:
@@ -57,12 +61,12 @@ def search_tmdb(ctx, show_name, tmdb_id, dry_run, verbose, limit, year):
 
         # Case 1: Search by TMDB ID (highest priority)
         if tmdb_id:
-            logger.info(f"cli/search_tmdb.py::search_tmdb - Searching by TMDB ID: {tmdb_id}")
+            logger.info(f"Searching by TMDB ID: {tmdb_id}")
             _search_by_tmdb_id(tmdb_id, tmdb, verbose, console, ctx)
 
         # Case 2: Search by show name
         elif show_name:
-            logger.info(f"cli/search_tmdb.py::search_tmdb - Searching by show name: {show_name}")
+            logger.info(f"Searching by show name: {show_name}")
             _search_by_show_name(show_name, tmdb, verbose, console, limit, year, ctx)
 
         # Case 3: No arguments - show usage
@@ -75,22 +79,26 @@ def search_tmdb(ctx, show_name, tmdb_id, dry_run, verbose, limit, year):
             ctx.exit(1)
 
     except Exception as e:
-        logger.exception(f"cli/search_tmdb.py::search_tmdb - Error during TMDB search: {e}")
+        logger.exception(f"Error during TMDB search: {e}")
         click.secho(f"❌ Error searching TMDB: {e}", fg="red", bold=True)
         ctx.exit(1)
 
 
-def _search_by_tmdb_id(tmdb_id: int, tmdb: TMDBService, verbose: bool, console: Console, ctx):
+def _search_by_tmdb_id(tmdb_id: int, tmdb: TMDBService, verbose: bool, console: Console, ctx: click.Context) -> None:
     """
     Search for a show by TMDB ID and display details.
-    
+
     Args:
-        tmdb_id: TMDB ID to search for
-        tmdb: TMDB service instance
-        verbose: Whether to show detailed information
-        console: Rich console for formatted output
+        tmdb_id (int): TMDB ID to search for.
+        tmdb (TMDBService): TMDB service instance.
+        verbose (bool): Whether to show detailed information.
+        console (Console): Rich console for formatted output.
+        ctx (click.Context): Click context for error handling.
+
+    Returns:
+        None. Prints results to the console and exits on error.
     """
-    logger.info(f"cli/search_tmdb.py::_search_by_tmdb_id - Searching TMDB ID: {tmdb_id}")
+    logger.info(f"Searching TMDB ID: {tmdb_id}")
     
     try:
         details = tmdb.get_show_details(tmdb_id)
@@ -104,24 +112,28 @@ def _search_by_tmdb_id(tmdb_id: int, tmdb: TMDBService, verbose: bool, console: 
         _display_tmdb_show_details(show_info, details, verbose, console)
         
     except Exception as e:
-        logger.exception(f"cli/search_tmdb.py::_search_by_tmdb_id - Error fetching show details: {e}")
+        logger.exception(f"Error fetching show details: {e}")
         click.secho(f"❌ Error fetching show details: {e}", fg="red", bold=True)
         ctx.exit(1)
 
 
-def _search_by_show_name(show_name: str, tmdb: TMDBService, verbose: bool, console: Console, limit: int, year: int, ctx):
+def _search_by_show_name(show_name: str, tmdb: TMDBService, verbose: bool, console: Console, limit: int, year: int, ctx: click.Context) -> None:
     """
     Search for shows by name and display results.
-    
+
     Args:
-        show_name: Name to search for
-        tmdb: TMDB service instance
-        verbose: Whether to show detailed information
-        console: Rich console for formatted output
-        limit: Maximum number of results to display
-        year: Optional year filter
+        show_name (str): Name to search for.
+        tmdb (TMDBService): TMDB service instance.
+        verbose (bool): Whether to show detailed information.
+        console (Console): Rich console for formatted output.
+        limit (int): Maximum number of results to display.
+        year (int): Optional year filter.
+        ctx (click.Context): Click context for error handling.
+
+    Returns:
+        None. Prints results to the console and exits on error.
     """
-    logger.info(f"cli/search_tmdb.py::_search_by_show_name - Searching for: {show_name}")
+    logger.info(f"Searching for: {show_name}")
     
     try:
         results = tmdb.search_show(show_name)
@@ -135,7 +147,7 @@ def _search_by_show_name(show_name: str, tmdb: TMDBService, verbose: bool, conso
         if year:
             original_count = len(matches)
             matches = [m for m in matches if m.get("first_air_date", "")[:4] == str(year)]
-            logger.info(f"cli/search_tmdb.py::_search_by_show_name - Year filter applied: {original_count} -> {len(matches)} results")
+            logger.info(f"Year filter applied: {original_count} -> {len(matches)} results")
         
         # Limit results
         matches = matches[:limit]
@@ -153,22 +165,25 @@ def _search_by_show_name(show_name: str, tmdb: TMDBService, verbose: bool, conso
                 click.secho(f"\n📝 Showing first {limit} results. Use --limit to see more.", fg="yellow")
         
     except Exception as e:
-        logger.exception(f"cli/search_tmdb.py::_search_by_show_name - Error searching TMDB: {e}")
+        logger.exception(f"Error searching TMDB: {e}")
         click.secho(f"❌ Error searching TMDB: {e}", fg="red", bold=True)
         ctx.exit(1)
 
 
-def _display_tmdb_show_details(show_info: dict, full_details: dict, verbose: bool, console: Console):
+def _display_tmdb_show_details(show_info: dict, full_details: dict, verbose: bool, console: Console) -> None:
     """
     Display detailed information about a TMDB show.
-    
+
     Args:
-        show_info: Basic show information from TMDB
-        full_details: Full show details (optional)
-        verbose: Whether to show detailed information
-        console: Rich console for formatted output
+        show_info (dict): Basic show information from TMDB.
+        full_details (dict): Full show details (optional).
+        verbose (bool): Whether to show detailed information.
+        console (Console): Rich console for formatted output.
+
+    Returns:
+        None
     """
-    logger.debug(f"cli/search_tmdb.py::_display_tmdb_show_details - Displaying show: {show_info.get('name', 'Unknown')}")
+    logger.debug(f"Displaying show: {show_info.get('name', 'Unknown')}")
     
     # Basic information
     click.secho(f"📺 Name: {show_info.get('name', 'N/A')}", fg="cyan")
@@ -244,16 +259,19 @@ def _display_tmdb_show_details(show_info: dict, full_details: dict, verbose: boo
                 click.secho(f"  TVRage: {external_ids['tvrage_id']}", fg="white")
 
 
-def _display_tmdb_search_results(matches: list, console: Console, verbose: bool):
+def _display_tmdb_search_results(matches: list, console: Console, verbose: bool) -> None:
     """
     Display a table of TMDB search results.
-    
+
     Args:
-        matches: List of show dictionaries from TMDB
-        console: Rich console for formatted output
-        verbose: Whether to show additional columns
+        matches (list): List of show dictionaries from TMDB.
+        console (Console): Rich console for formatted output.
+        verbose (bool): Whether to show additional columns.
+
+    Returns:
+        None
     """
-    logger.debug(f"cli/search_tmdb.py::_display_tmdb_search_results - Displaying {len(matches)} search results")
+    logger.debug(f"Displaying {len(matches)} search results")
     
     table = Table(title="TMDB Search Results", show_lines=True)
     table.add_column("Index", style="bold cyan", justify="right")

@@ -1,3 +1,6 @@
+"""
+Show model for Sync2NAS, representing TV show metadata and database serialization logic.
+"""
 import os
 import datetime
 import json
@@ -7,6 +10,32 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 class Show:
+    """
+    Represents a TV show with metadata from TMDB and local system.
+
+    Attributes:
+        sys_name (str): System name for the show (used for directory).
+        sys_path (str): Full system path to the show directory.
+        tmdb_name (str): Official TMDB name.
+        tmdb_aliases (Optional[str]): Alternative names for the show.
+        tmdb_id (int): TMDB ID of the show.
+        tmdb_first_aired (Optional[datetime.datetime]): First air date.
+        tmdb_last_aired (Optional[datetime.datetime]): Last air date.
+        tmdb_year (Optional[int]): Year of first air date.
+        tmdb_overview (Optional[str]): Show overview.
+        tmdb_season_count (Optional[int]): Number of seasons.
+        tmdb_episode_count (Optional[int]): Number of episodes.
+        tmdb_episode_groups (Optional[str]): Episode group metadata.
+        tmdb_status (Optional[str]): TMDB status string.
+        tmdb_external_ids (Optional[str]): External IDs (JSON-encoded).
+        tmdb_episodes_fetched_at (Optional[datetime.datetime]): Last episode fetch timestamp.
+        fetched_at (Optional[datetime.datetime]): Record creation timestamp.
+
+    Methods:
+        to_db_tuple(): Serialize for DB insertion.
+        from_tmdb(): Construct from TMDB API response.
+        from_db_record(): Construct from DB record.
+    """
     def __init__(self,
                  sys_name: str,
                  sys_path: str,
@@ -42,7 +71,13 @@ class Show:
         self.tmdb_external_ids = tmdb_external_ids
         self.fetched_at = datetime.datetime.now()
 
-    def to_db_tuple(self):
+    def to_db_tuple(self) -> tuple:
+        """
+        Serialize the Show object as a tuple for database insertion.
+
+        Returns:
+            tuple: Values for DB insertion.
+        """
         return (
             self.sys_name,
             self.sys_path,
@@ -63,7 +98,18 @@ class Show:
         )
 
     @classmethod
-    def from_tmdb(cls, show_details: dict, sys_name: Optional[str] = None, sys_path: Optional[str] = None):
+    def from_tmdb(cls, show_details: dict, sys_name: Optional[str] = None, sys_path: Optional[str] = None) -> "Show":
+        """
+        Construct a Show object from TMDB API response.
+
+        Args:
+            show_details (dict): TMDB API response for the show.
+            sys_name (Optional[str]): System name override.
+            sys_path (Optional[str]): System path override.
+
+        Returns:
+            Show: Instantiated Show object.
+        """
         # Create the individual dicts for each section of the show_details
         info = show_details["info"]
         episode_groups = show_details["episode_groups"]
@@ -113,6 +159,15 @@ class Show:
 
     @classmethod
     def from_db_record(cls, record: dict) -> "Show":
+        """
+        Construct a Show object from a database record.
+
+        Args:
+            record (dict): Database record for the show.
+
+        Returns:
+            Show: Instantiated Show object.
+        """
         return cls(
             sys_name=record["sys_name"],
             sys_path=record["sys_path"],

@@ -103,8 +103,16 @@ class FileService:
             logger.error(f"Failed to list incoming files: {e}")
             raise
 
-    async def _auto_add_missing_shows(self, dry_run: bool):
-        """Auto-add missing shows based on incoming files"""
+    async def _auto_add_missing_shows(self, dry_run: bool) -> None:
+        """
+        Scan incoming files and auto-add missing shows to the database.
+
+        Args:
+            dry_run (bool): If True, simulate add-show operations without writing to the database or filesystem.
+
+        Returns:
+            None
+        """
         try:
             seen = set()
 
