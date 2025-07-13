@@ -379,9 +379,11 @@ class SFTPService:
 
         # Task for downloading a single file (runs in a thread)
         def file_download_task(remote_entry, local_file):
+            logger.info(f"Starting download of file: {remote_entry} -> {local_file}")
             sftp = SFTPService(**sftp_params)
             with sftp:
                 sftp.download_file(remote_entry, local_file)
+            logger.info(f"Completed download of file: {remote_entry} -> {local_file}")
 
         # Task for downloading a subdirectory (runs in a thread, recurses in parallel)
         def dir_download_task(remote_entry, local_dir, subdir_filename_map):
