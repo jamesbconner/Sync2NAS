@@ -357,6 +357,10 @@ class SFTPService:
             # Always use forward slashes for remote paths
             remote_entry = remote_path.rstrip('/') + '/' + entry.filename.replace('\\', '/')
             if stat.S_ISDIR(entry.st_mode):
+                # Apply directory filtering
+                if not is_valid_directory(entry.filename):
+                    logger.debug(f"Skipping directory due to filter: {entry.filename}")
+                    continue
                 # For each subdirectory, precompute its truncation and filename mapping
                 subdir_local_path = os.path.join(local_path, entry.filename)
                 subdir_trunc_name, subdir_filename_map = self._truncate_for_windows_path(local_path, entry.filename, remote_entry)
@@ -364,6 +368,10 @@ class SFTPService:
                 # Pass the mapping and truncated name to the parallel task
                 subdirs.append((remote_entry, subdir_local_path, subdir_filename_map))
             else:
+                # Apply file filtering
+                if not is_valid_media_file(entry.filename):
+                    logger.debug(f"Skipping file due to filter: {entry.filename}")
+                    continue
                 # Use the filename mapping for this directory if present
                 local_filename = new_filename_map[entry.filename] if new_filename_map and entry.filename in new_filename_map else entry.filename
                 files.append((remote_entry, os.path.join(local_path, local_filename)))
