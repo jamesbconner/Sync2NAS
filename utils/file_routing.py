@@ -126,9 +126,18 @@ def file_routing(
             if dry_run:
                 logger.info(f"[DRY RUN] Would move {source_path} to {target_path}")
             else:
-                os.makedirs(season_dir, exist_ok=True)
-                shutil.move(source_path, target_path)
-                logger.info(f"Moved {source_path} to {target_path}")
+                try:
+                    os.makedirs(season_dir, exist_ok=True)
+                    shutil.move(source_path, target_path)
+                    logger.info(f"Moved {source_path} to {target_path}")
+                except FileNotFoundError:
+                    logger.exception(f"File not found: {source_path}, target path: {target_path}, season dir: {season_dir}")
+                except PermissionError:
+                    logger.exception(f"Permission error: {source_path}, target path: {target_path}, season dir: {season_dir}")
+                except os.OSError:
+                    logger.exception(f"OS error: {source_path}, target path: {target_path}, season dir: {season_dir}")
+                except Exception as e:
+                    logger.exception(f"Error moving file {source_path} to {target_path}: {e}, season dir: {season_dir}")
 
             # Track successful routing operation
             routed_files.append({
