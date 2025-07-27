@@ -89,3 +89,7 @@ next_step.py
 
 # VSCode Counter
 .VSCodeCounter/
+
+# Packaging code
+cleanup_and_zip.py
+Sync2NAS.zip
