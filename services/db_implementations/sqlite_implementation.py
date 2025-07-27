@@ -54,7 +54,7 @@ class SQLiteDBService(DatabaseInterface):
     @contextmanager
     def _connection(self):
         """Context manager to get a connection to the database."""
-        conn = sqlite3.connect(self.db_file, detect_types=sqlite3.PARSE_DECLTYPES)
+        conn = sqlite3.connect(self.db_file, detect_types=sqlite3.PARSE_DECLTYPES, timeout=10.0)
         try:
             yield conn
             conn.commit()
