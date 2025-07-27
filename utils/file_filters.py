@@ -10,8 +10,11 @@ EXCLUDED_EXTENSIONS = {ext.lower() for ext in {".jpg", ".jpeg", ".png", ".gif", 
 EXCLUDED_KEYWORDS = {kw.lower() for kw in {"sample", "screens", "thumbs.db", ".ds_store"}}
 EXCLUDED_FILENAMES = {fn.lower() for fn in {"desktop.ini", "thumbs.db", ".DS_Store", "screens", "screenshots", "sample", "samples"}}
 
-# Regex for Illegal characters in file/directory names
-ILLEGAL_CHARS_REGEX = re.compile(r'[<>:"/\\|?*]+')
+# Regex for Illegal characters in file/directory names (excluding path separators)
+ILLEGAL_CHARS_REGEX = re.compile(r'[<>:"|?*]+')
+
+# Regex for path separators that should be replaced with spaces
+PATH_SEPARATORS_REGEX = re.compile(r'[\\/]+')
 
 def is_valid_media_file(filepath: str) -> bool:
     """
@@ -47,12 +50,37 @@ def is_valid_directory(dirname: str) -> bool:
 
 def sanitize_filename(name: str) -> str:
     """
-    Remove characters that are illegal in file/directory names on most OSes.
-
+    Sanitize filename by intelligently handling illegal characters in file/directory names.
+    
+    This function handles different scenarios:
+    - Replaces illegal characters with spaces to prevent word concatenation
+    - Handles path separators (slashes) as word boundaries
+    - Normalizes multiple consecutive spaces
+    - Handles edge cases appropriately
+    
     Args:
         name (str): Filename or directory name.
-
+        
     Returns:
-        str: Sanitized name with illegal characters removed.
+        str: Sanitized name with illegal characters handled appropriately.
     """
-    return ILLEGAL_CHARS_REGEX.sub('', name)
+    if not name:
+        return name
+    
+    # Replace illegal characters with spaces using the regex constant
+    result = ILLEGAL_CHARS_REGEX.sub(' ', name)
+    
+    # Handle path separators (slashes) as word boundaries
+    result = PATH_SEPARATORS_REGEX.sub(' ', result)
+    
+    # Normalize multiple consecutive spaces to single spaces
+    result = re.sub(r'\s+', ' ', result)
+    
+    # Remove leading and trailing spaces
+    result = result.strip()
+    
+    # Handle edge cases where the result might be empty
+    if not result:
+        return '_'
+    
+    return result
