@@ -46,7 +46,7 @@ class TMDBService:
                 - vote_count: The vote count of the show
             - total_pages: The total number of pages of search results
             - total_results: The total number of search results
-            None if an error occurs.
+            None if an HTTP error occurs.
         """
         try:
             search = tmdb.Search()
@@ -54,9 +54,6 @@ class TMDBService:
             return response
         except requests.exceptions.HTTPError as e:
             logger.error(f"Error searching for show {name}: {e}")
-            return None
-        except Exception as e:
-            logger.exception(f"Unexpected error: {e}")
             return None
 
     def search_movie(self, name: str) -> dict:
@@ -84,7 +81,7 @@ class TMDBService:
                 - vote_count: The vote count of the movie
             - total_pages: The total number of pages of search results
             - total_results: The total number of search results
-            None if an error occurs.
+            None if an HTTP error occurs.
         """
         try:
             search = tmdb.Search()
@@ -92,9 +89,6 @@ class TMDBService:
             return response
         except requests.exceptions.HTTPError as e:
             logger.error(f"Error searching for movie {name}: {e}")
-            return None
-        except Exception as e:
-            logger.exception(f"Unexpected error: {e}")
             return None
 
     def get_show_details(self, id: int) -> dict:
@@ -202,16 +196,13 @@ class TMDBService:
             - instagram_id: The Instagram ID of the show
             - twitter_id: The Twitter ID of the show
             
-            None if an error occurs.
+            None if an HTTP error occurs.
         """
         try:
             show = tmdb.TV(id=id)
             return {"info": show.info(), "episode_groups": show.episode_groups(), "alternative_titles": show.alternative_titles(), "external_ids": show.external_ids()}
         except requests.exceptions.HTTPError as e:
             logger.error(f"Error getting show details for show {id}: {e}")
-            return None
-        except Exception as e:
-            logger.exception(f"Unexpected error: {e}")
             return None
     
     def get_show_season_details(self, id: int, season: int) -> dict:
@@ -239,16 +230,13 @@ class TMDBService:
                 - vote_average: The vote average of the episode
                 - vote_count: The vote count of the episode
                 - crew: A list of dicts containing crew details
-            None if an error occurs.
+            None if an HTTP error occurs.
         """
         try:
             results = tmdb.TV_Seasons(tv_id=id, season_number=season)
             return results.info()
         except requests.exceptions.HTTPError as e:
             logger.error(f"Error getting season details for show {id} season {season}: {e}")
-            return None
-        except Exception as e:
-            logger.exception(f"Unexpected error: {e}")
             return None
     
     def get_show_episode_details(self, id: int, season: int, episode: int) -> dict:
@@ -285,16 +273,13 @@ class TMDBService:
             - still_path: The still path of the episode
             - vote_average: The vote average of the episode
             - vote_count: The vote count of the episode
-            None if an error occurs.
+            None if an HTTP error occurs.
         """
         try: 
             results = tmdb.TV_Episodes(tv_id=id, season_number=season, episode_number=episode)
             return results.info()
         except requests.exceptions.HTTPError as e:
             logger.error(f"Error getting episode details for show {id} season {season} episode {episode}: {e}")
-            return None
-        except Exception as e:
-            logger.exception(f"Unexpected error: {e}")
             return None
 
     def get_episode_group_details(self, id: str) -> dict:
@@ -347,14 +332,11 @@ class TMDBService:
                     - order: The order of the episode (seasonal episode number)
 
             
-            None if an error occurs.
+            None if an HTTP error occurs.
         """
         try:
             grp = tmdb.TV_Episode_Groups(id=id)
             return grp.info()
         except requests.exceptions.HTTPError as e:
             logger.error(f"Error getting episode group details for show {id}: {e}")
-            return None
-        except Exception as e:
-            logger.exception(f"Unexpected error: {e}")
             return None

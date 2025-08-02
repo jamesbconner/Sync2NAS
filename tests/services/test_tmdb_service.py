@@ -36,8 +36,8 @@ def test_search_show_http_error(tmdb_service):
 
 def test_search_show_general_error(tmdb_service):
     with patch('tmdbsimple.Search.tv', side_effect=Exception("General error")):
-        result = tmdb_service.search_show("Error Show")
-        assert result is None
+        with pytest.raises(Exception, match="General error"):
+            tmdb_service.search_show("Error Show")
 
 def test_search_show_empty_results(tmdb_service):
     with patch('tmdbsimple.Search.tv', return_value={"results": []}):
@@ -74,8 +74,8 @@ def test_get_show_details_http_error(tmdb_service):
 
 def test_get_show_details_general_error(tmdb_service):
     with patch('tmdbsimple.TV.info', side_effect=Exception("General error")):
-        result = tmdb_service.get_show_details(123)
-        assert result is None
+        with pytest.raises(Exception, match="General error"):
+            tmdb_service.get_show_details(123)
 
 def test_get_show_details_missing_fields(tmdb_service):
     with patch('tmdbsimple.TV.info', return_value={}), \
@@ -111,8 +111,8 @@ def test_get_show_season_details_http_error(tmdb_service):
 
 def test_get_show_season_details_general_error(tmdb_service):
     with patch('tmdbsimple.TV_Seasons.info', side_effect=Exception("General error")):
-        result = tmdb_service.get_show_season_details(123, 1)
-        assert result is None
+        with pytest.raises(Exception, match="General error"):
+            tmdb_service.get_show_season_details(123, 1)
 
 def test_get_show_season_details_empty(tmdb_service):
     with patch('tmdbsimple.TV_Seasons.info', return_value={"episodes": []}):
@@ -142,8 +142,8 @@ def test_get_show_episode_details_http_error(tmdb_service):
 
 def test_get_show_episode_details_general_error(tmdb_service):
     with patch('tmdbsimple.TV_Episodes.info', side_effect=Exception("General error")):
-        result = tmdb_service.get_show_episode_details(123, 1, 1)
-        assert result is None
+        with pytest.raises(Exception, match="General error"):
+            tmdb_service.get_show_episode_details(123, 1, 1)
 
 def test_get_show_episode_details_returns_none(tmdb_service):
     with patch('tmdbsimple.TV_Episodes.info', return_value=None):
@@ -173,5 +173,5 @@ def test_get_episode_group_details_http_error(tmdb_service):
 
 def test_get_episode_group_details_general_error(tmdb_service):
     with patch('tmdbsimple.TV_Episode_Groups.info', side_effect=Exception("General error")):
-        result = tmdb_service.get_episode_group_details("abc")
-        assert result is None
+        with pytest.raises(Exception, match="General error"):
+            tmdb_service.get_episode_group_details("abc")
