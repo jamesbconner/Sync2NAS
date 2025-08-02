@@ -14,15 +14,6 @@
 htmlcov/
 htmlcov/*
 
-.cursorignore
-.cursorignore/*
-
-.gitignore
-.gitignore/*
-
-.cursorignore
-.cursorignore/*
-
 database/sync2nas_backup.db
 backups
 backups/*

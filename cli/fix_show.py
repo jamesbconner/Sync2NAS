@@ -14,13 +14,17 @@ from services.tmdb_service import TMDBService
 @click.command(name="fix-show")
 @click.argument("show_name", required=True)
 @click.option("--tmdb-id", type=int, help="TMDB ID to override the search results.")
-@click.option("--dry-run", is_flag=True, help="Simulate correction without writing to database")
 @click.pass_context
-def fix_show(ctx, show_name, tmdb_id, dry_run):
+def fix_show(ctx, show_name, tmdb_id):
     """
     Correct a misclassified show in the database by updating its metadata from TMDB.
     Allows interactive selection of the correct show from TMDB search results.
     """
+    if not ctx.obj:
+        click.secho("❌ Error: No context object found", fg="red", bold=True)
+        return
+    
+    dry_run = ctx.obj["dry_run"]
     # ToDo: add a --file option to read the show details from a file
     # ToDo: add an audit log for show corrections
 

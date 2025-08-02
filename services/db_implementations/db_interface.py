@@ -32,6 +32,7 @@ class DatabaseInterface(ABC):
         get_sftp_diffs(): Get differences between SFTP and downloaded files.
         backup_database(): Backup the database.
         get_show_by_id(show_id): Get a show by its database ID.
+        is_read_only(): Check if database is in read-only mode.
     """
     
     @abstractmethod
@@ -120,4 +121,9 @@ class DatabaseInterface(ABC):
     @abstractmethod
     def get_show_by_id(self, show_id: int) -> Optional[Dict[str, Any]]:
         """Get a show by its database ID."""
+        pass
+
+    @abstractmethod
+    def is_read_only(self) -> bool:
+        """Check if database is in read-only mode."""
         pass

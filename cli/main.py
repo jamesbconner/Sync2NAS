@@ -19,8 +19,9 @@ from services.llm_factory import create_llm_service
 @click.option('--logfile', '-l', type=click.Path(writable=True), help="Log to file")
 @click.option('--verbose', '-v', count=True, help="Set verbosity level (-v = INFO, -vv = DEBUG)")
 @click.option('--config', '-c', type=click.Path(exists=True), default='./config/sync2nas_config.ini', help="Path to config file")
+@click.option('--dry-run', is_flag=True, help="Run in dry-run mode (read-only database, no file system changes)")
 @click.pass_context
-def sync2nas_cli(ctx: click.Context, verbose: int, logfile: str, config: str) -> None:
+def sync2nas_cli(ctx: click.Context, verbose: int, logfile: str, config: str, dry_run: bool) -> None:
     """
     Main CLI group. Sets up the context object with configuration, database, SFTP, TMDB, and LLM services.
     All subcommands share this context.
@@ -35,7 +36,7 @@ def sync2nas_cli(ctx: click.Context, verbose: int, logfile: str, config: str) ->
         None
     """
     # If the context object is already set, return it without reinitializing it
-    if ctx.obj and all(k in ctx.obj for k in ("config", "db", "tmdb", "sftp", "anime_tv_path", "incoming_path", "llm_service")):
+    if ctx.obj and all(k in ctx.obj for k in ("config", "db", "tmdb", "sftp", "anime_tv_path", "incoming_path", "llm_service", "dry_run")):
         return
     else:
         if ctx.obj is not None:
@@ -50,7 +51,7 @@ def sync2nas_cli(ctx: click.Context, verbose: int, logfile: str, config: str) ->
     # Load configuration and initialize shared services
     cfg = load_configuration(config)
     llm_service = create_llm_service(cfg)
-    db_service = create_db_service(cfg)
+    db_service = create_db_service(cfg, read_only=dry_run)
     ctx.obj = {
         "config": cfg,
         "db": db_service,
@@ -58,7 +59,8 @@ def sync2nas_cli(ctx: click.Context, verbose: int, logfile: str, config: str) ->
         "sftp": SFTPService(cfg["SFTP"]["host"], int(cfg["SFTP"]["port"]), cfg["SFTP"]["username"], cfg["SFTP"]["ssh_key_path"], llm_service=llm_service),
         "tmdb": TMDBService(cfg["TMDB"]["api_key"]),
         "anime_tv_path": cfg["Routing"]["anime_tv_path"],
-        "incoming_path": cfg["Transfers"]["incoming"]
+        "incoming_path": cfg["Transfers"]["incoming"],
+        "dry_run": dry_run
     }
 
 # Dynamic discovery loop: auto-register all CLI commands in this directory

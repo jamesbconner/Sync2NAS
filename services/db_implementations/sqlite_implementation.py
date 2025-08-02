@@ -42,25 +42,35 @@ class SQLiteDBService(DatabaseInterface):
         backup_database(): Backup the database.
     """
     
-    def __init__(self, db_file: str) -> None:
+    def __init__(self, db_file: str, read_only: bool = False) -> None:
         """Initialize the repository with a database file path.
         
         Args:
             db_file: Path to the SQLite database file
+            read_only: If True, database will be opened in read-only mode
         """
         self.db_file = db_file
+        self.read_only = read_only
         self._register_sqlite_datetime_adapters()
 
     @contextmanager
     def _connection(self):
         """Context manager to get a connection to the database."""
-        conn = sqlite3.connect(self.db_file, detect_types=sqlite3.PARSE_DECLTYPES)
+        if self.read_only:
+            # Use URI mode for read-only access
+            uri = f"file:{self.db_file}?mode=ro"
+            conn = sqlite3.connect(uri, detect_types=sqlite3.PARSE_DECLTYPES, timeout=10.0)
+        else:
+            conn = sqlite3.connect(self.db_file, detect_types=sqlite3.PARSE_DECLTYPES, timeout=10.0)
+        
         try:
             yield conn
-            conn.commit()
+            if not self.read_only:
+                conn.commit()
         except sqlite3.Error as e:
             logger.exception(f"Error in database operation: {e}")
-            conn.rollback()
+            if not self.read_only:
+                conn.rollback()
             raise  # Re-raise the error
         finally:
             conn.close()
@@ -183,6 +193,9 @@ class SQLiteDBService(DatabaseInterface):
  
     def initialize(self) -> None:
         """Initialize the database schema."""
+        if self.read_only:
+            logger.info("Skipping database initialization in read-only mode")
+            return
         self._initialize_database()
   
     def add_show(self, show) -> None:
@@ -612,6 +625,10 @@ class SQLiteDBService(DatabaseInterface):
             """)
             conn.commit()
             logger.info("Copied sftp_temp_files to downloaded_files.")
+
+    def is_read_only(self) -> bool:
+        """Check if database is in read-only mode."""
+        return self.read_only
 
     def backup_database(self) -> str:
         """

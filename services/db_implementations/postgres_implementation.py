@@ -41,13 +41,15 @@ class PostgresDBService(DatabaseInterface):
         backup_database(): Backup the database.
     """
     
-    def __init__(self, connection_string: str) -> None:
+    def __init__(self, connection_string: str, read_only: bool = False) -> None:
         """Initialize the repository with a connection string.
         
         Args:
             connection_string: PostgreSQL connection string
+            read_only: If True, database will be in read-only mode (TODO: implement read-only user)
         """
         self.connection_string = connection_string
+        self.read_only = read_only
 
     @contextmanager
     def _connection(self):
@@ -612,4 +614,12 @@ class PostgresDBService(DatabaseInterface):
                 show_dict = dict(zip(columns, row))
                 return Show(**show_dict)
             else:
-                return None 
+                return None
+
+    def is_read_only(self) -> bool:
+        """Check if database is in read-only mode.
+        
+        TODO: Implement read-only user creation and connection string modification
+        to achieve true read-only access for PostgreSQL.
+        """
+        return self.read_only 
