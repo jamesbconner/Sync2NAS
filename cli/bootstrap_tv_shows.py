@@ -14,6 +14,9 @@ CLI command for one-time population of the tv_shows table from the anime_tv_path
 @click.pass_context
 def bootstrap_tv_shows(ctx):
     """One-time population of tv_shows table from anime_tv_path."""
+    if not ctx.obj:
+        click.secho("❌ Error: No context object found", fg="red", bold=True)
+        return
     
     dry_run = ctx.obj["dry_run"]
     logger = logging.getLogger(__name__)

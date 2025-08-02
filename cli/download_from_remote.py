@@ -13,6 +13,9 @@ def download_from_remote(ctx, max_workers):
     """
     Download new files or directories from the remote SFTP server and record them.
     """
+    if not ctx.obj:
+        click.secho("❌ Error: No context object found", fg="red", bold=True)
+        return
 
     dry_run = ctx.obj["dry_run"]
     config = ctx.obj["config"]

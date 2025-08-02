@@ -32,6 +32,10 @@ def add_show(ctx: click.Context, show_name: str, override_dir: bool, use_llm: bo
     Returns:
         None. Prints results to the console and exits on error.
     """
+    if not ctx.obj:
+        click.secho("❌ Error: No context object found", fg="red", bold=True)
+        return
+    
     dry_run = ctx.obj["dry_run"]
     logger.info(f"Called with show_name={show_name}, tmdb_id={tmdb_id}, override_dir={override_dir}, dry_run={dry_run}, use_llm={use_llm}")
     """

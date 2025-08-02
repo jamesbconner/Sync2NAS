@@ -36,11 +36,12 @@ def route_files(ctx: click.Context, incoming: str, use_llm: bool, llm_confidence
     Returns:
         int: 0 on success, 1 on error.
     """
-    dry_run = ctx.obj["dry_run"]
-    logger.info(f"Called with incoming={incoming}, dry_run={dry_run}, use_llm={use_llm}, llm_confidence={llm_confidence}, auto_add={auto_add}")
     if not ctx.obj:
         click.echo("Error: No context object found")
         return 1
+    
+    dry_run = ctx.obj["dry_run"]
+    logger.info(f"Called with incoming={incoming}, dry_run={dry_run}, use_llm={use_llm}, llm_confidence={llm_confidence}, auto_add={auto_add}")
 
     db = ctx.obj["db"]
     tmdb = ctx.obj["tmdb"]
@@ -104,6 +105,10 @@ def _auto_add_missing_shows(ctx: click.Context, incoming_path: str, ignore_files
     # Get the database and LLM service from the context object
     # DB is used to check if the show already exists in the database
     # LLM service is used to parse the filename if use_llm is True
+    if not ctx.obj:
+        logger.error("No context object found in _auto_add_missing_shows")
+        return
+    
     db = ctx.obj["db"]
     llm_service = ctx.obj["llm_service"] if use_llm else None
     dry_run = ctx.obj["dry_run"]

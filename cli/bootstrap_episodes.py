@@ -14,6 +14,9 @@ def bootstrap_episodes(ctx):
     """
     CLI command to populate episodes for all shows in the tv_shows table from TMDB.
     """
+    if not ctx.obj:
+        click.secho("❌ Error: No context object found", fg="red", bold=True)
+        return
 
     dry_run = ctx.obj["dry_run"]
     logger = logging.getLogger(__name__)

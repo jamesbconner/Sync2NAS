@@ -16,10 +16,9 @@ def bootstrap_inventory(ctx):
     Returns:
         None. Prints results to the console and exits on error.
     """
-    dry_run = ctx.obj["dry_run"]
-    """
-    Populate the anime_tv_inventory table based on files already present in the media path.
-    """
+    if not ctx.obj:
+        click.secho("❌ Error: No context object found", fg="red", bold=True)
+        return
 
     dry_run = ctx.obj["dry_run"]
     anime_tv_path = ctx.obj["anime_tv_path"]

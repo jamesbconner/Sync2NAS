@@ -20,6 +20,10 @@ def fix_show(ctx, show_name, tmdb_id):
     Correct a misclassified show in the database by updating its metadata from TMDB.
     Allows interactive selection of the correct show from TMDB search results.
     """
+    if not ctx.obj:
+        click.secho("❌ Error: No context object found", fg="red", bold=True)
+        return
+    
     dry_run = ctx.obj["dry_run"]
     # ToDo: add a --file option to read the show details from a file
     # ToDo: add an audit log for show corrections

@@ -14,8 +14,10 @@ def bootstrap_downloads(ctx):
     Returns:
         None. Prints results to the console and exits on error.
     """
-    dry_run = ctx.obj["dry_run"]
-    """Bootstrap the downloaded_files table from the current SFTP remote listing."""
+    if not ctx.obj:
+        click.secho("❌ Error: No context object found", fg="red", bold=True)
+        return
+    
     dry_run = ctx.obj["dry_run"]
     sftp = ctx.obj["sftp"]
     db = ctx.obj["db"]

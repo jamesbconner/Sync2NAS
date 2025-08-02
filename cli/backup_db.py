@@ -11,6 +11,10 @@ CLI command to back up the database, with dry-run support.
 @click.pass_context
 def backup_db(ctx):
     """Backs up the database."""
+    if not ctx.obj:
+        click.secho("❌ Error: No context object found", fg="red", bold=True)
+        return
+    
     dry_run = ctx.obj["dry_run"]
     db_service = ctx.obj['db']
     db_config = ctx.obj['config']['Database']

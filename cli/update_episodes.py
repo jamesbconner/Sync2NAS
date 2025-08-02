@@ -28,6 +28,10 @@ def update_episodes(ctx: click.Context, show_name: str, tmdb_id: int) -> None:
     Returns:
         None. Prints results to the console and exits on error.
     """
+    if not ctx.obj:
+        click.secho("❌ Error: No context object found", fg="red", bold=True)
+        return
+    
     logger.info("Starting update process")
     dry_run = ctx.obj["dry_run"]
     db = ctx.obj["db"]
