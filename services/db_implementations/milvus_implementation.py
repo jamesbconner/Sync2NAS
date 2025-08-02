@@ -48,15 +48,17 @@ class MilvusDBService(DatabaseInterface):
         backup_database(): Backup the database.
     """
     
-    def __init__(self, host: str, port: str) -> None:
+    def __init__(self, host: str, port: str, read_only: bool = False) -> None:
         """Initialize the Milvus connection.
         
         Args:
             host: Milvus server host
             port: Milvus server port
+            read_only: If True, database will be in read-only mode (TODO: implement read-only user)
         """
         self.host = host
         self.port = port
+        self.read_only = read_only
         self.connection_alias = "default"
         connections.connect(
             alias=self.connection_alias,
@@ -531,4 +533,12 @@ class MilvusDBService(DatabaseInterface):
 
     def get_show_by_name(self, name: str) -> Optional[Show]:
         # ...
-        pass 
+        pass
+
+    def is_read_only(self) -> bool:
+        """Check if database is in read-only mode.
+        
+        TODO: Implement read-only user creation and connection modification
+        to achieve true read-only access for Milvus.
+        """
+        return self.read_only 
