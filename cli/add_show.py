@@ -15,9 +15,8 @@ logger = logging.getLogger(__name__)
 @click.option("--llm-confidence", default=0.7, type=float, help="Confidence threshold for LLM suggestions (0.0-1.0)")
 @click.option("--tmdb-id", default=None, type=int, help="TMDB ID of the show (overrides show_name search)")
 @click.option("--override-dir", is_flag=True, help="Use the provided show_name directly for the folder name.")
-@click.option("--dry-run", is_flag=True, help="Simulate without writing to database or creating directory")
 @click.pass_context
-def add_show(ctx: click.Context, show_name: str, override_dir: bool, dry_run: bool, use_llm: bool, llm_confidence: float, tmdb_id: int) -> None:
+def add_show(ctx: click.Context, show_name: str, override_dir: bool, use_llm: bool, llm_confidence: float, tmdb_id: int) -> None:
     """
     Add a show to the tv_shows table by searching TMDB or using TMDB ID.
 
@@ -33,6 +32,7 @@ def add_show(ctx: click.Context, show_name: str, override_dir: bool, dry_run: bo
     Returns:
         None. Prints results to the console and exits on error.
     """
+    dry_run = ctx.obj["dry_run"]
     logger.info(f"Called with show_name={show_name}, tmdb_id={tmdb_id}, override_dir={override_dir}, dry_run={dry_run}, use_llm={use_llm}")
     """
     Add a show to the tv_shows table by searching TMDB or using TMDB ID.

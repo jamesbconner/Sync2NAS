@@ -8,10 +8,10 @@ CLI command to back up the database, with dry-run support.
 """
 
 @click.command('backup-db', help='Backs up the database.')
-@click.option('--dry-run', is_flag=True, help='Simulate the backup without making changes.')
 @click.pass_context
-def backup_db(ctx, dry_run):
+def backup_db(ctx):
     """Backs up the database."""
+    dry_run = ctx.obj["dry_run"]
     db_service = ctx.obj['db']
     db_config = ctx.obj['config']['Database']
 

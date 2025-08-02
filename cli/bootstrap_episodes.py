@@ -9,13 +9,13 @@ from rich import print as rprint
 
 
 @click.command(name="bootstrap-episodes")
-@click.option('--dry-run', is_flag=True, help="Simulate episode population without writing to database")
 @click.pass_context
-def bootstrap_episodes(ctx, dry_run):
+def bootstrap_episodes(ctx):
     """
     CLI command to populate episodes for all shows in the tv_shows table from TMDB.
     """
 
+    dry_run = ctx.obj["dry_run"]
     logger = logging.getLogger(__name__)
     db: DatabaseInterface = ctx.obj["db"]
     tmdb: TMDBService = ctx.obj["tmdb"]

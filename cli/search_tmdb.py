@@ -17,12 +17,11 @@ logger = logging.getLogger(__name__)
 @click.command("search-tmdb")
 @click.argument("show_name", required=False)
 @click.option("--tmdb-id", type=int, help="TMDB ID of the show to search for")
-@click.option("--dry-run", is_flag=True, help="Simulate search without displaying results")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed show information")
 @click.option("--limit", "-l", type=int, default=10, help="Limit number of search results (default: 10)")
 @click.option("--year", "-y", type=int, help="Filter results by year")
 @click.pass_context
-def search_tmdb(ctx: click.Context, show_name: str, tmdb_id: int, dry_run: bool, verbose: bool, limit: int, year: int) -> None:
+def search_tmdb(ctx: click.Context, show_name: str, tmdb_id: int, verbose: bool, limit: int, year: int) -> None:
     """
     Search for shows directly on TMDB by name or TMDB ID.
 
@@ -45,6 +44,7 @@ def search_tmdb(ctx: click.Context, show_name: str, tmdb_id: int, dry_run: bool,
     tmdb: TMDBService = ctx.obj["tmdb"]
     console = Console()
 
+    dry_run = ctx.obj["dry_run"]
     logger.info(f"Starting TMDB search: show_name={show_name}, tmdb_id={tmdb_id}, dry_run={dry_run}, limit={limit}, year={year}")
 
     try:

@@ -11,11 +11,11 @@ CLI command for one-time population of the tv_shows table from the anime_tv_path
 """
 
 @click.command(name="bootstrap-tv-shows")
-@click.option('--dry-run', is_flag=True, help="Simulate without writing to DB")
 @click.pass_context
-def bootstrap_tv_shows(ctx, dry_run):
+def bootstrap_tv_shows(ctx):
     """One-time population of tv_shows table from anime_tv_path."""
     
+    dry_run = ctx.obj["dry_run"]
     logger = logging.getLogger(__name__)
     db: DatabaseInterface = ctx.obj["db"]
     tmdb: TMDBService = ctx.obj["tmdb"]

@@ -16,12 +16,11 @@ logger = logging.getLogger(__name__)
 
 @click.command("route-files", help="Scan the incoming path and move files to the appropriate show directories.")
 @click.option("--incoming", "-i", type=click.Path(exists=True), help="Incoming directory to scan")
-@click.option("--dry-run", "-d", is_flag=True, help="Simulate without moving files")
 @click.option("--use-llm", "-l", is_flag=True, help="Use LLM for filename parsing")
 @click.option("--llm-confidence", type=float, default=0.7, help="Minimum LLM confidence threshold (0.0-1.0)")
 @click.option("--auto-add", is_flag=True, default=False, help="Attempt to add missing shows automatically before routing.")
 @pass_sync2nas_context
-def route_files(ctx: click.Context, incoming: str, dry_run: bool, use_llm: bool, llm_confidence: float, auto_add: bool) -> int:
+def route_files(ctx: click.Context, incoming: str, use_llm: bool, llm_confidence: float, auto_add: bool) -> int:
     """
     Scan the incoming path and move files to the appropriate show directories.
     Optionally uses LLM for filename parsing and can auto-add missing shows.
@@ -37,6 +36,7 @@ def route_files(ctx: click.Context, incoming: str, dry_run: bool, use_llm: bool,
     Returns:
         int: 0 on success, 1 on error.
     """
+    dry_run = ctx.obj["dry_run"]
     logger.info(f"Called with incoming={incoming}, dry_run={dry_run}, use_llm={use_llm}, llm_confidence={llm_confidence}, auto_add={auto_add}")
     if not ctx.obj:
         click.echo("Error: No context object found")
@@ -54,7 +54,7 @@ def route_files(ctx: click.Context, incoming: str, dry_run: bool, use_llm: bool,
 
     # Optionally auto-add missing shows before routing
     if auto_add:
-        _auto_add_missing_shows(ctx=ctx, incoming_path=incoming_path, dry_run=dry_run, use_llm=use_llm, llm_confidence=llm_confidence)
+        _auto_add_missing_shows(ctx=ctx, incoming_path=incoming_path, use_llm=use_llm, llm_confidence=llm_confidence)
 
     try:
         # Route files using the file_routing utility
@@ -87,14 +87,13 @@ def route_files(ctx: click.Context, incoming: str, dry_run: bool, use_llm: bool,
         return 1
 
 
-def _auto_add_missing_shows(ctx: click.Context, incoming_path: str, dry_run: bool, ignore_files: set[str] = None, use_llm: bool = False, llm_confidence: float = None) -> None:
+def _auto_add_missing_shows(ctx: click.Context, incoming_path: str, ignore_files: set[str] = None, use_llm: bool = False, llm_confidence: float = None) -> None:
     """
     Helper function to scan incoming files and auto-add missing shows to the database.
 
     Args:
         ctx (click.Context): Click context containing shared config and services.
         incoming_path (str): Path to scan for unrecognized show files.
-        dry_run (bool): If True, simulate add-show operations.
         ignore_files (set[str], optional): Set of filenames to skip.
         use_llm (bool, optional): If True, use the LLM to parse the filename.
         llm_confidence (float, optional): Minimum confidence threshold for the LLM to parse the filename.
@@ -107,6 +106,7 @@ def _auto_add_missing_shows(ctx: click.Context, incoming_path: str, dry_run: boo
     # LLM service is used to parse the filename if use_llm is True
     db = ctx.obj["db"]
     llm_service = ctx.obj["llm_service"] if use_llm else None
+    dry_run = ctx.obj["dry_run"]
 
     # Initialize the CLI runner
     runner = CliRunner()
@@ -164,8 +164,6 @@ def _auto_add_missing_shows(ctx: click.Context, incoming_path: str, dry_run: boo
 
             # Construct CLI args and invoke add-show command
             add_show_args = [show_name]
-            if dry_run:
-                add_show_args.append("--dry-run")
             if use_llm:
                 add_show_args.append("--use-llm")
             if llm_confidence:

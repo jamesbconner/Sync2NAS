@@ -50,12 +50,11 @@ def _search_shows_partial(show_name: str, db: DatabaseInterface) -> list:
 @click.command("search-show")
 @click.argument("show_name", required=False)
 @click.option("--tmdb-id", type=int, help="TMDB ID of the show to search for")
-@click.option("--dry-run", is_flag=True, help="Simulate search without displaying results")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed show information")
 @click.option("--partial", "-p", is_flag=True, help="Enable partial matching (default behavior)")
 @click.option("--exact", "-e", is_flag=True, help="Use exact matching only")
 @click.pass_context
-def search_show(ctx: click.Context, show_name: str, tmdb_id: int, dry_run: bool, verbose: bool, partial: bool, exact: bool) -> None:
+def search_show(ctx: click.Context, show_name: str, tmdb_id: int, verbose: bool, partial: bool, exact: bool) -> None:
     """
     Search for shows in the database by name or TMDB ID.
 
@@ -83,6 +82,7 @@ def search_show(ctx: click.Context, show_name: str, tmdb_id: int, dry_run: bool,
     tmdb: TMDBService = ctx.obj["tmdb"]
     console = Console()
 
+    dry_run = ctx.obj["dry_run"]
     logger.info(f"Starting show search: show_name={show_name}, tmdb_id={tmdb_id}, dry_run={dry_run}, partial={partial}, exact={exact}")
 
     try:
@@ -135,14 +135,14 @@ def search_show(ctx: click.Context, show_name: str, tmdb_id: int, dry_run: bool,
                         # Offer to search TMDB for similar shows
                         click.secho("\n🔍 Would you like to search TMDB for similar shows?", fg="cyan")
                         if click.confirm("Search TMDB?"):
-                            _search_tmdb_for_similar_shows(show_name, tmdb, console)
+                            _search_tmdb_for_similar_shows(show_name, tmdb, console, dry_run)
                 else:
                     click.secho(f"❌ No exact match found for '{show_name}'", fg="red", bold=True)
                     
                     # Offer to search TMDB for similar shows
                     click.secho("\n🔍 Would you like to search TMDB for similar shows?", fg="cyan")
                     if click.confirm("Search TMDB?"):
-                        _search_tmdb_for_similar_shows(show_name, tmdb, console)
+                        _search_tmdb_for_similar_shows(show_name, tmdb, console, dry_run)
 
         # Case 3: No arguments - list all shows
         else:
@@ -274,7 +274,7 @@ def _display_shows_table(shows: list, console: Console) -> None:
     console.print(table)
 
 
-def _search_tmdb_for_similar_shows(show_name: str, tmdb: TMDBService, console: Console):
+def _search_tmdb_for_similar_shows(show_name: str, tmdb: TMDBService, console: Console, dry_run: bool = False):
     """
     Search TMDB for shows similar to the provided name.
     
@@ -282,6 +282,7 @@ def _search_tmdb_for_similar_shows(show_name: str, tmdb: TMDBService, console: C
         show_name: Name to search for
         tmdb: TMDB service instance
         console: Rich console for formatted output
+        dry_run: Whether to run in dry-run mode
     """
     logger.info(f"Searching TMDB for: {show_name}")
     

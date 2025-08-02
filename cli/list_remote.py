@@ -10,10 +10,10 @@ CLI command to list files on the remote SFTP server, with options for recursion,
 @click.option("--path", "-p", type=str, help="Path to list")
 @click.option("--recursive", "-r", is_flag=True, help="List recursively")
 @click.option("--populate-sftp-temp", "-s", is_flag=True, help="Populate sftp_temp table")
-@click.option("--dry-run", "-d", is_flag=True, help="Simulate without listing")
 @click.pass_context
-def list_remote(ctx, path, recursive, populate_sftp_temp, dry_run):
+def list_remote(ctx, path, recursive, populate_sftp_temp):
     """List files on the remote SFTP server."""
+    dry_run = ctx.obj["dry_run"]
     if not ctx.obj:
         click.echo("Error: No context object found")
         return 1

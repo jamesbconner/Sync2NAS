@@ -4,18 +4,24 @@ import datetime
 from pathlib import Path
 from utils.file_filters import is_valid_media_file
 
-"""
-CLI command to populate the anime_tv_inventory table based on files already present in the media path.
-"""
-
 @click.command("bootstrap-inventory")
-@click.option("--dry-run", is_flag=True, help="Simulate without modifying the DB.")
 @click.pass_context
-def bootstrap_inventory(ctx, dry_run):
+def bootstrap_inventory(ctx):
+    """
+    Populate the inventory table based on files already present in the media path.
+    
+    Args:
+        ctx (click.Context): Click context containing shared config and services.
+
+    Returns:
+        None. Prints results to the console and exits on error.
+    """
+    dry_run = ctx.obj["dry_run"]
     """
     Populate the anime_tv_inventory table based on files already present in the media path.
     """
 
+    dry_run = ctx.obj["dry_run"]
     anime_tv_path = ctx.obj["anime_tv_path"]
     db = ctx.obj["db"]
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
