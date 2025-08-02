@@ -57,7 +57,7 @@ class TMDBService:
             return None
         except Exception as e:
             logger.exception(f"Unexpected error: {e}")
-            raise
+            return None
 
     def search_movie(self, name: str) -> dict:
         """ Search for a movie by name
@@ -95,7 +95,7 @@ class TMDBService:
             return None
         except Exception as e:
             logger.exception(f"Unexpected error: {e}")
-            raise
+            return None
 
     def get_show_details(self, id: int) -> dict:
         """ Get the details of a specific show
@@ -212,7 +212,7 @@ class TMDBService:
             return None
         except Exception as e:
             logger.exception(f"Unexpected error: {e}")
-            raise
+            return None
     
     def get_show_season_details(self, id: int, season: int) -> dict:
         """ Get the details of a specific season for a show
@@ -249,7 +249,7 @@ class TMDBService:
             return None
         except Exception as e:
             logger.exception(f"Unexpected error: {e}")
-            raise
+            return None
     
     def get_show_episode_details(self, id: int, season: int, episode: int) -> dict:
         """ Get the details of a specific episode for a show
@@ -295,7 +295,7 @@ class TMDBService:
             return None
         except Exception as e:
             logger.exception(f"Unexpected error: {e}")
-            raise
+            return None
 
     def get_episode_group_details(self, id: str) -> dict:
         """ Get the details of a specific episode group
@@ -357,4 +357,4 @@ class TMDBService:
             return None
         except Exception as e:
             logger.exception(f"Unexpected error: {e}")
-            raise
+            return None

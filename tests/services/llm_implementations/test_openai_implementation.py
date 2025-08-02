@@ -57,11 +57,16 @@ def test_parse_filename_json_error_fallback():
         result = service.parse_filename("Show.Name.S01E02.mkv")
         assert result["confidence"] == 0.1 or result["confidence"] == 0.5
 
-def test_parse_filename_api_error_fallback():
-    """Test that parse_filename falls back if OpenAI API raises an exception."""
-    with patch('services.llm_implementations.openai_implementation.openai.OpenAI') as mock_openai:
-        config = DummyConfig(api_key='testkey')
-        service = OpenAILLMService(config)
-        service.client.chat.completions.create = MagicMock(side_effect=Exception('fail!'))
-        result = service.parse_filename("Show.Name.S01E02.mkv")
-        assert result["confidence"] == 0.1 or result["confidence"] == 0.5
+def test_parse_filename_api_error_fallback(monkeypatch):
+    from services.llm_implementations.openai_implementation import OpenAILLMService
+    class DummyConfig:
+        def get(self, *a, **k): return "testkey" if a[1] == "api_key" else ""
+        def getint(self, *a, **k): return 1
+        def getfloat(self, *a, **k): return 0.1
+    service = OpenAILLMService(DummyConfig())
+    # Patch the client.chat.completions.create method to raise an exception
+    monkeypatch.setattr(service.client.chat.completions, "create", lambda *a, **k: (_ for _ in ()).throw(Exception("API Error")))
+    result = service.parse_filename("badfile.mkv")
+    assert isinstance(result, dict)
+    assert "show_name" in result
+    assert result["show_name"] == "badfile"

@@ -94,7 +94,7 @@ class OllamaLLMService(BaseLLMService):
                 return self._fallback_parse(filename)
         except Exception as e:
             logger.exception(f"Ollama API error: {e}")
-            return None
+            return self._fallback_parse(filename)
 
     def suggest_short_dirname(self, long_name: str, max_length: int = 20) -> str:
         """
@@ -207,10 +207,22 @@ class OllamaLLMService(BaseLLMService):
             
             logger.debug(f"LLM response: {content}")
 
-
+            # Check if the result has the required fields
             if 'tmdb_id' in result and 'show_name' in result:
                 return result
+            else:
+                logger.warning(f"LLM response missing required fields: {result}")
+                # Fall back to first candidate if required fields are missing
+                if candidates:
+                    first = candidates[0]
+                    return {'tmdb_id': first['id'], 'show_name': first['name']}
+                else:
+                    raise ValueError("No candidates available for fallback")
         except Exception as e:
             logger.exception(f"LLM error: {e}")
-            first = candidates[0]
-            return {'tmdb_id': first['id'], 'show_name': first['name']} 
+            # Fall back to first candidate on any error
+            if candidates:
+                first = candidates[0]
+                return {'tmdb_id': first['id'], 'show_name': first['name']}
+            else:
+                raise ValueError("No candidates available for fallback") 

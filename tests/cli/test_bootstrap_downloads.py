@@ -19,6 +19,7 @@ def create_temp_config(tmp_path) -> str:
     incoming_path.mkdir()
 
     parser = configparser.ConfigParser()
+    parser["Database"] = {"type": "sqlite"}
     parser["SQLite"] = {"db_file": str(test_db_path)}
     parser["Routing"] = {"anime_tv_path": str(anime_tv_path)}
     parser["Transfers"] = {"incoming": str(incoming_path)}
@@ -82,9 +83,10 @@ def test_bootstrap_downloads_dry_run(tmp_path, mock_tmdb_service, mock_sftp_serv
         "anime_tv_path": config["Routing"]["anime_tv_path"],
         "incoming_path": config["Transfers"]["incoming"],
         "llm_service": create_llm_service(config),
+        "dry_run": True  # Set dry_run to True
     }
 
-    result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-downloads", "--dry-run"], obj=obj)
+    result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-downloads"], obj=obj)
 
     assert result.exit_code == 0
     assert "[DRY RUN] Would baseline downloaded_files from SFTP listing." in result.output
@@ -128,6 +130,7 @@ def test_bootstrap_downloads_insert(tmp_path, mock_tmdb_service, mock_sftp_servi
         "anime_tv_path": config["Routing"]["anime_tv_path"],
         "incoming_path": config["Transfers"]["incoming"],
         "llm_service": create_llm_service(config),
+        "dry_run": False
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-downloads"], obj=obj)

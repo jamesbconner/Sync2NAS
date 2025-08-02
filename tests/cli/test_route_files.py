@@ -47,9 +47,12 @@ def test_config(tmp_path):
 
 @pytest.fixture
 def mock_routing(monkeypatch):
-    def fake_routing(incoming_path, anime_tv_path, db, tmdb, dry_run=False, auto_add=False, **kwargs):
+    def fake_routing(incoming_path, anime_tv_path, db, tmdb, auto_add=False, **kwargs):
+        # Get dry_run from ctx.obj if available, otherwise default to False
+        dry_run = kwargs.get('dry_run', False)
         print(f"fake_routing - incoming_path: {incoming_path}")
         print(f"fake_routing - anime_tv_path: {anime_tv_path}")
+        print(f"fake_routing - dry_run: {dry_run}")
         return [
             {
                 "original_path": os.path.join(incoming_path, "file1.mkv"),
@@ -72,7 +75,8 @@ def mock_routing(monkeypatch):
 
 @pytest.fixture
 def patch_add_show(monkeypatch):
-    def mock_add_show_interactively(show_name, tmdb_id, db, tmdb, anime_tv_path, dry_run, override_dir=False):
+    def mock_add_show_interactively(show_name, tmdb_id, db, tmdb, anime_tv_path, override_dir=False, dry_run=False, llm_service=None, use_llm=False, llm_confidence=0.7):
+        # Get dry_run from ctx.obj if available, otherwise default to False
         return {
             "sys_path": f"/fake/path/{show_name}",
             "tmdb_name": show_name,
@@ -152,10 +156,11 @@ def test_route_files_dry_run(tmp_path, test_config_path, cli_runner, cli, mock_t
         "anime_tv_path": config["Routing"]["anime_tv_path"],
         "incoming_path": config["Transfers"]["incoming"],
         "llm_service": create_llm_service(config),
+        "dry_run": True  # Set dry_run to True
     }
 
-    # Run the route-files command
-    result = runner.invoke(cli, ["route-files", "--dry-run"], obj=ctx)
+    # Run the route-files command without the --dry-run flag since it's already set in obj
+    result = runner.invoke(cli, ["route-files"], obj=ctx)
 
     # Assert the command was successful
     assert result.exit_code == 0
@@ -186,6 +191,7 @@ def test_route_files_auto_add(tmp_path, test_config, mock_tmdb_service, cli_runn
         "anime_tv_path": config["Routing"]["anime_tv_path"],
         "incoming_path": config["Transfers"]["incoming"],
         "llm_service": create_llm_service(config),
+        "dry_run": False
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "route-files", "--auto-add"], obj=ctx)

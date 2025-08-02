@@ -23,6 +23,7 @@ def create_temp_config(tmp_path: Path) -> str:
     remote_path.mkdir()
 
     parser = configparser.ConfigParser()
+    parser["Database"] = {"type": "sqlite"}
     parser["SQLite"] = {"db_file": str(test_db_path)}
     parser["Routing"] = {"anime_tv_path": str(anime_tv_path)}
     parser["Transfers"] = {"incoming": str(incoming_path)}
@@ -135,6 +136,7 @@ def test_list_remote_basic(tmp_path: Path, mock_tmdb_service, mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
         "incoming_path": str(incoming_path),
         "llm_service": create_llm_service(config),
+        "dry_run": False
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "list-remote"], obj=obj)
@@ -178,6 +180,7 @@ def test_list_remote_with_path(tmp_path: Path, mock_tmdb_service, mock_sftp_serv
         "anime_tv_path": config["Routing"]["anime_tv_path"],
         "incoming_path": str(incoming_path),
         "llm_service": create_llm_service(config),
+        "dry_run": False
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "list-remote", "--path", "/custom/path"], obj=obj)
@@ -221,9 +224,10 @@ def test_list_remote_dry_run(tmp_path: Path, mock_tmdb_service, mock_sftp_servic
         "anime_tv_path": config["Routing"]["anime_tv_path"],
         "incoming_path": str(incoming_path),
         "llm_service": create_llm_service(config),
+        "dry_run": True  # Set dry_run to True
     }
 
-    result = cli_runner.invoke(cli, ["-c", config_path, "list-remote", "--dry-run"], obj=obj)
+    result = cli_runner.invoke(cli, ["-c", config_path, "list-remote"], obj=obj)
     assert result.exit_code == 0
     assert "Dry run: Would list" in result.output
 
@@ -272,6 +276,7 @@ def test_list_remote_with_recursive(tmp_path: Path, mock_tmdb_service, mock_sftp
         "anime_tv_path": config["Routing"]["anime_tv_path"],
         "incoming_path": str(incoming_path),
         "llm_service": create_llm_service(config),
+        "dry_run": False
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "list-remote", "--recursive"], obj=obj)
@@ -319,6 +324,7 @@ def test_list_remote_with_populate_sftp_temp(tmp_path: Path, mock_tmdb_service, 
         "anime_tv_path": config["Routing"]["anime_tv_path"],
         "incoming_path": str(incoming_path),
         "llm_service": create_llm_service(config),
+        "dry_run": False
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "list-remote", "--populate-sftp-temp"], obj=obj)
@@ -348,7 +354,8 @@ def test_list_remote_default(mock_sftp_service, mock_db, mock_config):
     result = runner.invoke(list_remote, obj={
         "sftp": mock_sftp_service,
         "db": mock_db,
-        "config": mock_config
+        "config": mock_config,
+        "dry_run": False
     })
     assert result.exit_code == 0
     assert "file1.mkv" in result.output
@@ -375,7 +382,8 @@ def test_list_remote_recursive(mock_sftp_service, mock_db, mock_config):
     result = runner.invoke(list_remote, ["--recursive"], obj={
         "sftp": mock_sftp_service,
         "db": mock_db,
-        "config": mock_config
+        "config": mock_config,
+        "dry_run": False
     })
     assert result.exit_code == 0
     assert "file1.mkv" in result.output
@@ -402,7 +410,8 @@ def test_list_remote_populate_sftp_temp(mock_sftp_service, mock_db, mock_config)
     result = runner.invoke(list_remote, ["--populate-sftp-temp"], obj={
         "sftp": mock_sftp_service,
         "db": mock_db,
-        "config": mock_config
+        "config": mock_config,
+        "dry_run": False
     })
     assert result.exit_code == 0
     mock_db.insert_sftp_temp_files.assert_called_once()

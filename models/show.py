@@ -133,9 +133,17 @@ class Show:
             show_episode_groups = []
 
         logger.debug(f"Alternative titles: {alternative_titles}, name: {name}, sys_name: {sys_name}, original_name: {original_name}")
-        alternative_titles['results'].extend([{'title':original_name},{'title':name},{'title':sys_name}])
+        # Filter out None values before extending
+        additional_titles = []
+        if original_name:
+            additional_titles.append({'title': original_name})
+        if name:
+            additional_titles.append({'title': name})
+        if sys_name:
+            additional_titles.append({'title': sys_name})
+        alternative_titles['results'].extend(additional_titles)
         logger.debug(f"Alternative titles after extend: {alternative_titles}")
-        aliases = sorted(set(x['title'] for x in alternative_titles.get('results', [])))
+        aliases = sorted(set(x['title'] for x in alternative_titles.get('results', []) if x.get('title')))
         aliases = ",".join(aliases)
 
         return cls(

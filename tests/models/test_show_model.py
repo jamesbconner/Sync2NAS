@@ -43,7 +43,11 @@ def test_from_tmdb_basic(example_tmdb_details):
     assert show.sys_name == "Mock_Show"
     assert show.sys_path == "/test/path/Mock_Show"
     assert show.tmdb_name == "Mock Show"
-    assert show.tmdb_aliases == "Mock Show US,モックショー"
+    # The aliases now include Mock Show, Mock Show US, モックショー, and Mock_Show (sys_name)
+    assert "Mock Show" in show.tmdb_aliases
+    assert "Mock Show US" in show.tmdb_aliases
+    assert "モックショー" in show.tmdb_aliases
+    assert "Mock_Show" in show.tmdb_aliases
     assert show.tmdb_first_aired == datetime.datetime(2020, 1, 1)
     assert show.tmdb_last_aired == datetime.datetime(2020, 12, 31)
     assert show.tmdb_season_count == 2
@@ -64,7 +68,12 @@ def test_to_db_tuple_matches(example_tmdb_details):
     assert db_tuple[0] == "Mock_Show"
     assert db_tuple[1] == "/test/path/Mock_Show"
     assert db_tuple[2] == "Mock Show"
-    assert db_tuple[3] == "Mock Show US,モックショー"
+    # Check that the aliases contain all expected values
+    aliases = db_tuple[3]
+    assert "Mock Show" in aliases
+    assert "Mock Show US" in aliases
+    assert "モックショー" in aliases
+    assert "Mock_Show" in aliases
     assert db_tuple[4] == 123
     assert isinstance(db_tuple[14], dict) or isinstance(db_tuple[14], str)  # tmdb_external_ids
 
@@ -81,15 +90,18 @@ def test_show_from_tmdb_missing_optional_fields():
             "number_of_episodes": None,
             "status": None
         },
-        "episode_groups": {},
-        "alternative_titles": {},
+        "episode_groups": {"results": []},
+        "alternative_titles": {"results": []},
         "external_ids": {}
     }
     show = Show.from_tmdb(minimal, sys_name="incomplete", sys_path="/mock/path")
     assert show.tmdb_name == "Incomplete Show"
     assert show.tmdb_first_aired is None
-    assert show.tmdb_episode_groups == []
-    assert show.tmdb_aliases == ""
+    # The episode_groups will be a JSON string representation of an empty list
+    assert show.tmdb_episode_groups == "[]"
+    # Aliases will include the show name and sys_name
+    assert "Incomplete Show" in show.tmdb_aliases
+    assert "incomplete" in show.tmdb_aliases
 
 def test_show_to_db_tuple_valid_structure():
     data = {

@@ -134,7 +134,7 @@ def file_routing(
                     logger.exception(f"File not found: {source_path}, target path: {target_path}, season dir: {season_dir}")
                 except PermissionError:
                     logger.exception(f"Permission error: {source_path}, target path: {target_path}, season dir: {season_dir}")
-                except os.OSError:
+                except OSError:
                     logger.exception(f"OS error: {source_path}, target path: {target_path}, season dir: {season_dir}")
                 except Exception as e:
                     logger.exception(f"Error moving file {source_path} to {target_path}: {e}, season dir: {season_dir}")
