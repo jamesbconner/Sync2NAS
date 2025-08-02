@@ -23,6 +23,7 @@ def create_temp_config(tmp_path) -> str:
     incoming_path.mkdir()
 
     parser = configparser.ConfigParser()
+    parser["Database"] = {"type": "sqlite"}
     parser["SQLite"] = {"db_file": str(test_db_path)}
     parser["Routing"] = {"anime_tv_path": str(anime_tv_path)}
     parser["Transfers"] = {"incoming": str(incoming_path)}
@@ -57,6 +58,7 @@ def test_bootstrap_tv_shows_adds_show(tmp_path, mock_tmdb_service, mock_sftp_ser
         "anime_tv_path": config["Routing"]["anime_tv_path"],
         "incoming_path": config["Transfers"]["incoming"],
         "llm_service": create_llm_service(config),
+        "dry_run": False
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-tv-shows"], obj=obj)
@@ -90,6 +92,7 @@ def test_bootstrap_tv_shows_skips_existing(tmp_path, mock_tmdb_service, mock_sft
         "anime_tv_path": config["Routing"]["anime_tv_path"],
         "incoming_path": config["Transfers"]["incoming"],
         "llm_service": create_llm_service(config),
+        "dry_run": False
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-tv-shows"], obj=obj)
@@ -132,6 +135,7 @@ def test_bootstrap_tv_shows_dir_names(monkeypatch, cli_runner, cli, tmp_path, fo
     db_path.touch()
 
     parser = configparser.ConfigParser()
+    parser["Database"] = {"type": "sqlite"}
     parser["SQLite"] = {"db_file": str(db_path)}
     parser["Routing"] = {"anime_tv_path": str(anime_tv_path)}
     parser["Transfers"] = {"incoming": str(incoming_path)}
@@ -158,6 +162,7 @@ def test_bootstrap_tv_shows_dir_names(monkeypatch, cli_runner, cli, tmp_path, fo
         "anime_tv_path": str(anime_tv_path),
         "incoming_path": str(incoming_path),
         "llm_service": create_llm_service(config),
+        "dry_run": False
     }
 
     result = cli_runner.invoke(cli, ["-c", str(config_path), "bootstrap-tv-shows"], obj=obj)
@@ -217,8 +222,8 @@ def test_dry_run(runner, mock_db, mock_tmdb, mock_anime_tv_path):
     """Test dry run mode where no changes are made to the database."""
     result = runner.invoke(
         bootstrap_tv_shows,
-        ["--dry-run"],
-        obj={"db": mock_db, "tmdb": mock_tmdb, "anime_tv_path": mock_anime_tv_path}
+        [],
+        obj={"db": mock_db, "tmdb": mock_tmdb, "anime_tv_path": mock_anime_tv_path, "dry_run": True}
     )
     
     assert result.exit_code == 0
@@ -229,7 +234,7 @@ def test_add_new_show(runner, mock_db, mock_tmdb, mock_anime_tv_path):
     """Test adding a new show successfully."""
     result = runner.invoke(
         bootstrap_tv_shows,
-        obj={"db": mock_db, "tmdb": mock_tmdb, "anime_tv_path": mock_anime_tv_path}
+        obj={"db": mock_db, "tmdb": mock_tmdb, "anime_tv_path": mock_anime_tv_path, "dry_run": False}
     )
     
     assert result.exit_code == 0
@@ -242,7 +247,7 @@ def test_skip_existing_show(runner, mock_db, mock_tmdb, mock_anime_tv_path):
     
     result = runner.invoke(
         bootstrap_tv_shows,
-        obj={"db": mock_db, "tmdb": mock_tmdb, "anime_tv_path": mock_anime_tv_path}
+        obj={"db": mock_db, "tmdb": mock_tmdb, "anime_tv_path": mock_anime_tv_path, "dry_run": False}
     )
     
     assert result.exit_code == 0
@@ -255,7 +260,7 @@ def test_tmdb_search_failure(runner, mock_db, mock_tmdb, mock_anime_tv_path):
     
     result = runner.invoke(
         bootstrap_tv_shows,
-        obj={"db": mock_db, "tmdb": mock_tmdb, "anime_tv_path": mock_anime_tv_path}
+        obj={"db": mock_db, "tmdb": mock_tmdb, "anime_tv_path": mock_anime_tv_path, "dry_run": False}
     )
     
     assert result.exit_code == 0
@@ -268,7 +273,7 @@ def test_tmdb_details_failure(runner, mock_db, mock_tmdb, mock_anime_tv_path):
     
     result = runner.invoke(
         bootstrap_tv_shows,
-        obj={"db": mock_db, "tmdb": mock_tmdb, "anime_tv_path": mock_anime_tv_path}
+        obj={"db": mock_db, "tmdb": mock_tmdb, "anime_tv_path": mock_anime_tv_path, "dry_run": False}
     )
     
     assert result.exit_code == 0
@@ -281,7 +286,7 @@ def test_error_handling(runner, mock_db, mock_tmdb, mock_anime_tv_path):
     
     result = runner.invoke(
         bootstrap_tv_shows,
-        obj={"db": mock_db, "tmdb": mock_tmdb, "anime_tv_path": mock_anime_tv_path}
+        obj={"db": mock_db, "tmdb": mock_tmdb, "anime_tv_path": mock_anime_tv_path, "dry_run": False}
     )
     
     assert result.exit_code == 0

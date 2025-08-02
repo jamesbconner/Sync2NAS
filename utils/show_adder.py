@@ -138,8 +138,7 @@ def add_show_interactively(
         if db.show_exists(sys_name):
             if not override_dir:
                 logger.exception(f"Show already exists in DB: {sys_name}")
-                #raise FileExistsError(f"Show already exists in DB: {sys_name}")
-                return(f"Show already exists in DB: {sys_name}")
+                raise FileExistsError(f"Show already exists in DB: {sys_name}")
             else:
                 logger.info(f"Show already exists in DB: {sys_name}, but overriding directory. Likely a remake.")
 

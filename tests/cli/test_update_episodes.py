@@ -118,9 +118,10 @@ def test_update_show_not_found(test_config, test_db, cli_runner, mock_tmdb_servi
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
         "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config)
+        "llm_service": create_llm_service(config),
+        "dry_run": False
     })
-    assert result.exit_code == 0
+    assert result.exit_code == 0  # CLI returns 0 even on errors
     assert "No show found in DB for show name" in result.output
 
 def test_tmdb_failure(monkeypatch, test_config, test_db, cli_runner, dummy_show, mock_tmdb_service, mock_sftp_service):
@@ -139,9 +140,12 @@ def test_tmdb_failure(monkeypatch, test_config, test_db, cli_runner, dummy_show,
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
         "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config)
+        "llm_service": create_llm_service(config),
+        "dry_run": False
     })
-    assert result.exit_code != 0
+    assert result.exit_code == 1  # CLI returns 1 on errors
+    # The error is in the exception, not the output
+    assert "TMDB error" in str(result.exception)
 
 def test_no_episodes(monkeypatch, test_config, test_db, cli_runner, dummy_show, mock_tmdb_service, mock_sftp_service):
     config, config_path = test_config
@@ -157,10 +161,11 @@ def test_no_episodes(monkeypatch, test_config, test_db, cli_runner, dummy_show, 
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
         "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config)
+        "llm_service": create_llm_service(config),
+        "dry_run": False
     })
 
-    assert result.exit_code == 0
+    assert result.exit_code == 0  # CLI returns 0 even on errors
     assert "Failed to fetch or update episodes for Bleach" in result.output
 
 def test_dry_run(monkeypatch, test_config, test_db, cli_runner, dummy_show, mock_tmdb_service, mock_sftp_service):
@@ -171,20 +176,30 @@ def test_dry_run(monkeypatch, test_config, test_db, cli_runner, dummy_show, mock
     dummy_episodes = [dummy_show]  # just any object to avoid None
     monkeypatch.setattr("models.episode.Episode.parse_from_tmdb", lambda *a, **k: dummy_episodes)
 
-    monkeypatch.setattr(test_db, "add_episodes", pytest.fail)
+    # Don't fail on add_episodes since dry run should skip it
+    add_episodes_called = False
+    def mock_add_episodes(*args, **kwargs):
+        nonlocal add_episodes_called
+        add_episodes_called = True
+        return len(dummy_episodes)
+    
+    monkeypatch.setattr(test_db, "add_episodes", mock_add_episodes)
 
-    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "update-episodes", "Bleach", "--dry-run"], obj={
+    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "update-episodes", "Bleach"], obj={
         "config": config,
         "db": test_db,
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
         "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config)
+        "llm_service": create_llm_service(config),
+        "dry_run": True
     })
 
     assert result.exit_code == 0
     assert "[DRY RUN]" in result.output
+    # In dry run mode, add_episodes should not be called
+    assert not add_episodes_called
 
 def test_db_failure(monkeypatch, test_config, cli_runner, mock_tmdb_service, mock_sftp_service):
     config, config_path = test_config
@@ -199,9 +214,12 @@ def test_db_failure(monkeypatch, test_config, cli_runner, mock_tmdb_service, moc
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
         "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config)
+        "llm_service": create_llm_service(config),
+        "dry_run": False
     })
-    assert result.exit_code != 0
+    assert result.exit_code == 1  # CLI returns 1 on errors
+    # The error is in the exception, not the output
+    assert "Mock DB error" in str(result.exception)
 
 def test_unicode_show_name(test_config, test_db, cli_runner, mock_tmdb_service, mock_sftp_service):
     config, config_path = test_config
@@ -232,7 +250,8 @@ def test_unicode_show_name(test_config, test_db, cli_runner, mock_tmdb_service, 
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
         "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config)
+        "llm_service": create_llm_service(config),
+        "dry_run": False
     })
 
     assert result.exit_code == 0
@@ -241,7 +260,7 @@ def test_unicode_show_name(test_config, test_db, cli_runner, mock_tmdb_service, 
 def test_invalid_tmdb_id(test_config, cli_runner):
     config, config_path = test_config
     result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "update-episodes", "--tmdb-id", "abc"])
-    assert result.exit_code != 0
+    assert result.exit_code != 0  # This should fail due to invalid argument
 
 
 def test_update_by_show_name(test_config, cli_runner, cli, mock_tmdb_service, mock_sftp_service, monkeypatch, dummy_show):
@@ -274,7 +293,8 @@ def test_update_by_show_name(test_config, cli_runner, cli, mock_tmdb_service, mo
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
         "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config)
+        "llm_service": create_llm_service(config),
+        "dry_run": False
     })
 
     assert result.exit_code == 0, result.output
@@ -312,7 +332,8 @@ def test_update_by_tmdb_id(test_config, cli_runner, cli, mock_tmdb_service, mock
         "sftp": mock_sftp_service,
         "anime_tv_path": config["Routing"]["anime_tv_path"],
         "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config)
+        "llm_service": create_llm_service(config),
+        "dry_run": False
     })
 
     assert result.exit_code == 0, result.output

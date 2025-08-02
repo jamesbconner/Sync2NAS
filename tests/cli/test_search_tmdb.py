@@ -13,7 +13,7 @@ def mock_ctx():
     """Fixture providing a mock Click context with tmdb service."""
     tmdb = MagicMock()
     ctx = MagicMock()
-    ctx.obj = {'tmdb': tmdb}
+    ctx.obj = {'tmdb': tmdb, 'dry_run': False}
     return ctx, tmdb
 
 def test_search_tmdb_no_args(runner, mock_ctx):
@@ -86,7 +86,8 @@ def test_search_tmdb_by_tmdb_id_not_found(runner, mock_ctx):
 def test_search_tmdb_dry_run(runner, mock_ctx):
     """Test that search_tmdb prints dry run info and does not search TMDB."""
     ctx, tmdb = mock_ctx
-    result = runner.invoke(search_tmdb, ['--dry-run', 'Test Show', '--limit', '3', '--year', '2020'], obj=ctx.obj)
+    ctx.obj['dry_run'] = True
+    result = runner.invoke(search_tmdb, ['Test Show', '--limit', '3', '--year', '2020'], obj=ctx.obj)
     assert result.exit_code == 0
     assert "DRY RUN: Would search TMDB for shows" in result.output
     assert "Show name: Test Show" in result.output

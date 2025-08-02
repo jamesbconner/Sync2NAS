@@ -21,6 +21,7 @@ def create_temp_config(tmp_path) -> str:
     incoming_path.mkdir()
 
     parser = configparser.ConfigParser()
+    parser["Database"] = {"type": "sqlite"}
     parser["SQLite"] = {"db_file": str(test_db_path)}
     parser["Routing"] = {"anime_tv_path": str(anime_tv_path)}
     parser["Transfers"] = {"incoming": str(incoming_path)}
@@ -60,6 +61,7 @@ def test_bootstrap_episodes_adds_records(tmp_path, mock_tmdb_service, mock_sftp_
         "anime_tv_path": anime_tv_path,
         "incoming_path": config["Transfers"]["incoming"],
         "llm_service": create_llm_service(config),
+        "dry_run": False
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-episodes"], obj=obj)
@@ -111,6 +113,7 @@ def test_bootstrap_episodes_skips_existing(tmp_path, mock_tmdb_service, mock_sft
         "anime_tv_path": anime_tv_path,
         "incoming_path": config["Transfers"]["incoming"],
         "llm_service": create_llm_service(config),
+        "dry_run": False
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-episodes"], obj=obj)

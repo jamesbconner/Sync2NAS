@@ -24,6 +24,7 @@ def create_temp_config(tmp_path):
     incoming_path.mkdir(parents=True, exist_ok=True)
 
     parser = configparser.ConfigParser()
+    parser["Database"] = {"type": "sqlite"}
     parser["SQLite"] = {"db_file": str(db_path)}
     parser["Routing"] = {"anime_tv_path": str(anime_tv_path)}
     parser["Transfers"] = {"incoming": str(incoming_path)}
@@ -180,6 +181,7 @@ def create_click_context(mock_db, mock_tmdb, tmp_path):
     """Helper function to create a proper Click context"""
     ctx = Context(fix_show)
     parser = configparser.ConfigParser()
+    parser["Database"] = {"type": "sqlite"}
     parser["SQLite"] = {"db_file": "test.db"}
     parser["Routing"] = {"anime_tv_path": str(tmp_path / "anime_tv_path")}
     parser["Transfers"] = {"incoming": str(tmp_path / "incoming")}
@@ -200,7 +202,8 @@ def create_click_context(mock_db, mock_tmdb, tmp_path):
         "tmdb": mock_tmdb,
         "anime_tv_path": str(tmp_path / "anime_tv_path"),
         "incoming_path": str(tmp_path / "incoming"),
-        "llm_service": create_llm_service(config)
+        "llm_service": create_llm_service(config),
+        "dry_run": False  # Add dry_run key
     }
     return ctx
 
@@ -258,12 +261,13 @@ def test_fix_show_dry_run(tmp_path, mock_db, mock_tmdb, mock_show_details, mock_
     ]
     mock_tmdb.get_show_details.return_value = mock_show_details
     with patch('models.episode.Episode.parse_from_tmdb', return_value=mock_episodes):
-        # Setup context
+        # Setup context with dry_run flag
         ctx = create_click_context(mock_db, mock_tmdb, tmp_path)
+        ctx.obj["dry_run"] = True
 
         # Run command
         runner = CliRunner()
-        result = runner.invoke(fix_show, ["Test Show", "--tmdb-id", "123", "--dry-run"], obj=ctx.obj)
+        result = runner.invoke(fix_show, ["Test Show", "--tmdb-id", "123"], obj=ctx.obj)
 
         # Verify
         assert result.exit_code == 0

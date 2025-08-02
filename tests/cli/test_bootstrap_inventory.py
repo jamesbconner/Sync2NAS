@@ -16,7 +16,8 @@ def mock_ctx():
     ctx = MagicMock()
     ctx.obj = {
         "anime_tv_path": "/fake/path",
-        "db": MagicMock()
+        "db": MagicMock(),
+        "dry_run": False
     }
     return ctx
 
@@ -49,6 +50,7 @@ def create_temp_config(tmp_path) -> str:
     incoming_path.mkdir()
 
     parser = configparser.ConfigParser()
+    parser["Database"] = {"type": "sqlite"}
     parser["SQLite"] = {"db_file": str(test_db_path)}
     parser["Routing"] = {"anime_tv_path": str(anime_tv_path)}
     parser["Transfers"] = {"incoming": str(incoming_path)}
@@ -82,9 +84,10 @@ def test_bootstrap_inventory_dry_run(tmp_path, mock_tmdb_service, mock_sftp_serv
         "anime_tv_path": anime_tv_path,
         "incoming_path": config["Transfers"]["incoming"],
         "llm_service": create_llm_service(config),
+        "dry_run": True  # Set dry_run to True
     }
 
-    result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-inventory", "--dry-run"], obj=obj)
+    result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-inventory"], obj=obj)
 
     assert result.exit_code == 0
     assert "[DRY RUN] Would insert 2 entries into anime_tv_inventory table." in result.output
@@ -109,6 +112,7 @@ def test_bootstrap_inventory_insert(tmp_path, mock_tmdb_service, mock_sftp_servi
         "anime_tv_path": anime_tv_path,
         "incoming_path": config["Transfers"]["incoming"],
         "llm_service": create_llm_service(config),
+        "dry_run": False
     }
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-inventory"], obj=obj)
@@ -142,9 +146,10 @@ def test_bootstrap_inventory_file_filtering(tmp_path, mock_tmdb_service, mock_sf
         "anime_tv_path": anime_tv_path,
         "incoming_path": config["Transfers"]["incoming"],
         "llm_service": create_llm_service(config),
+        "dry_run": True  # Set dry_run to True
     }
 
-    result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-inventory", "--dry-run"], obj=obj)
+    result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-inventory"], obj=obj)
 
     assert result.exit_code == 0
     assert "[DRY RUN] Would insert 2 entries into anime_tv_inventory table." in result.output 

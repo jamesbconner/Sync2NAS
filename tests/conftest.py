@@ -152,6 +152,13 @@ def mock_sftp_service(mocker):
     # Create a MagicMock with the spec
     mock = mocker.MagicMock(spec=SFTPService)
     
+    # Set up the required attributes that the code accesses
+    mock.host = "localhost"
+    mock.port = 22
+    mock.username = "testuser"
+    mock.ssh_key_path = "/tmp/test_key"
+    mock.llm_service = None
+    
     mock.list_remote_dir.return_value = [
         {
             "name": "file1.mkv",

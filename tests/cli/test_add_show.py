@@ -43,7 +43,8 @@ def test_add_show_via_name(tmp_path, test_config_path, mock_tmdb_service, mock_s
         "sftp": mock_sftp_service,
         "anime_tv_path": str(anime_tv_path),
         "incoming_path": str(incoming_path),
-        "llm_service": create_llm_service(config)
+        "llm_service": create_llm_service(config),
+        "dry_run": False
     }
 
     print("Mock TMDB search_show('Mock Show'):", mock_tmdb_service.search_show("Mock Show"))
@@ -88,7 +89,7 @@ def test_add_show_dry_run(tmp_path, test_config_path, mock_tmdb_service, mock_sf
 
     db = SQLiteDBService(str(unique_db_path))
 
-    # Create context object for CLI
+    # Create context object for CLI with dry_run set to True
     obj = {
         "config": config,
         "db": db,
@@ -96,14 +97,15 @@ def test_add_show_dry_run(tmp_path, test_config_path, mock_tmdb_service, mock_sf
         "sftp": mock_sftp_service,
         "anime_tv_path": str(tmp_path / "anime_tv_path"),
         "incoming_path": str(tmp_path / "incoming"),
-        "llm_service": create_llm_service(config)
+        "llm_service": create_llm_service(config),
+        "dry_run": True  # Set dry_run to True
     }
 
     # Init DB
     runner.invoke(cli, ["-c", config_path, "init-db"])
 
-    # Run dry-run CLI command
-    result = runner.invoke(cli, ["add-show", "Mock Dry Show", "--dry-run"], obj=obj, catch_exceptions=False)
+    # Run CLI command without the --dry-run flag since it's already set in obj
+    result = runner.invoke(cli, ["add-show", "Mock Dry Show"], obj=obj, catch_exceptions=False)
 
     if result.exit_code != 0:
         print("CLI Output:\n", result.output)

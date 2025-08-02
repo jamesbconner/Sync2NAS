@@ -45,6 +45,19 @@ class BaseLLMService(LLMInterface):
         with open(prompt_path, "r", encoding="utf-8") as f:
             return f.read()
 
+    def _create_filename_parsing_prompt(self, filename: str) -> str:
+        """
+        Create a prompt for filename parsing.
+
+        Args:
+            filename (str): The filename to parse.
+
+        Returns:
+            str: The formatted prompt.
+        """
+        prompt_template = self.load_prompt('parse_filename')
+        return prompt_template.format(filename=filename)
+
     def _validate_and_clean_result(self, result: Dict[str, Any], original_filename: str) -> Dict[str, Any]:
         """
         Validate and clean the LLM response.

@@ -77,7 +77,12 @@ class AnthropicLLMService(BaseLLMService):
             ]
         )
         text = response.content[0].text if response.content else ""
-        return self._validate_and_clean_result(text, filename)
+        try:
+            result = json.loads(text)
+            return self._validate_and_clean_result(result, filename)
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON response: {e}")
+            return self._fallback_parse(filename)
 
     def batch_parse_filenames(self, filenames: List[str]) -> List[Dict]:
         """

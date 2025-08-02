@@ -72,7 +72,7 @@ class OpenAILLMService(BaseLLMService):
                 return self._fallback_parse(filename)
         except Exception as e:
             logger.exception(f"OpenAI API error: {e}")
-            return None
+            return self._fallback_parse(filename)
 
     def suggest_short_dirname(self, long_name: str, max_length: int = 20) -> str:
         """

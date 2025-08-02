@@ -380,6 +380,483 @@ def test_file_routing_no_episode_match(tmp_path):
     assert result[0]["episode"] is None
     # File should still be moved (or not, depending on dry_run), but we only check the metadata here
 
+def test_file_routing_missing_show_name(tmp_path, mocker):
+    """Test file routing when filename parsing returns no show name (lines 64-65)"""
+    incoming_path = tmp_path / "incoming"
+    anime_tv_path = tmp_path / "anime_tv"
+    incoming_path.mkdir()
+    anime_tv_path.mkdir()
+
+    # Create a test file with a name that would parse to no show name
+    test_file = incoming_path / "random.file.name.mkv"
+    test_file.write_text("test content")
+
+    # Mock parse_filename to return no show name
+    mocker.patch('utils.file_routing.parse_filename', return_value={
+        "show_name": "",  # Empty show name
+        "season": None,
+        "episode": None,
+        "confidence": 0.0,
+        "reasoning": "No show name found"
+    })
+
+    # Mock DB service
+    mock_db = MagicMock(spec=SQLiteDBService)
+
+    # Run file routing
+    result = file_routing(str(incoming_path), str(anime_tv_path), mock_db, dry_run=False, tmdb=MagicMock())
+
+    # Verify no files were routed due to missing show name
+    assert len(result) == 0
+    assert test_file.exists()  # File should still be in incoming directory
+
+def test_file_routing_episode_refresh_failure(tmp_path, mocker):
+    """Test file routing when episode refresh fails (lines 98-101)"""
+    incoming_path = tmp_path / "incoming"
+    anime_tv_path = tmp_path / "anime_tv"
+    incoming_path.mkdir()
+    anime_tv_path.mkdir()
+
+    # Create a test file
+    test_file = incoming_path / "Show Name - 101.mkv"
+    test_file.write_text("test content")
+
+    # Mock parse_filename to return episode but no season
+    mocker.patch('utils.file_routing.parse_filename', return_value={
+        "show_name": "Show Name",
+        "season": None,
+        "episode": 101,
+        "confidence": 0.8,
+        "reasoning": "Episode found"
+    })
+
+    # Mock DB service
+    mock_db = MagicMock(spec=SQLiteDBService)
+    
+    # Mock show lookup
+    mock_db.get_show_by_name_or_alias.return_value = {
+        "sys_name": "Show Name",
+        "sys_path": str(anime_tv_path / "Show Name"),
+        "tmdb_id": 123,
+        "tmdb_name": "Show Name",
+        "tmdb_aliases": None,
+        "tmdb_first_aired": None,
+        "tmdb_last_aired": None,
+        "tmdb_year": None,
+        "tmdb_overview": None,
+        "tmdb_season_count": 0,
+        "tmdb_episode_count": 0,
+        "tmdb_episode_groups": None,
+        "tmdb_status": None,
+        "tmdb_external_ids": None,
+        "tmdb_episodes_fetched_at": None,
+        "fetched_at": None
+    }
+    
+    # Mock episode lookup to fail initially and after refresh
+    mock_db.get_episode_by_absolute_number.return_value = None
+
+    # Mock refresh_episodes_for_show
+    mock_refresh = mocker.patch('utils.file_routing.refresh_episodes_for_show')
+
+    # Run file routing
+    result = file_routing(str(incoming_path), str(anime_tv_path), mock_db, dry_run=False, tmdb=MagicMock())
+
+    # Verify refresh was called
+    mock_refresh.assert_called_once()
+    
+    # Verify file was still routed but with None season/episode
+    assert len(result) == 1
+    assert result[0]["season"] is None
+    assert result[0]["episode"] is None
+    assert result[0]["show_name"] == "Show Name"
+
+def test_file_routing_windows_path_length_limit(tmp_path, mocker):
+    """Test file routing when Windows path length limit is exceeded (lines 122-123)"""
+    incoming_path = tmp_path / "incoming"
+    anime_tv_path = tmp_path / "anime_tv"
+    incoming_path.mkdir()
+    anime_tv_path.mkdir()
+
+    # Create a test file
+    test_file = incoming_path / "Show Name - 1.mkv"
+    test_file.write_text("test content")
+
+    # Mock DB service
+    mock_db = MagicMock(spec=SQLiteDBService)
+    
+    # Mock show lookup with a very long path
+    long_path = "C:/" + "very/" * 50 + "long/path/to/show"
+    mock_db.get_show_by_name_or_alias.return_value = {
+        "sys_name": "Show Name",
+        "sys_path": long_path,
+        "tmdb_id": 123,
+        "tmdb_name": "Show Name",
+        "tmdb_aliases": None,
+        "tmdb_first_aired": None,
+        "tmdb_last_aired": None,
+        "tmdb_year": None,
+        "tmdb_overview": None,
+        "tmdb_season_count": 0,
+        "tmdb_episode_count": 0,
+        "tmdb_episode_groups": None,
+        "tmdb_status": None,
+        "tmdb_external_ids": None,
+        "tmdb_episodes_fetched_at": None,
+        "fetched_at": None
+    }
+    mock_db.get_episode_by_absolute_number.return_value = {"season": 1, "episode": 1}
+
+    # Mock parse_filename
+    mocker.patch('utils.file_routing.parse_filename', return_value={
+        "show_name": "Show Name",
+        "season": 1,
+        "episode": 1,
+        "confidence": 0.8,
+        "reasoning": "Season and episode found"
+    })
+
+    # Run file routing
+    result = file_routing(str(incoming_path), str(anime_tv_path), mock_db, dry_run=False, tmdb=MagicMock())
+
+    # Verify no files were routed due to path length limit
+    assert len(result) == 0
+    assert test_file.exists()  # File should still be in incoming directory
+
+def test_file_routing_file_not_found_error(tmp_path, mocker):
+    """Test file routing when FileNotFoundError occurs during move (lines 133-140)"""
+    incoming_path = tmp_path / "incoming"
+    anime_tv_path = tmp_path / "anime_tv"
+    incoming_path.mkdir()
+    anime_tv_path.mkdir()
+
+    # Create a test file
+    test_file = incoming_path / "Show Name - 1.mkv"
+    test_file.write_text("test content")
+
+    # Mock DB service
+    mock_db = MagicMock(spec=SQLiteDBService)
+    
+    # Mock show lookup
+    mock_db.get_show_by_name_or_alias.return_value = {
+        "sys_name": "Show Name",
+        "sys_path": str(anime_tv_path / "Show Name"),
+        "tmdb_id": 123,
+        "tmdb_name": "Show Name",
+        "tmdb_aliases": None,
+        "tmdb_first_aired": None,
+        "tmdb_last_aired": None,
+        "tmdb_year": None,
+        "tmdb_overview": None,
+        "tmdb_season_count": 0,
+        "tmdb_episode_count": 0,
+        "tmdb_episode_groups": None,
+        "tmdb_status": None,
+        "tmdb_external_ids": None,
+        "tmdb_episodes_fetched_at": None,
+        "fetched_at": None
+    }
+    mock_db.get_episode_by_absolute_number.return_value = {"season": 1, "episode": 1}
+
+    # Mock parse_filename
+    mocker.patch('utils.file_routing.parse_filename', return_value={
+        "show_name": "Show Name",
+        "season": 1,
+        "episode": 1,
+        "confidence": 0.8,
+        "reasoning": "Season and episode found"
+    })
+
+    # Mock shutil.move to raise FileNotFoundError
+    mocker.patch('utils.file_routing.shutil.move', side_effect=FileNotFoundError("File not found"))
+
+    # Run file routing
+    result = file_routing(str(incoming_path), str(anime_tv_path), mock_db, dry_run=False, tmdb=MagicMock())
+
+    # Verify file was still tracked in results despite error
+    assert len(result) == 1
+    assert result[0]["show_name"] == "Show Name"
+    assert test_file.exists()  # File should still be in incoming directory
+
+def test_file_routing_permission_error(tmp_path, mocker):
+    """Test file routing when PermissionError occurs during move (lines 133-140)"""
+    incoming_path = tmp_path / "incoming"
+    anime_tv_path = tmp_path / "anime_tv"
+    incoming_path.mkdir()
+    anime_tv_path.mkdir()
+
+    # Create a test file
+    test_file = incoming_path / "Show Name - 1.mkv"
+    test_file.write_text("test content")
+
+    # Mock DB service
+    mock_db = MagicMock(spec=SQLiteDBService)
+    
+    # Mock show lookup
+    mock_db.get_show_by_name_or_alias.return_value = {
+        "sys_name": "Show Name",
+        "sys_path": str(anime_tv_path / "Show Name"),
+        "tmdb_id": 123,
+        "tmdb_name": "Show Name",
+        "tmdb_aliases": None,
+        "tmdb_first_aired": None,
+        "tmdb_last_aired": None,
+        "tmdb_year": None,
+        "tmdb_overview": None,
+        "tmdb_season_count": 0,
+        "tmdb_episode_count": 0,
+        "tmdb_episode_groups": None,
+        "tmdb_status": None,
+        "tmdb_external_ids": None,
+        "tmdb_episodes_fetched_at": None,
+        "fetched_at": None
+    }
+    mock_db.get_episode_by_absolute_number.return_value = {"season": 1, "episode": 1}
+
+    # Mock parse_filename
+    mocker.patch('utils.file_routing.parse_filename', return_value={
+        "show_name": "Show Name",
+        "season": 1,
+        "episode": 1,
+        "confidence": 0.8,
+        "reasoning": "Season and episode found"
+    })
+
+    # Mock shutil.move to raise PermissionError
+    mocker.patch('utils.file_routing.shutil.move', side_effect=PermissionError("Permission denied"))
+
+    # Run file routing
+    result = file_routing(str(incoming_path), str(anime_tv_path), mock_db, dry_run=False, tmdb=MagicMock())
+
+    # Verify file was still tracked in results despite error
+    assert len(result) == 1
+    assert result[0]["show_name"] == "Show Name"
+    assert test_file.exists()  # File should still be in incoming directory
+
+def test_file_routing_os_error(tmp_path, mocker):
+    """Test file routing when OSError occurs during move (lines 133-140)"""
+    incoming_path = tmp_path / "incoming"
+    anime_tv_path = tmp_path / "anime_tv"
+    incoming_path.mkdir()
+    anime_tv_path.mkdir()
+
+    # Create a test file
+    test_file = incoming_path / "Show Name - 1.mkv"
+    test_file.write_text("test content")
+
+    # Mock DB service
+    mock_db = MagicMock(spec=SQLiteDBService)
+    
+    # Mock show lookup
+    mock_db.get_show_by_name_or_alias.return_value = {
+        "sys_name": "Show Name",
+        "sys_path": str(anime_tv_path / "Show Name"),
+        "tmdb_id": 123,
+        "tmdb_name": "Show Name",
+        "tmdb_aliases": None,
+        "tmdb_first_aired": None,
+        "tmdb_last_aired": None,
+        "tmdb_year": None,
+        "tmdb_overview": None,
+        "tmdb_season_count": 0,
+        "tmdb_episode_count": 0,
+        "tmdb_episode_groups": None,
+        "tmdb_status": None,
+        "tmdb_external_ids": None,
+        "tmdb_episodes_fetched_at": None,
+        "fetched_at": None
+    }
+    mock_db.get_episode_by_absolute_number.return_value = {"season": 1, "episode": 1}
+
+    # Mock parse_filename
+    mocker.patch('utils.file_routing.parse_filename', return_value={
+        "show_name": "Show Name",
+        "season": 1,
+        "episode": 1,
+        "confidence": 0.8,
+        "reasoning": "Season and episode found"
+    })
+
+    # Mock shutil.move to raise OSError
+    mocker.patch('utils.file_routing.shutil.move', side_effect=OSError("OS error"))
+
+    # Run file routing
+    result = file_routing(str(incoming_path), str(anime_tv_path), mock_db, dry_run=False, tmdb=MagicMock())
+
+    # Verify file was still tracked in results despite error
+    assert len(result) == 1
+    assert result[0]["show_name"] == "Show Name"
+    assert test_file.exists()  # File should still be in incoming directory
+
+def test_file_routing_general_exception(tmp_path, mocker):
+    """Test file routing when general Exception occurs during move (lines 133-140)"""
+    incoming_path = tmp_path / "incoming"
+    anime_tv_path = tmp_path / "anime_tv"
+    incoming_path.mkdir()
+    anime_tv_path.mkdir()
+
+    # Create a test file
+    test_file = incoming_path / "Show Name - 1.mkv"
+    test_file.write_text("test content")
+
+    # Mock DB service
+    mock_db = MagicMock(spec=SQLiteDBService)
+    
+    # Mock show lookup
+    mock_db.get_show_by_name_or_alias.return_value = {
+        "sys_name": "Show Name",
+        "sys_path": str(anime_tv_path / "Show Name"),
+        "tmdb_id": 123,
+        "tmdb_name": "Show Name",
+        "tmdb_aliases": None,
+        "tmdb_first_aired": None,
+        "tmdb_last_aired": None,
+        "tmdb_year": None,
+        "tmdb_overview": None,
+        "tmdb_season_count": 0,
+        "tmdb_episode_count": 0,
+        "tmdb_episode_groups": None,
+        "tmdb_status": None,
+        "tmdb_external_ids": None,
+        "tmdb_episodes_fetched_at": None,
+        "fetched_at": None
+    }
+    mock_db.get_episode_by_absolute_number.return_value = {"season": 1, "episode": 1}
+
+    # Mock parse_filename
+    mocker.patch('utils.file_routing.parse_filename', return_value={
+        "show_name": "Show Name",
+        "season": 1,
+        "episode": 1,
+        "confidence": 0.8,
+        "reasoning": "Season and episode found"
+    })
+
+    # Mock shutil.move to raise a general Exception
+    mocker.patch('utils.file_routing.shutil.move', side_effect=Exception("Unexpected error"))
+
+    # Run file routing
+    result = file_routing(str(incoming_path), str(anime_tv_path), mock_db, dry_run=False, tmdb=MagicMock())
+
+    # Verify file was still tracked in results despite error
+    assert len(result) == 1
+    assert result[0]["show_name"] == "Show Name"
+    assert test_file.exists()  # File should still be in incoming directory
+
+def test_file_routing_insufficient_episode_metadata(tmp_path, mocker):
+    """Test file routing when neither season nor episode is available"""
+    incoming_path = tmp_path / "incoming"
+    anime_tv_path = tmp_path / "anime_tv"
+    incoming_path.mkdir()
+    anime_tv_path.mkdir()
+
+    # Create a test file
+    test_file = incoming_path / "Show Name.mkv"
+    test_file.write_text("test content")
+
+    # Mock parse_filename to return no season or episode
+    mocker.patch('utils.file_routing.parse_filename', return_value={
+        "show_name": "Show Name",
+        "season": None,
+        "episode": None,
+        "confidence": 0.5,
+        "reasoning": "No episode info found"
+    })
+
+    # Mock DB service
+    mock_db = MagicMock(spec=SQLiteDBService)
+    
+    # Mock show lookup
+    mock_db.get_show_by_name_or_alias.return_value = {
+        "sys_name": "Show Name",
+        "sys_path": str(anime_tv_path / "Show Name"),
+        "tmdb_id": 123,
+        "tmdb_name": "Show Name",
+        "tmdb_aliases": None,
+        "tmdb_first_aired": None,
+        "tmdb_last_aired": None,
+        "tmdb_year": None,
+        "tmdb_overview": None,
+        "tmdb_season_count": 0,
+        "tmdb_episode_count": 0,
+        "tmdb_episode_groups": None,
+        "tmdb_status": None,
+        "tmdb_external_ids": None,
+        "tmdb_episodes_fetched_at": None,
+        "fetched_at": None
+    }
+
+    # Run file routing
+    result = file_routing(str(incoming_path), str(anime_tv_path), mock_db, dry_run=False, tmdb=MagicMock())
+
+    # Verify no files were routed due to insufficient metadata
+    assert len(result) == 0
+    assert test_file.exists()  # File should still be in incoming directory
+
+def test_file_routing_with_llm_service(tmp_path, mocker):
+    """Test file routing with LLM service integration"""
+    incoming_path = tmp_path / "incoming"
+    anime_tv_path = tmp_path / "anime_tv"
+    incoming_path.mkdir()
+    anime_tv_path.mkdir()
+
+    # Create a test file
+    test_file = incoming_path / "Show Name - 1.mkv"
+    test_file.write_text("test content")
+
+    # Mock LLM service
+    mock_llm_service = MagicMock()
+
+    # Mock parse_filename to use LLM service
+    mocker.patch('utils.file_routing.parse_filename', return_value={
+        "show_name": "Show Name",
+        "season": 1,
+        "episode": 1,
+        "confidence": 0.9,
+        "reasoning": "LLM assisted parsing"
+    })
+
+    # Mock DB service
+    mock_db = MagicMock(spec=SQLiteDBService)
+    
+    # Mock show lookup
+    mock_db.get_show_by_name_or_alias.return_value = {
+        "sys_name": "Show Name",
+        "sys_path": str(anime_tv_path / "Show Name"),
+        "tmdb_id": 123,
+        "tmdb_name": "Show Name",
+        "tmdb_aliases": None,
+        "tmdb_first_aired": None,
+        "tmdb_last_aired": None,
+        "tmdb_year": None,
+        "tmdb_overview": None,
+        "tmdb_season_count": 0,
+        "tmdb_episode_count": 0,
+        "tmdb_episode_groups": None,
+        "tmdb_status": None,
+        "tmdb_external_ids": None,
+        "tmdb_episodes_fetched_at": None,
+        "fetched_at": None
+    }
+    mock_db.get_episode_by_absolute_number.return_value = {"season": 1, "episode": 1}
+
+    # Run file routing with LLM service
+    result = file_routing(
+        str(incoming_path), 
+        str(anime_tv_path), 
+        mock_db, 
+        dry_run=False, 
+        tmdb=MagicMock(),
+        llm_service=mock_llm_service,
+        llm_confidence_threshold=0.7
+    )
+
+    # Verify file was routed successfully
+    assert len(result) == 1
+    assert result[0]["show_name"] == "Show Name"
+    assert result[0]["confidence"] == 0.9
+    assert result[0]["reasoning"] == "LLM assisted parsing"
+
 parse_filename_cases = [
     ("[Ssseeblpau] Surmme Copeskt - 01 (1080p) [841471A0].mkv", "Surmme Copeskt", 1, None),
     ("Ybaia.Muirasa.Legend.S01E01.1080p.Fn.Wbe-Dl.Caa2.0.H.264-Raygv.mkv", "Ybaia Muirasa Legend", 1, 1),

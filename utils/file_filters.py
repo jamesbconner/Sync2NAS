@@ -54,7 +54,7 @@ def sanitize_filename(name: str) -> str:
     
     This function handles different scenarios:
     - Replaces illegal characters with spaces to prevent word concatenation
-    - Handles path separators (slashes) as word boundaries
+    - Handles path separators (slashes) as word boundaries by replacing with spaces
     - Normalizes multiple consecutive spaces
     - Handles edge cases appropriately
     
@@ -62,15 +62,15 @@ def sanitize_filename(name: str) -> str:
         name (str): Filename or directory name.
         
     Returns:
-        str: Sanitized name with illegal characters handled appropriately.
+        str: Sanitized name with illegal characters replaced by spaces.
     """
     if not name:
         return name
     
-    # Replace illegal characters with spaces using the regex constant
+    # Replace illegal characters with spaces to prevent word concatenation
     result = ILLEGAL_CHARS_REGEX.sub(' ', name)
     
-    # Handle path separators (slashes) as word boundaries
+    # Handle path separators (slashes) as word boundaries by replacing with spaces
     result = PATH_SEPARATORS_REGEX.sub(' ', result)
     
     # Normalize multiple consecutive spaces to single spaces

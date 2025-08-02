@@ -4,13 +4,19 @@ from services.llm_implementations.base_llm_service import BaseLLMService
 class DummyLLM(BaseLLMService):
     def parse_filename(self, filename, max_tokens=150):
         return {"show_name": "Show", "season": 1, "episode": 2, "confidence": 0.9, "reasoning": "dummy"}
+    
+    def suggest_short_dirname(self, long_name: str, max_length: int = 20) -> str:
+        return long_name[:max_length]
+    
+    def suggest_short_filename(self, long_name: str, max_length: int = 20) -> str:
+        return long_name[:max_length]
 
 def test_create_filename_parsing_prompt():
     """Test that _create_filename_parsing_prompt returns a prompt string containing the filename."""
     llm = DummyLLM()
     prompt = llm._create_filename_parsing_prompt("Show.Name.S01E01.mkv")
     assert "Show.Name.S01E01.mkv" in prompt
-    assert "extract the show name" in prompt.lower()
+    assert "extract the following information" in prompt
 
 def test_validate_and_clean_result_valid():
     """Test that _validate_and_clean_result returns cleaned and validated result for valid input."""
