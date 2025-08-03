@@ -230,6 +230,33 @@ def cli():
 
 
 # ────────────────────────────────────────────────
+# GUI FIXTURES
+# ────────────────────────────────────────────────
+
+@pytest.fixture(scope="function")
+def root_window():
+    """Create a temporary root window for GUI testing with proper cleanup."""
+    import tkinter as tk
+    
+    try:
+        root = tk.Tk()
+        root.withdraw()  # Hide the window
+        yield root
+    except Exception as e:
+        pytest.skip(f"Tkinter not available: {e}")
+    finally:
+        try:
+            root.destroy()
+        except Exception as cleanup_error:
+            # Try to force cleanup if normal destroy fails
+            try:
+                root.quit()
+                root.destroy()
+            except:
+                pass
+
+
+# ────────────────────────────────────────────────
 # CLEANUP FIXTURES
 # ────────────────────────────────────────────────
 

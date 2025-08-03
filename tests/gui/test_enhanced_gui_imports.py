@@ -20,17 +20,13 @@ def test_gui_import():
         pytest.fail(f"Failed to import main GUI: {e}")
 
 
-def test_gui_instantiation():
+def test_gui_instantiation(root_window):
     """Test that the main GUI can be instantiated"""
     try:
         from gui.main import Sync2NASGUI
         
-        # Create a temporary root window
-        root = tk.Tk()
-        root.withdraw()  # Hide the window
-        
-        # Create the GUI instance
-        gui = Sync2NASGUI(root)
+        # Create the GUI instance using the fixture
+        gui = Sync2NASGUI(root_window)
         
         # Verify the GUI was created
         assert gui is not None
@@ -38,9 +34,6 @@ def test_gui_instantiation():
         assert hasattr(gui, 'config_path')
         assert hasattr(gui, 'dry_run')
         assert hasattr(gui, 'verbose_level_str')
-        
-        # Clean up
-        root.destroy()
         
     except Exception as e:
         pytest.fail(f"Failed to instantiate main GUI: {e}")
