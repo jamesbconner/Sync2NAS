@@ -56,24 +56,32 @@ class SQLiteDBService(DatabaseInterface):
     @contextmanager
     def _connection(self):
         """Context manager to get a connection to the database."""
-        if self.read_only:
-            # Use URI mode for read-only access
-            uri = f"file:{self.db_file}?mode=ro"
-            conn = sqlite3.connect(uri, detect_types=sqlite3.PARSE_DECLTYPES, timeout=10.0)
-        else:
-            conn = sqlite3.connect(self.db_file, detect_types=sqlite3.PARSE_DECLTYPES, timeout=10.0)
-        
         try:
-            yield conn
-            if not self.read_only:
-                conn.commit()
-        except sqlite3.Error as e:
-            logger.exception(f"Error in database operation: {e}")
-            if not self.read_only:
-                conn.rollback()
-            raise  # Re-raise the error
-        finally:
-            conn.close()
+            if self.read_only:
+                # For read-only mode, try URI mode first, fallback to regular mode
+                try:
+                    uri = f"file:{self.db_file}?mode=ro"
+                    conn = sqlite3.connect(uri, detect_types=sqlite3.PARSE_DECLTYPES, timeout=10.0)
+                except sqlite3.OperationalError:
+                    # Fallback to regular connection for read-only
+                    conn = sqlite3.connect(self.db_file, detect_types=sqlite3.PARSE_DECLTYPES, timeout=10.0)
+            else:
+                conn = sqlite3.connect(self.db_file, detect_types=sqlite3.PARSE_DECLTYPES, timeout=10.0)
+            
+            try:
+                yield conn
+                if not self.read_only:
+                    conn.commit()
+            except sqlite3.Error as e:
+                logger.exception(f"Error in database operation: {e}")
+                if not self.read_only:
+                    conn.rollback()
+                raise  # Re-raise the error
+            finally:
+                conn.close()
+        except Exception as e:
+            logger.exception(f"Failed to connect to database {self.db_file}: {e}")
+            raise
 
     def __str__(self):
         """Return a string representation of the repository."""

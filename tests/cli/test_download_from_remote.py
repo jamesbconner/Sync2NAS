@@ -89,7 +89,7 @@ def test_download_from_remote_dry_run(tmp_path, mock_tmdb_service, mock_sftp_ser
     result = cli_runner.invoke(cli, ["-c", config_path, "download-from-remote"], obj=obj)
 
     assert result.exit_code == 0
-    assert "✔️ Dry run complete. No files were downloaded or recorded." in result.output
+    assert "[DRY-RUN] Complete. No files were downloaded or recorded." in result.output
     assert "Starting remote scan from" in result.output
     assert "Incoming destination" in result.output
 

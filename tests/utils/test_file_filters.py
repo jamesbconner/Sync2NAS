@@ -39,9 +39,9 @@ def test_is_valid_directory(dirname, expected):
 
 @pytest.mark.parametrize("name,expected", [
     ("ValidName", "ValidName"),
-    ("Invalid/Name", "InvalidName"),
-    ("Bad<Name>Test", "BadNameTest"),
-    ("Weird|Name*Chars?", "WeirdNameChars"),
+    ("Invalid/Name", "Invalid Name"),
+    ("Bad<Name>Test", "Bad Name Test"),
+    ("Weird|Name*Chars?", "Weird Name Chars"),
 ])
 def test_sanitize_filename(name, expected):
     assert sanitize_filename(name) == expected
