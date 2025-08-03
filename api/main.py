@@ -96,7 +96,7 @@ async def health_check(request: Request):
     # 3. TMDB API connectivity check
     try:
         tmdb = services["tmdb"]
-        result = tmdb.search_show("Breaking Bad")
+        result = tmdb.search_show("Attack on Titan")
         if result is not None:
             status["tmdb"] = "ok"
         else:

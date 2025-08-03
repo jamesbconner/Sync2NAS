@@ -53,7 +53,7 @@ The GUI organizes functionality into tabs in the following order:
 6. **Logs** - Real-time log output
 
 ### Frequently Executed Operations Tab (Default)
-This tab combines the most commonly used operations in a clean, simplified layout with optimized code structure:
+This tab combines the most commonly used operations in a clean, simplified layout:
 
 #### Global Configuration Section
 - **Dry Run Mode**: Enable to test operations without making changes
@@ -70,8 +70,6 @@ This tab combines the most commonly used operations in a clean, simplified layou
 - **LLM Confidence**: Minimum confidence threshold (0.0-1.0) using a spinbox for precise control
 - Route Button: Start file routing process
 - Status: Current routing status
-
-*Note: The layout has been simplified by removing the Actions container and progress bars. Configuration items are logically grouped with their respective operations.*
 
 ### Search Tab
 The Search tab provides two main search functionalities:
@@ -213,59 +211,6 @@ Advanced configuration options for selecting configuration files and overriding 
 - **Apply Configuration Overrides**: Create a temporary config file with GUI settings
 - **Clear Overrides**: Remove the temporary config file
 
-### Search Tab
-Search functionality for both local database and TMDB API:
-
-#### Show Search (Local Database) Section
-- **Show Name**: Search for shows by name in the local database
-- **TMDB ID**: Search for shows by TMDB ID (optional, nullable)
-- **Verbose Output**: Show detailed show information
-- **Partial Matching**: Enable partial name matching (default)
-- **Exact Matching**: Use exact name matching only
-- **Search Shows Button**: Execute the search
-- **Status**: Current search status
-
-#### TMDB Search Section
-- **Show Name**: Search for shows by name on TMDB
-- **TMDB ID**: Search for shows by TMDB ID (optional, nullable)
-- **Verbose Output**: Show detailed show information
-- **Result Limit**: Maximum number of results to return (1-50, default: 10)
-- **Year Filter**: Filter results by year (optional, nullable)
-- **Search TMDB Button**: Execute the search
-- **Status**: Current search status
-
-#### Search Results Section
-- **Results Display**: Shows the output from search operations
-- **Clear Results**: Clear the results display
-- **Save Results**: Save search results to a text file
-
-### Logs Tab
-- **Log Output**: Real-time display of CLI command output
-- **Clear Logs**: Clear the log display
-- **Save Logs**: Save log output to file
-
-## Basic GUI Layout
-
-### Configuration Tab
-- **Config File**: Select your Sync2NAS configuration file (.ini)
-- **Dry Run Mode**: Enable to test operations without making changes
-- **Verbosity**: Set logging level (WARNING, INFO, DEBUG) - defaults to WARNING
-
-### Download Tab
-- **Max Workers**: Number of concurrent download threads (1-10)
-- **Download Button**: Start downloading files from remote SFTP server
-- **Progress Bar**: Shows download progress
-- **Status**: Current download status
-
-### File Routing Tab
-- **Incoming Path**: Directory containing files to route
-- **Use LLM**: Enable LLM-powered filename parsing
-- **LLM Confidence**: Minimum confidence threshold (0.0-1.0)
-- **Auto-add Shows**: Automatically add missing shows to database
-- **Route Button**: Start file routing process
-- **Progress Bar**: Shows routing progress
-- **Status**: Current routing status
-
 ### Logs Tab
 - **Log Output**: Real-time display of CLI command output
 - **Clear Logs**: Clear the log display
@@ -279,8 +224,6 @@ Search functionality for both local database and TMDB API:
 3. **Apply Overrides**: Click "Apply Configuration Overrides" to create a temporary config file
 4. **Execute Operations**: Use the Frequently Executed Operations tab for download and routing
 5. **Monitor Progress**: Watch the Logs tab for real-time operation status
-
-
 
 ## Configuration
 
@@ -306,18 +249,19 @@ The GUI can create temporary configuration files when you apply overrides. These
 1. **Import Errors**: Make sure you're running from the project root directory
 2. **Configuration Errors**: Verify your config file path and format
 3. **Permission Errors**: Ensure the GUI has access to the directories specified in your config
-4. **Verbosity Selection**: The verbosity dropdown now uses string values (WARNING, INFO, DEBUG) instead of numeric values
+4. **Verbosity Selection**: The verbosity dropdown uses string values (WARNING, INFO, DEBUG) instead of numeric values
 5. **ttkbootstrap Not Available**: The GUI will fall back to standard ttk styling if ttkbootstrap is not installed
 
 ### Recent Fixes
 
-- **Fixed verbosity handling**: The combobox now properly handles string values and converts them to appropriate CLI flags
+- **Fixed verbosity handling**: The combobox properly handles string values and converts them to appropriate CLI flags
 - **Fixed lambda error handling**: Exception handling in threaded operations now properly captures error messages
 - **Fixed database connection in dry-run mode**: Resolved SQLite URI mode issues on Windows for read-only database access
 - **Updated CLI command structure**: GUI now uses `sync2nas.py` instead of `cli.main` and properly handles global `--dry-run` flag
 - **Fixed global option ordering**: Global options like `--dry-run` and `--config` are now placed before subcommands as required by Click
 - **Fixed Unicode encoding issues**: Added proper UTF-8 encoding handling for CLI output and replaced Unicode characters with ASCII equivalents to prevent encoding errors on Windows
 - **Optimized GUI Code**: Refactored to eliminate duplication and improve maintainability
+- **Enhanced Testing**: Comprehensive test suite with proper Tkinter isolation and threading management
 
 ### Logs
 

@@ -1,6 +1,27 @@
 # Sync2NAS - TV Show Management and File Synchronization Tool
 ![Service Test Coverage](https://img.shields.io/badge/Service%20Test%20Coverage-86%25-success?style=flat-square&logo=pytest&logoColor=white)
 
+## What's New (August 2025)
+
+**Comprehensive Windows GUI Interface**
+- Sync2NAS now includes a full-featured Windows desktop GUI built with tkinter and ttkbootstrap
+- Provides access to all CLI functionality through an intuitive graphical interface
+- Features real-time logging, configuration management, and threaded operations
+- Includes search functionality for both local database and TMDB API
+- Supports temporary configuration overrides without modifying original config files
+
+**Enhanced Testing and Stability**
+- Comprehensive GUI test suite with proper Tkinter isolation
+- Fixed threading issues and background thread management
+- Improved error handling and test coverage
+- Robust test fixtures for consistent GUI testing
+
+**Improved User Experience**
+- Modern ttkbootstrap styling for a professional appearance
+- Tabbed interface organized by functionality (Frequently Executed Operations, Search, Show Management, Database Operations, Configuration, Logs)
+- Real-time status updates and operation monitoring
+- Unicode support for international character handling
+
 ## What's New (July 2025)
 
 **LLM-Powered Show Name Selection**
@@ -47,7 +68,7 @@ Sync2NAS is a comprehensive Python tool for managing TV shows, synchronizing fil
 - **Metadata Management**: Integrates with TMDB for show and episode information
 - **Database Management**: Supports multiple database backends with a factory pattern
 - **AI-Powered Parsing**: Uses OpenAI GPT and Ollama models for intelligent filename parsing
-- **Dual Interface**: Provides both CLI commands and REST API endpoints
+- **Multiple Interfaces**: Provides CLI commands, REST API endpoints, and a GUI for ease of use
 
 ## Features
 
@@ -153,6 +174,7 @@ See the [GUI Documentation](gui/README.md) for detailed usage instructions and f
 
 ### User Documentation
 - **[CLI Commands](docs/cli_commands.md)**: Complete guide to all CLI commands
+- **[GUI Interface](gui/README.md)**: Information about the GUI abilities
 - **[Configuration Guide](docs/configuration.md)**: Detailed configuration options
 - **[File Routing](docs/file_routing.md)**: Understanding file routing and AI parsing
 - **[Database Backends](docs/database_backends.md)**: Database setup and management
@@ -203,14 +225,13 @@ incoming = ./incoming
 anime_tv_path = d:/anime_tv/
 ```
 
-### Optional Configuration
-
 #### TMDB Integration
 ```ini
 [TMDB]
 api_key = your_tmdb_api_key_here
 ```
 
+### Optional Configuration
 #### LLM Backend Selection
 ```ini
 [llm]
@@ -291,10 +312,7 @@ Sync2NAS provides a comprehensive REST API for programmatic access to all functi
 ### Quick API Start
 ```bash
 # Start the API server
-python run_api.py
-
-# Or use the CLI
-python sync2nas.py api-start
+python sync2nas_api.py
 ```
 
 ### API Features
@@ -344,10 +362,10 @@ python sync2nas.py route-files --dry-run
 #### Add New Shows
 ```bash
 # Add show by name (interactive search)
-python sync2nas.py add-show "Breaking Bad"
+python sync2nas.py add-show "Attack on Titan"
 
 # Add show by TMDB ID
-python sync2nas.py add-show --tmdb-id 1396
+python sync2nas.py add-show --tmdb-id 1429
 
 # Override directory name
 python sync2nas.py add-show "Show Name" --override-dir
@@ -356,8 +374,8 @@ python sync2nas.py add-show "Show Name" --override-dir
 #### Search for Shows
 ```bash
 # Search local database
-python sync2nas.py search-show "Breaking Bad"
-python sync2nas.py search-show --tmdb-id 1396
+python sync2nas.py search-show "Attack on Titan"
+python sync2nas.py search-show --tmdb-id 1429
 
 # Search TMDB directly
 python sync2nas.py search-tmdb "One Piece"
@@ -438,6 +456,7 @@ If you are upgrading from a previous version:
 sync2nas/
 ├── cli/         # CLI command implementations
 ├── api/         # REST API implementation
+├── gui/         # GUI Implementation (tkinter)
 ├── services/    # Core service objects
 ├── models/      # Data models
 ├── utils/       # Utility functions
@@ -445,32 +464,47 @@ sync2nas/
 ├── config/      # Configuration files
 └── docs/        # Documentation
 ```
-### API and CLI Architecture Diagram
+
+### Complete Architecture with GUI
 
 ```text
-                ┌─────────────────────────────┐
-                │        Sync2NAS App         │
-                └─────────────┬───────────────┘
-                              │
-        ┌─────────────────────┼────────────────────┐
-        │                                          │
-┌───────▼───────┐                         ┌────────▼────────┐
-│     CLI       │                         │      API        │
-│ (sync2nas.py) │                         │ (FastAPI app)   │
-└───────┬───────┘                         └────────┬────────┘
-        │                                          │
-        │                                          │
-┌───────▼────────┐                       ┌─────────▼─────────┐
-│ CLI Commands   │                       │     API Routes    │
-│ (cli/*.py)     │                       │ (api/routes/*.py) │
-└───────┬────────┘                       └─────────┬─────────┘
-        │                                          │
-        └─────────────────────┬────────────────────┘
-                              │
-              ┌───────────────▼──────────────┐
-              │         Core Services        │
-              │ (services/, utils/, models/) │
-              └──────────────────────────────┘
+                                 ┌─────────────────────────────┐
+                                 │        Sync2NAS App         │
+                                 └─────────────┬───────────────┘
+                                               │
+                ┌──────────────────────────────┼                                              
+  ┌─────────────▼────────────┐                 │
+  │            GUI           │                 │
+  │       (gui/main.py)      │                 │
+  │                          │                 │
+  │ • Tkinter/ttkbootstrap   │                 │
+  │ • Threaded CLI execution │                 │
+  │ • Real-time logging      │                 │
+  │ • Config management      │                 │
+  └─────────────┬────────────┘                 │
+   Calls CLI    │                              │
+ via subprocess │                              │
+                │                              │
+                └─────┐  ┌─────────────────────┼────────────────────┐
+                      │  │                                          │
+                 ┌────▼──▼───────┐                         ┌────────▼────────┐
+                 │     CLI       │                         │      API        │
+                 │ (sync2nas.py) │                         │ (FastAPI app)   │
+                 └───────┬───────┘                         └────────┬────────┘
+                         │                                          │
+                         │                                          │
+                 ┌───────▼────────┐                       ┌─────────▼─────────┐
+                 │ CLI Commands   │                       │     API Routes    │
+                 │ (cli/*.py)     │                       │ (api/routes/*.py) │
+                 └───────┬────────┘                       └─────────┬─────────┘
+                         │                                          │
+                         └─────────────────────┬────────────────────┘
+                                               │
+                               ┌───────────────▼──────────────┐
+                               │         Core Services        │
+                               │ (services/, utils/, models/) │
+                               └──────────────────────────────┘
+
 ```
 
 ### Testing

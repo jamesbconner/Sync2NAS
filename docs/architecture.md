@@ -4,7 +4,7 @@ This document provides an overview of the Sync2NAS system architecture, componen
 
 ## System Overview
 
-Sync2NAS is built using a modular, service-oriented architecture that separates concerns and enables easy testing and extension.
+Sync2NAS is built using a modular, service-oriented architecture that separates concerns and enables easy testing and extension. The system provides three interfaces: CLI, API, and GUI, all sharing the same core services.
 
 ## Layers and Components
 
@@ -35,7 +35,32 @@ Sync2NAS is built using a modular, service-oriented architecture that separates 
 
 ---
 
-### 3. Service Layer (`services/`)
+### 3. GUI Layer (`gui/`)
+
+- **Purpose:** Windows desktop GUI for user-friendly operation.
+- **Technology:** Built with tkinter and ttkbootstrap for modern styling.
+- **Architecture:** 
+  - `main.py`: Main GUI application with tabbed interface
+  - Threaded CLI execution via subprocess calls
+  - Real-time logging and status updates
+  - Configuration management with temporary overrides
+
+**Features:**
+- Tabbed interface organized by functionality
+- Threaded operations to prevent UI freezing
+- Real-time log output display
+- Configuration overrides without modifying original files
+- Search functionality for local database and TMDB
+
+**Example Usage:**
+```bash
+python sync2nas_gui.py
+# or double-click run_gui.bat
+```
+
+---
+
+### 4. Service Layer (`services/`)
 
 - **Purpose:** Core business logic and integrations.
 - **Components:**
@@ -52,7 +77,7 @@ Sync2NAS is built using a modular, service-oriented architecture that separates 
 
 ---
 
-### 4. Model Layer (`models/`)
+### 5. Model Layer (`models/`)
 
 - **Purpose:** Data models for shows, episodes, and API schemas.
 - **Pattern:**  
@@ -61,7 +86,7 @@ Sync2NAS is built using a modular, service-oriented architecture that separates 
 
 ---
 
-### 5. Utility Layer (`utils/`)
+### 6. Utility Layer (`utils/`)
 
 - **Purpose:** Helper functions for configuration, logging, file parsing, etc.
 - **Examples:**  
@@ -72,7 +97,7 @@ Sync2NAS is built using a modular, service-oriented architecture that separates 
 
 ---
 
-### 6. Database Layer (`services/db_implementations/`)
+### 7. Database Layer (`services/db_implementations/`)
 
 - **Purpose:** Pluggable database backends.
 - **Supported:**  
@@ -88,7 +113,7 @@ Sync2NAS is built using a modular, service-oriented architecture that separates 
 
 ### File Routing
 
-1. **User Command:** `route-files`
+1. **User Command:** `route-files` (CLI) or GUI button click
 2. **File Discovery:** Scan incoming directory.
 3. **Filename Parsing:** Use regex or LLM to extract show/episode.
 4. **Show/Episode Lookup:** Query database for show/episode.
@@ -99,7 +124,7 @@ Sync2NAS is built using a modular, service-oriented architecture that separates 
 
 ### Show Addition
 
-1. **User Command:** `add-show`
+1. **User Command:** `add-show` (CLI) or GUI form submission
 2. **TMDB Search:** Find show by name or TMDB ID.
 3. **Directory Creation:** Create show directory.
 4. **Database Update:** Add show and episodes to database.
@@ -116,6 +141,64 @@ Sync2NAS is built using a modular, service-oriented architecture that separates 
 
 ---
 
+### GUI Operation
+
+1. **User Action:** Button click or form submission in GUI
+2. **GUI Processing:** Validate inputs and prepare CLI command
+3. **Subprocess Call:** Execute `sync2nas.py` with appropriate arguments
+4. **CLI Execution:** Standard CLI flow through service layer
+5. **Output Capture:** GUI captures stdout/stderr for real-time display
+6. **Status Update:** GUI updates UI elements based on operation result
+
+---
+
+## Architecture Diagram
+
+```text
+                ┌─────────────────────────────┐
+                │        Sync2NAS App         │
+                └─────────────┬───────────────┘
+                              │
+        ┌─────────────────────┼────────────────────┐
+        │                                          │
+┌───────▼───────┐                         ┌────────▼────────┐
+│     CLI       │                         │      API        │
+│ (sync2nas.py) │                         │ (FastAPI app)   │
+└───────┬───────┘                         └────────┬────────┘
+        │                                          │
+        │                                          │
+┌───────▼────────┐                       ┌─────────▼─────────┐
+│ CLI Commands   │                       │     API Routes    │
+│ (cli/*.py)     │                       │ (api/routes/*.py) │
+└───────┬────────┘                       └─────────┬─────────┘
+        │                                          │
+        └─────────────────────┬────────────────────┘
+                              │
+              ┌───────────────▼──────────────┐
+              │         Core Services        │
+              │ (services/, utils/, models/) │
+              └──────────────────────────────┘
+                              │
+                              │
+                    ┌─────────▼─────────┐
+                    │       GUI         │
+                    │ (gui/main.py)     │
+                    │                   │
+                    │ • Tkinter/ttkbootstrap │
+                    │ • Threaded CLI execution │
+                    │ • Real-time logging │
+                    │ • Config management │
+                    └───────────────────┘
+                              │
+                              │ Calls CLI commands
+                              │ via subprocess
+                              ▼
+                    ┌───────────────────┐
+                    │   CLI Layer       │
+                    │ (sync2nas.py)     │
+                    └───────────────────┘
+```
+
 ## Design Patterns
 
 - **Factory:** Database backend selection.
@@ -123,6 +206,8 @@ Sync2NAS is built using a modular, service-oriented architecture that separates 
 - **Dependency Injection:** Context objects for CLI/API.
 - **Command:** CLI command modules.
 - **Service:** Encapsulated business logic.
+- **Observer:** GUI real-time updates via logging queue.
+- **Threading:** Non-blocking GUI operations.
 
 ---
 
@@ -131,6 +216,7 @@ Sync2NAS is built using a modular, service-oriented architecture that separates 
 - **Graceful Fallback:** LLM parsing falls back to regex.
 - **Comprehensive Logging:** All layers log actions and errors.
 - **User-Friendly Messages:** CLI/API return clear errors.
+- **GUI Error Display:** Real-time error messages in GUI logs tab.
 
 ---
 
@@ -139,6 +225,7 @@ Sync2NAS is built using a modular, service-oriented architecture that separates 
 - **Add CLI/API commands:** Create new modules in `cli/` or `api/routes/`.
 - **Add database backends:** Implement `DatabaseInterface` and register in `db_factory.py`.
 - **Add integrations:** Create new service modules.
+- **Add GUI features:** Extend `gui/main.py` with new tabs or sections.
 
 ---
 
@@ -147,6 +234,7 @@ Sync2NAS is built using a modular, service-oriented architecture that separates 
 - **Service contract tests** for all backends.
 - **Mocking** for external APIs (TMDB, SFTP, LLM).
 - **CLI and API endpoint tests** in `tests/`.
+- **GUI tests** with proper Tkinter isolation and threading management.
 
 ---
 
@@ -155,12 +243,14 @@ Sync2NAS is built using a modular, service-oriented architecture that separates 
 - **SSH key authentication** for SFTP.
 - **API key management** for TMDB/OpenAI.
 - **Input validation** and error handling throughout.
+- **Temporary config files** for GUI overrides.
 
 ---
 
 ## References
 
 - [API Documentation](../api/README.md)
+- [GUI Documentation](../gui/README.md)
 - [Database Backends Guide](database_backends.md)
 - [File Routing Guide](file_routing.md)
 - [SFTP Service Philosophy](SFTP_Test_Philosophy.md)
