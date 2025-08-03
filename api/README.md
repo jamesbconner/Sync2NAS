@@ -48,7 +48,7 @@ The API is built using **FastAPI** and follows a layered architecture:
 #### Development Mode
 ```bash
 # From project root
-python run_api.py
+python sync2nas_api.py
 ```
 
 #### Production Mode
@@ -71,7 +71,7 @@ Once running, access the interactive API documentation:
 ## API Endpoints
 
 ### Health Check
-- **GET** `/health` - Check API service health
+- **GET** `/health` - Check API service health and connectivity to database, SFTP, and TMDB
 - **GET** `/` - Basic API information
 
 ### Shows Management (`/api/shows`)
@@ -92,8 +92,8 @@ POST /api/shows/
 Content-Type: application/json
 
 {
-  "show_name": "Breaking Bad",
-  "tmdb_id": 1396,
+  "show_name": "Attack on Titan",
+  "tmdb_id": 1429,
   "override_dir": false
 }
 ```
@@ -104,7 +104,7 @@ POST /api/shows/{show_id}/episodes/refresh
 Content-Type: application/json
 
 {
-  "show_name": "Breaking Bad"
+  "show_name": "Attack on Titan"
 }
 ```
 
@@ -126,24 +126,6 @@ Content-Type: application/json
 }
 ```
 
-**Response:**
-```json
-{
-  "success": true,
-  "files_routed": 5,
-  "files": [
-    {
-      "original_path": "/incoming/show.s01e01.mkv",
-      "routed_path": "/shows/Show/Season 01/show.s01e01.mkv",
-      "show_name": "Show",
-      "season": "01",
-      "episode": "01"
-    }
-  ],
-  "message": "5 file(s) routed successfully"
-}
-```
-
 #### List Incoming Files
 ```http
 GET /api/files/incoming
@@ -157,7 +139,7 @@ POST /api/files/parse-filename
 Content-Type: application/json
 
 {
-  "filename": "Breaking.Bad.S01E01.1080p.mkv",
+  "filename": "Attack.on.Titan.S01E01.1080p.mkv",
   "llm_confidence_threshold": 0.7
 }
 ```
@@ -165,7 +147,7 @@ Content-Type: application/json
 **Response:**
 ```json
 {
-  "show_name": "Breaking Bad",
+  "show_name": "Attack on Titan",
   "season": 1,
   "episode": 1,
   "confidence": 0.95,
@@ -201,7 +183,7 @@ Content-Type: application/json
 }
 ```
 
-#### Check SFTP Connection
+#### Check SFTP Connection Status
 ```http
 GET /api/remote/status
 ```
@@ -294,7 +276,7 @@ POST /api/admin/init-db
            ],
            "body": {
              "mode": "raw",
-             "raw": "{\n  \"show_name\": \"Breaking Bad\",\n  \"tmdb_id\": 1396,\n  \"override_dir\": false\n}"
+             "raw": "{\n  \"show_name\": \"Attack on Titan\",\n  \"tmdb_id\": 1429,\n  \"override_dir\": false\n}"
            },
            "url": {
              "raw": "{{base_url}}/api/shows/",
@@ -486,21 +468,16 @@ Log levels:
 
 ### API-Specific TODOs
 
-1. **Health Check Enhancement** (`api/main.py:67`)
-   - Extend health check to verify database connectivity
-   - Add SFTP connection verification
-   - Include service status in health response
-
-2. **Download Count Tracking** (`api/services/remote_service.py:36`)
+1. **Download Count Tracking** (`api/services/remote_service.py:36`)
    - Implement actual file count tracking in download operations
    - Replace placeholder with real download statistics
 
-3. **Database Backup Implementation** (`api/services/admin_service.py:125`)
+2. **Database Backup Implementation** (`api/services/admin_service.py:125`)
    - Implement actual database backup functionality
    - Add backup file management and rotation
    - Include backup verification
 
-4. **Database Initialization** (`api/services/admin_service.py:140`)
+3. **Database Initialization** (`api/services/admin_service.py:140`)
    - Implement proper database initialization
    - Add schema creation and migration support
    - Include initialization verification
