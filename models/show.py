@@ -5,11 +5,12 @@ import os
 import datetime
 import json
 import logging
-from typing import Optional
+from typing import Optional, Dict, Any
+from pydantic import BaseModel, Field, ConfigDict
 
 logger = logging.getLogger(__name__)
 
-class Show:
+class Show(BaseModel):
     """
     Represents a TV show with metadata from TMDB and local system.
 
@@ -36,40 +37,32 @@ class Show:
         from_tmdb(): Construct from TMDB API response.
         from_db_record(): Construct from DB record.
     """
-    def __init__(self,
-                 sys_name: str,
-                 sys_path: str,
-                 tmdb_name: str,
-                 tmdb_aliases: Optional[str],
-                 tmdb_id: int,
-                 tmdb_first_aired: Optional[datetime.datetime],
-                 tmdb_last_aired: Optional[datetime.datetime],
-                 tmdb_year: Optional[int],
-                 tmdb_overview: Optional[str],
-                 tmdb_season_count: Optional[int],
-                 tmdb_episode_count: Optional[int],
-                 tmdb_episode_groups: Optional[str],
-                 tmdb_status: Optional[str] = None,
-                 tmdb_external_ids: Optional[str] = None,
-                 tmdb_episodes_fetched_at: Optional[datetime.datetime] = None,
-                 fetched_at: Optional[datetime.datetime] = None):
-
-        self.sys_name = sys_name
-        self.sys_path = sys_path
-        self.tmdb_name = tmdb_name
-        self.tmdb_aliases = tmdb_aliases
-        self.tmdb_id = tmdb_id
-        self.tmdb_first_aired = tmdb_first_aired
-        self.tmdb_last_aired = tmdb_last_aired
-        self.tmdb_year = tmdb_year
-        self.tmdb_overview = tmdb_overview
-        self.tmdb_season_count = tmdb_season_count
-        self.tmdb_episode_count = tmdb_episode_count
-        self.tmdb_episode_groups = tmdb_episode_groups
-        self.tmdb_episodes_fetched_at = tmdb_episodes_fetched_at
-        self.tmdb_status = tmdb_status
-        self.tmdb_external_ids = tmdb_external_ids
-        self.fetched_at = datetime.datetime.now()
+    
+    model_config = ConfigDict(
+        from_attributes=True,
+        validate_assignment=True,
+        extra='forbid'
+    )
+    
+    # System fields
+    sys_name: str = Field(..., description="System name for the show (used for directory)")
+    sys_path: str = Field(..., description="Full system path to the show directory")
+    
+    # TMDB fields
+    tmdb_name: str = Field(..., description="Official TMDB name")
+    tmdb_aliases: Optional[str] = Field(None, description="Alternative names for the show")
+    tmdb_id: int = Field(..., gt=0, description="TMDB ID of the show")
+    tmdb_first_aired: Optional[datetime.datetime] = Field(None, description="First air date")
+    tmdb_last_aired: Optional[datetime.datetime] = Field(None, description="Last air date")
+    tmdb_year: Optional[int] = Field(None, ge=1900, le=2100, description="Year of first air date")
+    tmdb_overview: Optional[str] = Field(None, description="Show overview")
+    tmdb_season_count: Optional[int] = Field(None, ge=0, description="Number of seasons")
+    tmdb_episode_count: Optional[int] = Field(None, ge=0, description="Number of episodes")
+    tmdb_episode_groups: Optional[str] = Field(None, description="Episode group metadata (JSON)")
+    tmdb_status: Optional[str] = Field(None, description="TMDB status string")
+    tmdb_external_ids: Optional[str] = Field(None, description="External IDs (JSON-encoded)")
+    tmdb_episodes_fetched_at: Optional[datetime.datetime] = Field(None, description="Last episode fetch timestamp")
+    fetched_at: datetime.datetime = Field(default_factory=datetime.datetime.now, description="Record creation timestamp")
 
     def to_db_tuple(self) -> tuple:
         """
@@ -90,10 +83,10 @@ class Show:
             self.tmdb_overview,
             self.tmdb_season_count,
             self.tmdb_episode_count,
-            json.dumps(self.tmdb_episode_groups) if isinstance(self.tmdb_episode_groups, list) else self.tmdb_episode_groups,
+            self.tmdb_episode_groups,
             self.tmdb_episodes_fetched_at,
             self.tmdb_status,
-            json.dumps(self.tmdb_external_ids) if isinstance(self.tmdb_external_ids, dict) else self.tmdb_external_ids,
+            self.tmdb_external_ids,
             self.fetched_at
         )
 
@@ -130,7 +123,7 @@ class Show:
         if isinstance(episode_groups, dict) and "results" in episode_groups:
             show_episode_groups = json.dumps(episode_groups["results"])
         else:
-            show_episode_groups = []
+            show_episode_groups = None
 
         logger.debug(f"Alternative titles: {alternative_titles}, name: {name}, sys_name: {sys_name}, original_name: {original_name}")
         # Filter out None values before extending
@@ -161,8 +154,7 @@ class Show:
             tmdb_episode_groups=show_episode_groups,
             tmdb_status=status,
             tmdb_external_ids=show_external_ids,
-            tmdb_episodes_fetched_at=None,
-            fetched_at=datetime.datetime.now()
+            tmdb_episodes_fetched_at=None
         )
 
     @classmethod
@@ -194,3 +186,33 @@ class Show:
             tmdb_episodes_fetched_at=record["tmdb_episodes_fetched_at"],
             fetched_at=record["fetched_at"]
         )
+
+    def get_episode_groups_dict(self) -> Optional[Dict[str, Any]]:
+        """
+        Get episode groups as a dictionary.
+        
+        Returns:
+            Optional[Dict[str, Any]]: Parsed episode groups or None.
+        """
+        if not self.tmdb_episode_groups:
+            return None
+        try:
+            return json.loads(self.tmdb_episode_groups)
+        except json.JSONDecodeError:
+            logger.warning(f"Failed to parse episode groups JSON for show {self.tmdb_id}")
+            return None
+
+    def get_external_ids_dict(self) -> Optional[Dict[str, Any]]:
+        """
+        Get external IDs as a dictionary.
+        
+        Returns:
+            Optional[Dict[str, Any]]: Parsed external IDs or None.
+        """
+        if not self.tmdb_external_ids:
+            return None
+        try:
+            return json.loads(self.tmdb_external_ids)
+        except json.JSONDecodeError:
+            logger.warning(f"Failed to parse external IDs JSON for show {self.tmdb_id}")
+            return None

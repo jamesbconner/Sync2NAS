@@ -4,11 +4,12 @@ Episode model for Sync2NAS, representing episode metadata and database serializa
 import datetime
 import logging
 from typing import Optional, List
+from pydantic import BaseModel, Field, ConfigDict
 from services.tmdb_service import TMDBService
 
 logger = logging.getLogger(__name__)
 
-class Episode:
+class Episode(BaseModel):
     """
     Represents a TV episode with metadata from TMDB and local system.
 
@@ -28,28 +29,24 @@ class Episode:
         to_db_tuple(): Serialize for DB insertion.
         parse_from_tmdb(): Construct episodes from TMDB API response.
     """
-    def __init__(self,
-                 tmdb_id: int,
-                 season: int,
-                 episode: int,
-                 abs_episode: int,
-                 episode_type: str,
-                 episode_id: int,
-                 air_date: Optional[datetime.datetime],
-                 fetched_at: datetime.datetime,
-                 name: str,
-                 overview: str):
-
-        self.tmdb_id = tmdb_id
-        self.season = season
-        self.episode = episode
-        self.abs_episode = abs_episode
-        self.episode_type = episode_type
-        self.episode_id = episode_id
-        self.air_date = air_date
-        self.fetched_at = fetched_at
-        self.name = name
-        self.overview = overview
+    
+    model_config = ConfigDict(
+        from_attributes=True,
+        validate_assignment=True,
+        extra='forbid'
+    )
+    
+    # TMDB fields
+    tmdb_id: int = Field(..., gt=0, description="TMDB ID of the show")
+    season: int = Field(..., ge=1, description="Season number")
+    episode: int = Field(..., ge=1, description="Episode number")
+    abs_episode: int = Field(..., ge=1, description="Absolute episode number")
+    episode_type: str = Field(..., description="Type of episode (e.g., standard, special)")
+    episode_id: int = Field(..., gt=0, description="TMDB episode ID")
+    air_date: Optional[datetime.datetime] = Field(None, description="Air date")
+    fetched_at: datetime.datetime = Field(default_factory=datetime.datetime.now, description="Record creation timestamp")
+    name: str = Field(..., description="Episode title")
+    overview: str = Field(..., description="Episode overview")
 
     def to_db_tuple(self) -> tuple:
         """
@@ -149,7 +146,6 @@ class Episode:
                             episode_type=ep.get("episode_type", "standard"),
                             episode_id=ep.get("id"),
                             air_date=cls._parse_date(ep.get("air_date")),
-                            fetched_at=datetime.datetime.now(),
                             name=ep.get("name", ""),
                             overview=ep.get("overview", "")
                         ))
@@ -193,7 +189,6 @@ class Episode:
                             episode_type=ep.get("episode_type", "standard"),
                             episode_id=ep["id"],
                             air_date=cls._parse_date(ep.get("air_date")),
-                            fetched_at=datetime.datetime.now(),
                             name=ep["name"],
                             overview=ep.get("overview", "")
                         ))
@@ -207,3 +202,27 @@ class Episode:
                 continue
 
         return episodes
+
+    @classmethod
+    def from_db_record(cls, record: dict) -> "Episode":
+        """
+        Construct an Episode object from a database record.
+
+        Args:
+            record (dict): Database record for the episode.
+
+        Returns:
+            Episode: Instantiated Episode object.
+        """
+        return cls(
+            tmdb_id=record["tmdb_id"],
+            season=record["season"],
+            episode=record["episode"],
+            abs_episode=record["abs_episode"],
+            episode_type=record["episode_type"],
+            episode_id=record["episode_id"],
+            air_date=record["air_date"],
+            fetched_at=record["fetched_at"],
+            name=record["name"],
+            overview=record["overview"]
+        )
