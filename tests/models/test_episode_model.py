@@ -70,36 +70,57 @@ def test_parse_from_tmdb_with_bad_season(mock_tmdb_service):
 
 # Edge Cases
 def test_episode_negative_numbers():
-    ep = Episode(
-        tmdb_id=-1,
-        season=-1,
-        episode=-1,
-        abs_episode=-1,
-        episode_type="standard",
-        episode_id=-100,
-        air_date=None,
-        fetched_at=datetime.datetime.now(),
-        name="Negative",
-        overview="Negative test"
-    )
-    assert ep.tmdb_id == -1
-    assert ep.season == -1
+    """Test that Pydantic validation rejects negative numbers."""
+    import pytest
+    from pydantic import ValidationError
+    
+    with pytest.raises(ValidationError) as exc_info:
+        Episode(
+            tmdb_id=-1,
+            season=-1,
+            episode=-1,
+            abs_episode=-1,
+            episode_type="standard",
+            episode_id=-100,
+            air_date=None,
+            fetched_at=datetime.datetime.now(),
+            name="Negative",
+            overview="Negative test"
+        )
+    
+    # Check that we get validation errors for the expected fields
+    errors = exc_info.value.errors()
+    error_fields = [error['loc'][0] for error in errors]
+    assert 'tmdb_id' in error_fields
+    assert 'season' in error_fields
+    assert 'episode' in error_fields
+    assert 'abs_episode' in error_fields
+    assert 'episode_id' in error_fields
 
 def test_episode_missing_fields():
-    ep = Episode(
-        tmdb_id=0,
-        season=1,
-        episode=1,
-        abs_episode=1,
-        episode_type="",
-        episode_id=0,
-        air_date=None,
-        fetched_at=datetime.datetime.now(),
-        name="",
-        overview=""
-    )
-    assert ep.name == ""
-    assert ep.overview == ""
+    """Test that Pydantic validation rejects invalid field values."""
+    import pytest
+    from pydantic import ValidationError
+    
+    with pytest.raises(ValidationError) as exc_info:
+        Episode(
+            tmdb_id=0,  # Should be > 0
+            season=1,
+            episode=1,
+            abs_episode=1,
+            episode_type="",
+            episode_id=0,  # Should be > 0
+            air_date=None,
+            fetched_at=datetime.datetime.now(),
+            name="",
+            overview=""
+        )
+    
+    # Check that we get validation errors for the expected fields
+    errors = exc_info.value.errors()
+    error_fields = [error['loc'][0] for error in errors]
+    assert 'tmdb_id' in error_fields
+    assert 'episode_id' in error_fields
 
 def test_episode_to_db_tuple_structure():
     ep = Episode(
