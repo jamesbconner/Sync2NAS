@@ -23,3 +23,4 @@ dependencies:
     - openai>=1.93.0
     - ollama=0.5.1
     - anthropic==0.56.0
+    - ttkbootstrap==1.14.2

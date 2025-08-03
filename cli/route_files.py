@@ -165,7 +165,7 @@ def _auto_add_missing_shows(ctx: click.Context, incoming_path: str, ignore_files
                 logger.info(f"Show already exists in DB: {show_name}")
                 continue
 
-            click.secho(f"📥 Auto-adding show: {show_name}", fg="yellow")
+            click.secho(f"[AUTO-ADD] Auto-adding show: {show_name}", fg="yellow")
 
             # Construct CLI args and invoke add-show command
             add_show_args = [show_name]
@@ -184,4 +184,4 @@ def _auto_add_missing_shows(ctx: click.Context, incoming_path: str, ignore_files
             if add_show_result.exit_code == 0:
                 click.secho(f"✅ Auto-added: {show_name}", fg="green")
             else:
-                click.secho(f"❌ Failed to add show '{show_name}': {add_show_result.output.strip()}", fg="red")
+                click.secho(f"[ERROR] Failed to add show '{show_name}': {add_show_result.output.strip()}", fg="red")

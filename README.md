@@ -83,6 +83,33 @@ Sync2NAS is a comprehensive Python tool for managing TV shows, synchronizing fil
 - [Ollama](https://ollama.com/) local LLM service running your preferred model (Default [gemma3:12b](https://ollama.com/library/gemma3). It's the best tradeoff between accuracy, compute resource and speed as of July 2025.)
 **Note:** Sync2NAS does not manage Ollama models. You must ensure that any model specified here (e.g., `gemma3:12b`) is already installed and available in your local Ollama instance. Use `ollama pull gemma3:12b` to install models as needed.
 
+### GUI Interface
+
+Sync2NAS includes a comprehensive Windows desktop GUI for easy operation:
+
+**Sync2NAS GUI:**
+```bash
+python sync2nas_gui.py
+# or double-click run_gui.bat
+```
+
+The GUI provides:
+- **Frequently Executed Operations**: Quick access to download and file routing with global configuration
+- **Search & Show Management**: Search local database and TMDB API, add and fix shows
+- **Database Operations**: Initialize, backup, update episodes, and bootstrap database
+- **Configuration Management**: Complete configuration options with temporary override support
+- **Real-time Logging**: View live CLI output in the GUI
+- **Modern Styling**: ttkbootstrap integration for a modern look and feel
+
+The GUI features:
+- **Tabbed Interface**: Organized functionality across multiple tabs
+- **Configuration Overrides**: Temporary config files for GUI settings
+- **Threaded Operations**: Non-blocking CLI command execution
+- **Unicode Support**: Proper handling of special characters and emojis
+- **Scrollable Sections**: Mousewheel support for extensive configuration options
+
+See the [GUI Documentation](gui/README.md) for detailed usage instructions and feature descriptions.
+
 
 ### Installation
 
