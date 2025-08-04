@@ -123,7 +123,7 @@ class Show(BaseModel):
         if isinstance(episode_groups, dict) and "results" in episode_groups:
             show_episode_groups = json.dumps(episode_groups["results"])
         else:
-            show_episode_groups = None
+            show_episode_groups = "[]"
 
         logger.debug(f"Alternative titles: {alternative_titles}, name: {name}, sys_name: {sys_name}, original_name: {original_name}")
         # Filter out None values before extending
@@ -200,7 +200,9 @@ class Show(BaseModel):
         if not self.tmdb_episode_groups:
             return None
         try:
-            return json.loads(self.tmdb_episode_groups)
+            parsed = json.loads(self.tmdb_episode_groups)
+            # Return None for empty arrays to maintain consistent behavior
+            return parsed if parsed else None
         except json.JSONDecodeError:
             logger.warning(f"Failed to parse episode groups JSON for show {self.tmdb_id}")
             return None
