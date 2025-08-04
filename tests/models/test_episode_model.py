@@ -225,6 +225,48 @@ def test_from_production_groups_invalid_episode_data(mock_tmdb_service):
 
     assert episodes == []
 
+def test_from_production_groups_missing_episode_number(mock_tmdb_service):
+    """Test that episodes with missing episode_number are handled correctly."""
+    mock_tmdb_service.get_episode_group_details.return_value = {
+        "groups": [
+            {
+                "order": 1,
+                "episodes": [
+                    {
+                        "order": 0,
+                        # Missing episode_number - should default to 0
+                        "episode_type": "standard",
+                        "id": 456,
+                        "air_date": "2023-01-01",
+                        "name": "Pilot",
+                        "overview": "First episode"
+                    },
+                    {
+                        "order": 1,
+                        "episode_number": None,  # Explicitly None
+                        "episode_type": "standard",
+                        "id": 457,
+                        "air_date": "2023-01-08",
+                        "name": "Second Episode",
+                        "overview": "Second episode"
+                    }
+                ]
+            }
+        ]
+    }
+
+    episodes = Episode._from_production_groups(
+        tmdb_id=123,
+        tmdb_service=mock_tmdb_service,
+        episode_groups_meta=[{"type": 6, "id": "group1"}]
+    )
+
+    assert len(episodes) == 2
+    # First episode should have abs_episode=0 (default)
+    assert episodes[0].abs_episode == 0
+    # Second episode should have abs_episode=0 (None defaults to 0)
+    assert episodes[1].abs_episode == 0
+
 def test_parse_from_tmdb_exception_handling(mock_tmdb_service):
     # Make both production groups and seasons fail
     mock_tmdb_service.get_episode_group_details.side_effect = Exception("Test error")
