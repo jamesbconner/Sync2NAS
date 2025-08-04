@@ -168,6 +168,9 @@ class Show(BaseModel):
         Returns:
             Show: Instantiated Show object.
         """
+        # Handle None fetched_at by using default factory
+        fetched_at = record["fetched_at"] if record["fetched_at"] is not None else datetime.datetime.now()
+        
         return cls(
             sys_name=record["sys_name"],
             sys_path=record["sys_path"],
@@ -184,7 +187,7 @@ class Show(BaseModel):
             tmdb_status=record["tmdb_status"],
             tmdb_external_ids=record["tmdb_external_ids"],
             tmdb_episodes_fetched_at=record["tmdb_episodes_fetched_at"],
-            fetched_at=record["fetched_at"]
+            fetched_at=fetched_at
         )
 
     def get_episode_groups_dict(self) -> Optional[Dict[str, Any]]:

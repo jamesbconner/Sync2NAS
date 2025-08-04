@@ -40,7 +40,7 @@ class Episode(BaseModel):
     tmdb_id: int = Field(..., gt=0, description="TMDB ID of the show")
     season: int = Field(..., ge=0, description="Season number")
     episode: int = Field(..., ge=0, description="Episode number")
-    abs_episode: int = Field(..., ge=1, description="Absolute episode number")
+    abs_episode: int = Field(..., ge=0, description="Absolute episode number")
     episode_type: str = Field(..., description="Type of episode (e.g., standard, special)")
     episode_id: int = Field(..., gt=0, description="TMDB episode ID")
     air_date: Optional[datetime.datetime] = Field(None, description="Air date")
@@ -142,7 +142,7 @@ class Episode(BaseModel):
                             tmdb_id=tmdb_id,
                             season=season_num,
                             episode=ep.get("order", 0) + 1,
-                            abs_episode=ep.get("episode_number"),
+                            abs_episode=ep.get("episode_number") or 0,
                             episode_type=ep.get("episode_type", "standard"),
                             episode_id=ep.get("id"),
                             air_date=cls._parse_date(ep.get("air_date")),

@@ -1,4 +1,5 @@
 import pytest
+import datetime
 from unittest.mock import MagicMock
 from utils.episode_updater import refresh_episodes_for_show
 from models.show import Show
@@ -21,7 +22,7 @@ def mock_show():
         tmdb_status=None,
         tmdb_external_ids=None,
         tmdb_episodes_fetched_at=None,
-        fetched_at=None
+        fetched_at=datetime.datetime.now()
     )
 
 def test_refresh_episodes_success(monkeypatch, mock_show):
