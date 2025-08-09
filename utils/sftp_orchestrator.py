@@ -154,16 +154,29 @@ def process_sftp_diffs(
                                 file_model.confidence = metadata.get("confidence")
                                 file_model.reasoning = metadata.get("reasoning")
                                 method = (
-                                    "LLM" if (use_llm and active_llm_service is not None and str(metadata.get("reasoning", "")).lower().find("regex") == -1)
+                                    "LLM"
+                                    if (
+                                        use_llm
+                                        and active_llm_service is not None
+                                        and file_model.confidence is not None
+                                        and file_model.confidence >= llm_confidence_threshold
+                                    )
                                     else "regex"
                                 )
+                                def _fmt_num(value):
+                                    try:
+                                        return f"{int(value):02d}"
+                                    except Exception:
+                                        return "??"
+                                s_display = _fmt_num(file_model.season)
+                                e_display = _fmt_num(file_model.episode)
                                 logger.info(
-                                    "Parsed '%s' via %s: show='%s' S%sE%s (confidence=%.2f)",
+                                    "Parsed '%s' via %s: show='%s' S%s E%s (confidence=%.2f)",
                                     file_model.name,
                                     method,
                                     file_model.show_name,
-                                    file_model.season,
-                                    file_model.episode,
+                                    s_display,
+                                    e_display,
                                     (file_model.confidence if file_model.confidence is not None else 0.0),
                                 )
                                 logger.debug("Parsing details for '%s': %s", file_model.name, metadata)
