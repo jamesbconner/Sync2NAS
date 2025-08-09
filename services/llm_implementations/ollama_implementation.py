@@ -122,8 +122,39 @@ class OllamaLLMService(BaseLLMService):
         if stripped.startswith("{") and stripped.endswith("}"):
             return stripped
 
-        match = re.search(r"\{[\s\S]*\}", stripped)
-        return match.group(0) if match else None
+        # Brace-balancing scan to capture only the first complete JSON object
+        start_index = stripped.find("{")
+        if start_index == -1:
+            return None
+
+        depth = 0
+        in_string = False
+        string_char = ""
+        i = start_index
+        while i < len(stripped):
+            ch = stripped[i]
+            if in_string:
+                if ch == "\\":
+                    # Skip escaped character inside string
+                    i += 2
+                    continue
+                if ch == string_char:
+                    in_string = False
+            else:
+                if ch == '"' or ch == "'":
+                    in_string = True
+                    string_char = ch
+                elif ch == '{':
+                    if depth == 0:
+                        start_index = i
+                    depth += 1
+                elif ch == '}':
+                    depth -= 1
+                    if depth == 0:
+                        return stripped[start_index:i+1].strip()
+            i += 1
+
+        return None
 
     def suggest_short_dirname(self, long_name: str, max_length: int = 20) -> str:
         """
