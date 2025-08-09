@@ -302,6 +302,20 @@ The LLM filename parsing system is now modular and backend-agnostic, supporting 
 - Both API and CLI use the factory to instantiate the LLM service based on the loaded config.
 - The LLM service is passed via context or dependency injection, ensuring a single instance is used per run.
 
+## SFTP Download Flow Parsing
+
+During SFTP downloads, filename parsing can populate show metadata in the `downloaded_files` table:
+
+1. Remote listing is filtered and diffed.
+2. Each new file is downloaded to the incoming path.
+3. If parsing is enabled, the filename is parsed (LLM or regex fallback) to set `show_name`, `season`, `episode`, `confidence`, and `reasoning` on the `DownloadedFile` model.
+4. CRC32 is computed (uppercase hex) when hashing is enabled.
+5. The record is upserted into the database.
+
+Controls:
+- CLI flags: `--parse/--no-parse`, `--llm/--no-llm`, `--llm-threshold` on `download-from-remote`.
+- Orchestrator params: `parse_filenames`, `use_llm`, `llm_confidence_threshold`.
+
 ## Migration Note
 If you are upgrading from a previous version:
 - The old `services/llm_service.py` is deprecated and should be removed.

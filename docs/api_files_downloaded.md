@@ -37,6 +37,13 @@ Response
     - `status` (string)
     - `file_type` (string)
     - `file_hash_value` (string | null)
+  - `file_hash_algo` (string | null)
+  - `hash_calculated_at` (ISO string | null)
+  - `show_name` (string | null)
+  - `season` (int | null)
+  - `episode` (int | null)
+  - `confidence` (float | null)
+  - `reasoning` (string | null)
 
 Examples (curl)
 
@@ -63,6 +70,7 @@ Examples (curl)
 Notes
 - The endpoint selects the appropriate backend repository (SQLite or Postgres) automatically.
 - Hash values (CRC32) are computed during download and exposed via `file_hash_value`. Routing is not gated by hash yet (future feature).
+ - Filename parsing runs during SFTP download (configurable). When enabled, `show_name`, `season`, `episode`, `confidence`, and `reasoning` are populated. LLM parsing can be toggled and uses a configurable confidence threshold.
 
 ### API: Get Downloaded File Detail
 

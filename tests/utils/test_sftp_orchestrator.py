@@ -606,3 +606,177 @@ def test_process_sftp_diffs_multiple_files_concurrent(tmp_path, mock_sftp_servic
     assert all(future.result.call_count == 1 for future in mock_futures)
     # Verify all downloads were recorded
     assert mock_db_service.add_downloaded_file.call_count == 3
+
+
+def test_process_sftp_diffs_parsing_disabled(tmp_path, mock_sftp_service, mock_db_service, mocker):
+    """When parsing is disabled, metadata fields should remain None."""
+    now = "2024-01-01T12:00:00"
+    diffs = [
+        {
+            "name": "Show.Name.S01E02.mkv",
+            "path": "/remote/Show.Name.S01E02.mkv",
+            "size": 100,
+            "modified_time": now,
+            "fetched_at": now,
+            "is_dir": False,
+        }
+    ]
+
+    # Allow file entry to pass filters
+    mocker.patch('utils.sftp_orchestrator.is_valid_media_file', return_value=True)
+
+    # Mock ThreadPoolExecutor flow
+    mock_executor = mocker.Mock()
+    mock_future = mocker.Mock()
+    mock_executor.__enter__ = mocker.Mock(return_value=mock_executor)
+    mock_executor.submit.return_value = mock_future
+    mock_executor.__exit__ = mocker.Mock(return_value=None)
+    mocker.patch('utils.sftp_orchestrator.ThreadPoolExecutor', return_value=mock_executor)
+    mocker.patch('utils.sftp_orchestrator.as_completed', return_value=[mock_future])
+    mock_future.result.return_value = None
+
+    # Mock SFTPService constructor
+    mock_new_sftp = mocker.Mock()
+    mock_new_sftp.__enter__ = mocker.Mock(return_value=mock_new_sftp)
+    mock_new_sftp.__exit__ = mocker.Mock(return_value=None)
+    mocker.patch('services.sftp_service.SFTPService', return_value=mock_new_sftp)
+
+    from utils.sftp_orchestrator import process_sftp_diffs
+
+    process_sftp_diffs(
+        sftp_service=mock_sftp_service,
+        db_service=mock_db_service,
+        diffs=diffs,
+        remote_base="/remote",
+        local_base=str(tmp_path),
+        dry_run=False,
+        parse_filenames=False,  # disable parsing
+    )
+
+    # upsert called once with DownloadedFile model having no parsed fields
+    assert mock_db_service.upsert_downloaded_file.call_count == 1
+    upsert_arg = mock_db_service.upsert_downloaded_file.call_args[0][0]
+    assert getattr(upsert_arg, 'show_name', None) is None
+    assert getattr(upsert_arg, 'season', None) is None
+    assert getattr(upsert_arg, 'episode', None) is None
+
+
+def test_process_sftp_diffs_llm_enabled_above_threshold(tmp_path, mock_sftp_service, mock_db_service, mocker, mock_llm_service):
+    """LLM parsing above threshold should populate parsed fields."""
+    now = "2024-01-01T12:00:00"
+    diffs = [
+        {
+            "name": "Unstructured Filename.mkv",
+            "path": "/remote/Unstructured Filename.mkv",
+            "size": 100,
+            "modified_time": now,
+            "fetched_at": now,
+            "is_dir": False,
+        }
+    ]
+
+    # LLM returns high confidence
+    mock_llm_service.parse_filename.return_value = {
+        "show_name": "Mock Show",
+        "season": 3,
+        "episode": 7,
+        "confidence": 0.95,
+        "reasoning": "High confidence from LLM"
+    }
+
+    mocker.patch('utils.sftp_orchestrator.is_valid_media_file', return_value=True)
+
+    mock_executor = mocker.Mock()
+    mock_future = mocker.Mock()
+    mock_executor.__enter__ = mocker.Mock(return_value=mock_executor)
+    mock_executor.submit.return_value = mock_future
+    mock_executor.__exit__ = mocker.Mock(return_value=None)
+    mocker.patch('utils.sftp_orchestrator.ThreadPoolExecutor', return_value=mock_executor)
+    mocker.patch('utils.sftp_orchestrator.as_completed', return_value=[mock_future])
+    mock_future.result.return_value = None
+
+    mock_new_sftp = mocker.Mock()
+    mock_new_sftp.__enter__ = mocker.Mock(return_value=mock_new_sftp)
+    mock_new_sftp.__exit__ = mocker.Mock(return_value=None)
+    mocker.patch('services.sftp_service.SFTPService', return_value=mock_new_sftp)
+
+    from utils.sftp_orchestrator import process_sftp_diffs
+
+    process_sftp_diffs(
+        sftp_service=mock_sftp_service,
+        db_service=mock_db_service,
+        diffs=diffs,
+        remote_base="/remote",
+        local_base=str(tmp_path),
+        dry_run=False,
+        llm_service=mock_llm_service,
+        parse_filenames=True,
+        use_llm=True,
+        llm_confidence_threshold=0.7,
+    )
+
+    upsert_arg = mock_db_service.upsert_downloaded_file.call_args[0][0]
+    assert upsert_arg.show_name == "Mock Show"
+    assert upsert_arg.season == 3
+    assert upsert_arg.episode == 7
+    assert upsert_arg.confidence is not None and upsert_arg.confidence >= 0.9
+
+
+def test_process_sftp_diffs_llm_below_threshold_falls_back_regex(tmp_path, mock_sftp_service, mock_db_service, mocker, mock_llm_service):
+    """LLM below threshold should fall back to regex parsing."""
+    now = "2024-01-01T12:00:00"
+    diffs = [
+        {
+            "name": "My.Show.S01E02.mkv",
+            "path": "/remote/My.Show.S01E02.mkv",
+            "size": 100,
+            "modified_time": now,
+            "fetched_at": now,
+            "is_dir": False,
+        }
+    ]
+
+    # LLM returns low confidence, should fallback
+    mock_llm_service.parse_filename.return_value = {
+        "show_name": "Wrong Name",
+        "season": 99,
+        "episode": 99,
+        "confidence": 0.2,
+        "reasoning": "Low confidence"
+    }
+
+    mocker.patch('utils.sftp_orchestrator.is_valid_media_file', return_value=True)
+
+    mock_executor = mocker.Mock()
+    mock_future = mocker.Mock()
+    mock_executor.__enter__ = mocker.Mock(return_value=mock_executor)
+    mock_executor.submit.return_value = mock_future
+    mock_executor.__exit__ = mocker.Mock(return_value=None)
+    mocker.patch('utils.sftp_orchestrator.ThreadPoolExecutor', return_value=mock_executor)
+    mocker.patch('utils.sftp_orchestrator.as_completed', return_value=[mock_future])
+    mock_future.result.return_value = None
+
+    mock_new_sftp = mocker.Mock()
+    mock_new_sftp.__enter__ = mocker.Mock(return_value=mock_new_sftp)
+    mock_new_sftp.__exit__ = mocker.Mock(return_value=None)
+    mocker.patch('services.sftp_service.SFTPService', return_value=mock_new_sftp)
+
+    from utils.sftp_orchestrator import process_sftp_diffs
+
+    process_sftp_diffs(
+        sftp_service=mock_sftp_service,
+        db_service=mock_db_service,
+        diffs=diffs,
+        remote_base="/remote",
+        local_base=str(tmp_path),
+        dry_run=False,
+        llm_service=mock_llm_service,
+        parse_filenames=True,
+        use_llm=True,
+        llm_confidence_threshold=0.9,  # higher than returned confidence
+    )
+
+    upsert_arg = mock_db_service.upsert_downloaded_file.call_args[0][0]
+    # Expect regex parsed S01E02
+    assert upsert_arg.season == 1
+    assert upsert_arg.episode == 2

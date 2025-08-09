@@ -136,7 +136,7 @@ def test_download_from_remote_insert(tmp_path, mock_tmdb_service, mock_sftp_serv
         "dry_run": False
     }
 
-    result = cli_runner.invoke(cli, ["-c", config_path, "download-from-remote"], obj=obj)
+    result = cli_runner.invoke(cli, ["-c", config_path, "download-from-remote", "--parse", "--no-llm", "--llm-threshold", "0.7"], obj=obj)
 
     assert result.exit_code == 0
     # Simulate DB insert with all required fields
@@ -150,3 +150,50 @@ def test_download_from_remote_insert(tmp_path, mock_tmdb_service, mock_sftp_serv
     })
     downloaded_files = db.get_downloaded_files()
     assert any(f["name"] == "file1.mp4" for f in downloaded_files) 
+
+
+def test_download_from_remote_flags_parsing_disabled(tmp_path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, db_service, mocker):
+    config_path = create_temp_config(tmp_path)
+    config = load_configuration(config_path)
+
+    db = db_service
+    db.initialize()
+
+    remote_paths = parse_sftp_paths(config)
+    remote_path = remote_paths[0]
+
+    incoming_path = config["Transfers"]["incoming"]
+    os.makedirs(remote_path, exist_ok=True)
+    os.makedirs(incoming_path, exist_ok=True)
+
+    mock_new_sftp = mocker.Mock()
+    mock_new_sftp.__enter__ = mocker.Mock(return_value=mock_new_sftp)
+    mock_new_sftp.__exit__ = mocker.Mock(return_value=None)
+    mock_new_sftp.list_remote_dir.return_value = [
+        {
+            "name": "Show.Name.S01E02.mkv",
+            "path": os.path.join(remote_path, "Show.Name.S01E02.mkv"),
+            "size": 1234,
+            "modified_time": datetime.datetime(2020, 1, 1, 12, 0, 0),
+            "is_dir": False,
+            "fetched_at": datetime.datetime(2020, 1, 1, 12, 0, 0),
+        }
+    ]
+    mock_new_sftp.download_file = mocker.Mock()
+    mocker.patch('services.sftp_service.SFTPService', return_value=mock_new_sftp)
+
+    obj = {
+        "config": config,
+        "db": db,
+        "tmdb": mock_tmdb_service,
+        "sftp": mock_new_sftp,
+        "anime_tv_path": config["Routing"]["anime_tv_path"],
+        "incoming_path": incoming_path,
+        "llm_service": create_llm_service(config),
+        "dry_run": False
+    }
+
+    # Disable parsing via CLI flag
+    result = cli_runner.invoke(cli, ["-c", config_path, "download-from-remote", "--no-parse"], obj=obj)
+
+    assert result.exit_code == 0

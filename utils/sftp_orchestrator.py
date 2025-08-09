@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from models.downloaded_file import DownloadedFile
 from services.hashing_service import HashingService
+from utils.filename_parser import parse_filename
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,9 @@ def process_sftp_diffs(
     llm_service=None,
     max_workers: int = 4,
     hashing_service: Optional[HashingService] = None,
+    parse_filenames: bool = True,
+    use_llm: bool = True,
+    llm_confidence_threshold: float = 0.7,
 ) -> None:
     """
     Process a list of SFTP diffs: download new files or directories and record them.
@@ -50,6 +54,19 @@ def process_sftp_diffs(
         "ssh_key_path": sftp_service.ssh_key_path,
         "llm_service": sftp_service.llm_service,
     }
+    # Determine effective LLM service
+    active_llm_service = llm_service or getattr(sftp_service, "llm_service", None)
+    logger.info(
+        "SFTP processing config: parse_filenames=%s, use_llm=%s, llm_confidence_threshold=%.2f, max_workers=%d",
+        parse_filenames,
+        use_llm,
+        llm_confidence_threshold,
+        max_workers,
+    )
+    if not parse_filenames:
+        logger.info("Filename parsing is disabled; show/season/episode will not be populated.")
+    elif not use_llm or active_llm_service is None:
+        logger.info("LLM parsing disabled or unavailable; regex fallback will be used for filename parsing.")
 
     def download_file_task(remote_path, local_path):
         sftp = SFTPService(**sftp_params)
@@ -123,6 +140,35 @@ def process_sftp_diffs(
                             {**entry, "path": entry.get("remote_path") or entry.get("path"), "local_path": local_path},
                             base_path=local_base,
                         )
+                        # Parse filename to populate show/season/episode if enabled
+                        if parse_filenames and not entry.get("is_dir", False):
+                            try:
+                                metadata = parse_filename(
+                                    file_model.name,
+                                    llm_service=active_llm_service if use_llm else None,
+                                    llm_confidence_threshold=llm_confidence_threshold,
+                                )
+                                file_model.show_name = metadata.get("show_name")
+                                file_model.season = metadata.get("season")
+                                file_model.episode = metadata.get("episode")
+                                file_model.confidence = metadata.get("confidence")
+                                file_model.reasoning = metadata.get("reasoning")
+                                method = (
+                                    "LLM" if (use_llm and active_llm_service is not None and str(metadata.get("reasoning", "")).lower().find("regex") == -1)
+                                    else "regex"
+                                )
+                                logger.info(
+                                    "Parsed '%s' via %s: show='%s' S%sE%s (confidence=%.2f)",
+                                    file_model.name,
+                                    method,
+                                    file_model.show_name,
+                                    file_model.season,
+                                    file_model.episode,
+                                    (file_model.confidence if file_model.confidence is not None else 0.0),
+                                )
+                                logger.debug("Parsing details for '%s': %s", file_model.name, metadata)
+                            except Exception as p_exc:
+                                logger.warning(f"Filename parsing failed for {file_model.name}: {p_exc}")
                         # Compute CRC32 if hashing_service provided
                         if hashing_service is not None and not entry.get("is_dir", False):
                             try:
@@ -154,6 +200,9 @@ def download_from_remote(
     dry_run: bool = False,
     max_workers: int = 4,
     hashing_service: Optional[HashingService] = None,
+    parse_filenames: bool = True,
+    use_llm: bool = True,
+    llm_confidence_threshold: float = 0.7,
 ) -> None:
     """
     Orchestrates remote file download:
@@ -195,6 +244,9 @@ def download_from_remote(
             dry_run=dry_run,
             max_workers=max_workers,
             hashing_service=hashing_service,
+            parse_filenames=parse_filenames,
+            use_llm=use_llm,
+            llm_confidence_threshold=llm_confidence_threshold,
         )
 
 def list_remote_files(sftp_service: SFTPService, remote_path: str) -> List[Dict]:
