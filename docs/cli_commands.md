@@ -21,6 +21,10 @@ python sync2nas.py download-from-remote [options]
 - `--verbose, -v`: Enable verbose output
 - `--logfile, -l`: Specify log file path
 - `--config, -c`: Specify configuration file path
+- `--max-workers, -m`: Number of concurrent downloads (default: 4)
+- `--parse/--no-parse`: Enable/disable filename parsing to populate show/season/episode (default: --parse)
+- `--llm/--no-llm`: Enable/disable LLM-based parsing (default: --llm; when disabled, regex fallback is used)
+- `--llm-threshold`: Minimum LLM confidence required to accept results (default: 0.7)
 
 **Examples:**
 ```bash
@@ -32,6 +36,15 @@ python sync2nas.py -vv download-from-remote
 
 # Download with custom log file
 python sync2nas.py download-from-remote --logfile downloads.log
+
+# Disable parsing entirely
+python sync2nas.py download-from-remote --no-parse
+
+# Use regex-only parsing (disable LLM)
+python sync2nas.py download-from-remote --parse --no-llm
+
+# Increase LLM confidence threshold
+python sync2nas.py download-from-remote --llm-threshold 0.85
 ```
 
 #### `route-files`
