@@ -72,29 +72,58 @@ class OllamaLLMService(BaseLLMService):
                 content = response['response']
             else:
                 content = response  # fallback
+
+            if not isinstance(content, str) or not content.strip():
+                logger.error("Empty Ollama response; using fallback parser")
+                return self._fallback_parse(filename)
+
             logger.debug(f"Ollama response: {content}")
-            
-            # validate the response matches the expected schema
-            try:
-                
-                parsed_result = ParsedFilename.model_validate_json(response.response)
-                logger.info(f"Successfully validated response schema: {parsed_result}")
-            except ValidationError as e:
-                logger.error(f"Failed to parse JSON response: {e}")
+
+            # Extract first JSON object in case of extra prose or code fences
+            json_text = self._extract_first_json_object(content)
+            if json_text is None:
+                logger.error("No JSON object found in Ollama response; using fallback parser")
                 return self._fallback_parse(filename)
-            
-            # parse the response into a dictionary
+
             try:
-                result = json.loads(content)
-                parsed_result = self._validate_and_clean_result(result, filename) # TODO: remove this later, but still need cleaning of result
-                logger.info(f"Successfully parsed: {parsed_result}")
-                return parsed_result
+                result = json.loads(json_text)
             except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse JSON response: {e}")
+                logger.error(f"Failed to decode JSON from Ollama response: {e}")
                 return self._fallback_parse(filename)
+
+            # Strong validation against the Pydantic model to ensure structure/types
+            try:
+                model_instance = ParsedFilename.model_validate(result)
+                validated_dict = model_instance.model_dump()
+            except ValidationError as e:
+                logger.error(f"Pydantic validation failed for Ollama response: {e}")
+                return self._fallback_parse(filename)
+
+            parsed_result = self._validate_and_clean_result(validated_dict, filename)
+            logger.info(f"Successfully parsed: {parsed_result}")
+            return parsed_result
         except Exception as e:
             logger.exception(f"Ollama API error: {e}")
             return self._fallback_parse(filename)
+
+    def _extract_first_json_object(self, content: str) -> str | None:
+        """
+        Extract the first JSON object from a possibly noisy response.
+
+        Handles code fences and leading/trailing prose. Returns None if not found.
+        """
+        if not content:
+            return None
+
+        # Strip common markdown fences
+        fenced = re.sub(r"^```[a-zA-Z0-9]*\n|\n```$", "", content.strip())
+
+        stripped = fenced.strip()
+        if stripped.startswith("{") and stripped.endswith("}"):
+            return stripped
+
+        match = re.search(r"\{[\s\S]*\}", stripped)
+        return match.group(0) if match else None
 
     def suggest_short_dirname(self, long_name: str, max_length: int = 20) -> str:
         """
