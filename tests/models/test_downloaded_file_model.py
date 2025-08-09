@@ -59,9 +59,11 @@ class TestDownloadedFileCreation:
         file = DownloadedFile.from_sftp_entry(sample_sftp_entry, base_path)
         
         assert file.name == "test_video.mkv"
-        # Use Path to handle cross-platform path separators
+        # original_path should reflect the actual remote path
+        assert file.original_path == "remote/path/test_video.mkv"
+        # current_path should reflect the local download destination (base_path + remote relative path)
         expected_path = str(Path("/incoming") / "remote" / "path" / "test_video.mkv")
-        assert file.original_path == expected_path
+        assert file.current_path == expected_path
         assert file.size == 1024000
         assert file.is_dir is False
         assert file.status == FileStatus.DOWNLOADED

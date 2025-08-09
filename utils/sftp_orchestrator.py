@@ -91,7 +91,10 @@ def process_sftp_diffs(
             db_service.add_downloaded_file({**entry, "path": entry.get("remote_path") or entry.get("path")})
             # Upsert record via DB service
             try:
-                file_model = DownloadedFile.from_sftp_entry({**entry, "path": entry.get("remote_path") or entry.get("path")}, base_path=local_base)
+                file_model = DownloadedFile.from_sftp_entry(
+                    {**entry, "path": entry.get("remote_path") or entry.get("path"), "local_path": local_path},
+                    base_path=local_base,
+                )
                 db_service.upsert_downloaded_file(file_model)
             except Exception as repo_exc:
                 logger.warning(f"DownloadedFile upsert failed for DIR {remote_path}: {repo_exc}")
@@ -116,7 +119,10 @@ def process_sftp_diffs(
                     db_service.add_downloaded_file({**entry, "path": entry.get("remote_path") or entry.get("path")})
                     # Upsert record via DB service
                     try:
-                        file_model = DownloadedFile.from_sftp_entry({**entry, "path": entry.get("remote_path") or entry.get("path")}, base_path=local_base)
+                        file_model = DownloadedFile.from_sftp_entry(
+                            {**entry, "path": entry.get("remote_path") or entry.get("path"), "local_path": local_path},
+                            base_path=local_base,
+                        )
                         # Compute CRC32 if hashing_service provided
                         if hashing_service is not None and not entry.get("is_dir", False):
                             try:

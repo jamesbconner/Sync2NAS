@@ -263,15 +263,21 @@ class DownloadedFile(BaseModel):
         Returns:
             DownloadedFile: Instantiated DownloadedFile object.
         """
-        # Use Path for cross-platform path handling
-        full_path = Path(base_path) / (entry.get("remote_path") or entry.get("path"))
+        # Determine the remote path from entry (preferred key: remote_path; fallback: path)
+        remote_path_value = entry.get("remote_path") or entry.get("path")
+        if not remote_path_value:
+            raise ValueError("from_sftp_entry requires 'remote_path' or 'path' in entry")
+        # Determine local download destination if provided by caller; otherwise infer from base_path
+        local_current_path = entry.get("local_path") or str(Path(base_path) / str(remote_path_value))
+
         return cls(
             name=entry["name"],
-            remote_path=str(full_path),
+            remote_path=str(remote_path_value) if remote_path_value is not None else None,
+            current_path=str(local_current_path) if local_current_path is not None else None,
             size=entry["size"],
             modified_time=entry["modified_time"],
             fetched_at=entry["fetched_at"],
-            is_dir=entry["is_dir"]
+            is_dir=entry["is_dir"],
         )
 
     def calculate_hash(self, hash_type: str = "crc32") -> Optional[str]:
