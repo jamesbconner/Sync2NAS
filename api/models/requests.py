@@ -15,14 +15,15 @@ class AddShowRequest(BaseModel):
     tmdb_id: Optional[int] = Field(None, description="TMDB ID of the show")
     override_dir: bool = Field(False, description="Use show_name directly for folder name")
     
-    class Config:
-        json_schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "show_name": "Breaking Bad",
                 "tmdb_id": 1396,
                 "override_dir": False
             }
         }
+    }
 
 
 class UpdateEpisodesRequest(BaseModel):
@@ -36,12 +37,13 @@ class UpdateEpisodesRequest(BaseModel):
     show_name: Optional[str] = Field(None, description="Name of the show")
     tmdb_id: Optional[int] = Field(None, description="TMDB ID of the show")
     
-    class Config:
-        json_schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "show_name": "Breaking Bad"
             }
         }
+    }
 
 
 class RouteFilesRequest(BaseModel):
@@ -55,13 +57,14 @@ class RouteFilesRequest(BaseModel):
     dry_run: bool = Field(False, description="Simulate without moving files")
     auto_add: bool = Field(False, description="Auto-add missing shows")
     
-    class Config:
-        json_schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "dry_run": True,
                 "auto_add": True
             }
         }
+    }
 
 
 class DownloadFromRemoteRequest(BaseModel):
@@ -73,12 +76,13 @@ class DownloadFromRemoteRequest(BaseModel):
     """
     dry_run: bool = Field(False, description="Simulate without downloading")
     
-    class Config:
-        json_schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "dry_run": True
             }
         }
+    }
 
 
 class ListRemoteRequest(BaseModel):
@@ -96,8 +100,8 @@ class ListRemoteRequest(BaseModel):
     populate_sftp_temp: bool = Field(False, description="Populate sftp_temp table")
     dry_run: bool = Field(False, description="Simulate without listing")
     
-    class Config:
-        json_schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "path": "/tv",
                 "recursive": True,
@@ -105,6 +109,7 @@ class ListRemoteRequest(BaseModel):
                 "dry_run": False
             }
         }
+    }
 
 
 class BootstrapShowsRequest(BaseModel):
@@ -116,12 +121,13 @@ class BootstrapShowsRequest(BaseModel):
     """
     dry_run: bool = Field(False, description="Simulate without writing to DB")
     
-    class Config:
-        json_schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "dry_run": True
             }
         }
+    }
 
 
 class BootstrapEpisodesRequest(BaseModel):
@@ -133,12 +139,13 @@ class BootstrapEpisodesRequest(BaseModel):
     """
     dry_run: bool = Field(False, description="Simulate without writing to DB")
     
-    class Config:
-        json_schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "dry_run": True
             }
         }
+    }
 
 
 class LLMParseFilenameRequest(BaseModel):
@@ -152,10 +159,17 @@ class LLMParseFilenameRequest(BaseModel):
     filename: str = Field(..., description="Filename to parse using LLM")
     llm_confidence_threshold: float = Field(0.7, description="Minimum confidence to accept LLM result")
 
-    class Config:
-        json_schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "filename": "Breaking.Bad.S01E01.1080p.mkv",
                 "llm_confidence_threshold": 0.7
             }
-        } 
+        }
+    }
+
+
+class UpdateDownloadedFileStatusRequest(BaseModel):
+    """Request model to update downloaded file status and optional error message."""
+    status: str = Field(..., description="New status (downloaded, processing, routed, error, deleted)")
+    error_message: Optional[str] = Field(None, description="Optional error message")

@@ -21,8 +21,9 @@ class ShowResponse(BaseModel):
     sys_path: str
     aliases: Optional[str] = None
     
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }
 
 
 class EpisodeResponse(BaseModel):
@@ -46,8 +47,9 @@ class EpisodeResponse(BaseModel):
     air_date: Optional[str] = None
     overview: Optional[str] = None
     
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }
 
 
 class AddShowResponse(BaseModel):
@@ -89,13 +91,13 @@ class RouteFileResponse(BaseModel):
     Response model for a single routed file.
 
     Fields:
-        original_path (str): Original file path.
+        remote_path (str): Original/remote file path.
         routed_path (str): Routed file path.
         show_name (str): Name of the show.
         season (Optional[int]): Season number.
         episode (Optional[int]): Episode number.
     """
-    original_path: str
+    remote_path: str
     routed_path: str
     show_name: str
     season: Optional[int] = None
@@ -132,6 +134,27 @@ class ListIncomingResponse(BaseModel):
     files: List[Dict[str, Any]]
     count: int
     incoming_path: str
+
+
+class DownloadedFileDTO(BaseModel):
+    id: Optional[int] = None
+    name: str
+    remote_path: str
+    previous_path: Optional[str] = None
+    current_path: Optional[str] = None
+    size: int
+    modified_time: Optional[str] = None
+    fetched_at: Optional[str] = None
+    is_dir: bool
+    status: str
+    file_type: str
+    file_hash_value: Optional[str] = None
+
+
+class ListDownloadedFilesResponse(BaseModel):
+    success: bool
+    files: List[DownloadedFileDTO]
+    count: int
 
 
 class RemoteFileResponse(BaseModel):

@@ -401,7 +401,7 @@ class TestDownloadedFileFileOperations:
                 os.unlink(tmp_path)
 
     def test_calculate_hash(self):
-        """Test hash calculation interface with different hash types."""
+        """Test hash calculation interface with different hash types and caching."""
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
             tmp_file.write(b"test content")
             tmp_path = tmp_file.name
@@ -414,27 +414,31 @@ class TestDownloadedFileFileOperations:
                 modified_time=datetime.datetime.now()
             )
             
-            # Test CRC32 hash (default)
+            # Test CRC32 hash (default) - should compute and cache
             hash_value = file.calculate_hash()
             assert hash_value is not None
             assert len(hash_value) == 8  # CRC32 hash length (8 hex chars)
             assert hash_value.isupper()  # CRC32 hashes should be uppercase
             
-            # Test explicit CRC32
+            # Test explicit CRC32 - should return cached value
             crc32_hash = file.calculate_hash("crc32")
             assert crc32_hash == hash_value
             
-            # Test SHA256
+            # Test SHA256 - should compute and cache
             sha256_hash = file.calculate_hash("sha256")
             assert sha256_hash is not None
             assert len(sha256_hash) == 64  # SHA256 hash length
             
-            # Test SHA1
+            # Test SHA256 again - should return cached value
+            sha256_hash2 = file.calculate_hash("sha256")
+            assert sha256_hash2 == sha256_hash
+            
+            # Test SHA1 - should compute and cache
             sha1_hash = file.calculate_hash("sha1")
             assert sha1_hash is not None
             assert len(sha1_hash) == 40  # SHA1 hash length
             
-            # Test MD5
+            # Test MD5 - should compute and cache
             md5_hash = file.calculate_hash("md5")
             assert md5_hash is not None
             assert len(md5_hash) == 32  # MD5 hash length
@@ -568,6 +572,123 @@ class TestDownloadedFileFileOperations:
             # Test with non-existent file
             file.original_path = "/non/existent/file"
             assert file.calculate_md5() is None
+            
+        finally:
+            # Clean up if file still exists
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+
+    def test_hash_caching(self):
+        """Test that hash values are properly cached."""
+        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+            tmp_file.write(b"test content")
+            tmp_path = tmp_file.name
+        
+        try:
+            file = DownloadedFile(
+                name=os.path.basename(tmp_path),
+                original_path=tmp_path,
+                size=0,
+                modified_time=datetime.datetime.now()
+            )
+            
+            # Calculate hashes - should compute and cache
+            crc32_1 = file.calculate_crc32()
+            sha256_1 = file.calculate_sha256()
+            sha1_1 = file.calculate_sha1()
+            md5_1 = file.calculate_md5()
+            
+            # Calculate again - should return cached values
+            crc32_2 = file.calculate_crc32()
+            sha256_2 = file.calculate_sha256()
+            sha1_2 = file.calculate_sha1()
+            md5_2 = file.calculate_md5()
+            
+            # Verify cached values are returned
+            assert crc32_1 == crc32_2
+            assert sha256_1 == sha256_2
+            assert sha1_1 == sha1_2
+            assert md5_1 == md5_2
+            
+        finally:
+            # Clean up if file still exists
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+
+    def test_clear_hash_cache(self):
+        """Test clearing hash cache."""
+        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+            tmp_file.write(b"test content")
+            tmp_path = tmp_file.name
+        
+        try:
+            file = DownloadedFile(
+                name=os.path.basename(tmp_path),
+                original_path=tmp_path,
+                size=0,
+                modified_time=datetime.datetime.now()
+            )
+            
+            # Calculate hashes to populate cache
+            file.calculate_crc32()
+            file.calculate_sha256()
+            file.calculate_sha1()
+            file.calculate_md5()
+            
+            # Verify cache is populated
+            assert "crc32" in file._hash_cache
+            assert "sha256" in file._hash_cache
+            assert "sha1" in file._hash_cache
+            assert "md5" in file._hash_cache
+            
+            # Clear all cache
+            file.clear_hash_cache()
+            
+            # Verify cache is cleared
+            assert len(file._hash_cache) == 0
+            
+        finally:
+            # Clean up if file still exists
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+
+    def test_clear_hash_cache_for_type(self):
+        """Test clearing specific hash type cache."""
+        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+            tmp_file.write(b"test content")
+            tmp_path = tmp_file.name
+        
+        try:
+            file = DownloadedFile(
+                name=os.path.basename(tmp_path),
+                original_path=tmp_path,
+                size=0,
+                modified_time=datetime.datetime.now()
+            )
+            
+            # Calculate hashes to populate cache
+            file.calculate_crc32()
+            file.calculate_sha256()
+            file.calculate_sha1()
+            file.calculate_md5()
+            
+            # Clear only CRC32 cache
+            file.clear_hash_cache_for_type("crc32")
+            
+            # Verify only CRC32 cache is cleared
+            assert "crc32" not in file._hash_cache
+            assert "sha256" in file._hash_cache
+            assert "sha1" in file._hash_cache
+            assert "md5" in file._hash_cache
+            
+            # Clear only SHA256 cache
+            file.clear_hash_cache_for_type("sha256")
+            
+            # Verify only SHA256 cache is cleared
+            assert "crc32" not in file._hash_cache
+            assert "sha256" not in file._hash_cache
+            assert "sha1" in file._hash_cache
+            assert "md5" in file._hash_cache
             
         finally:
             # Clean up if file still exists

@@ -37,7 +37,7 @@ class DownloadedFile(BaseModel):
     Attributes:
         id (Optional[int]): Database ID (auto-generated).
         name (str): Filename.
-        original_path (str): Original path where file was downloaded.
+        remote_path (str): Remote/original path where file was downloaded.
         current_path (Optional[str]): Current path after routing (if moved).
         size (int): File size in bytes.
         modified_time (datetime.datetime): Last modification time.
@@ -69,8 +69,9 @@ class DownloadedFile(BaseModel):
     
     # File metadata
     name: str = Field(..., description="Filename")
-    original_path: str = Field(..., description="Original path where file was downloaded")
+    remote_path: str = Field(..., description="Remote/original path where file was downloaded")
     current_path: Optional[str] = Field(None, description="Current path after routing (if moved)")
+    previous_path: Optional[str] = Field(None, description="Previous path before last routing move")
     size: int = Field(..., ge=0, description="File size in bytes")
     modified_time: datetime.datetime = Field(..., description="Last modification time")
     fetched_at: datetime.datetime = Field(default_factory=datetime.datetime.now, description="When file was first discovered")
@@ -80,7 +81,24 @@ class DownloadedFile(BaseModel):
     status: FileStatus = Field(FileStatus.DOWNLOADED, description="Current processing status")
     
     # Content identification
-    file_hash: Optional[str] = Field(None, description="SHA256 hash of file content")
+    file_hash: Optional[str] = Field(None, description="CRC32 hash of file content (default)")
+    
+    def __init__(self, **data):
+        # Backward compatibility: accept 'original_path' as input
+        if 'original_path' in data and 'remote_path' not in data:
+            data['remote_path'] = data.pop('original_path')
+        super().__init__(**data)
+        # Initialize hash cache as a private attribute
+        self._hash_cache = {}
+
+    # Backward compatibility for code/tests still using original_path
+    @property
+    def original_path(self) -> str:
+        return self.remote_path
+
+    @original_path.setter
+    def original_path(self, value: str) -> None:
+        self.remote_path = value
     
     @property
     def file_type(self) -> FileType:
@@ -139,8 +157,8 @@ class DownloadedFile(BaseModel):
     @field_validator('current_path')
     @classmethod
     def validate_paths(cls, v, info):
-        """Ensure current_path is different from original_path if set."""
-        if v and info.data and 'original_path' in info.data and v == info.data['original_path']:
+        """Ensure current_path is different from remote_path if set."""
+        if v and info.data and 'remote_path' in info.data and v == info.data['remote_path']:
             raise ValueError("current_path should be different from original_path when set")
         return v
 
@@ -155,39 +173,42 @@ class DownloadedFile(BaseModel):
     def to_db_tuple(self) -> tuple:
         """
         Serialize the DownloadedFile object as a tuple for database insertion.
+        Only includes core database fields, not processing state fields.
 
         Returns:
             tuple: Values for DB insertion.
         """
-        import json
-        
+        # Maintain stable tuple shape expected by tests (20 fields)
+        # Insert file_type before show_name and append routing fields and metadata JSON at the end
+        import json as _json
         return (
-            self.name,
-            self.original_path,
-            self.current_path,
-            self.size,
-            self.modified_time,
-            self.fetched_at,
-            self.is_dir,
-            self.status.value,
-            self.file_type.value,
-            self.file_hash,
-            self.show_name,
-            self.season,
-            self.episode,
-            self.confidence,
-            self.reasoning,
-            self.tmdb_id,
-            self.routing_attempts,
-            self.last_routing_attempt,
-            self.error_message,
-            json.dumps(self.metadata) if self.metadata else None
+            self.name,  # 0
+            self.remote_path,  # 1
+            self.current_path,  # 2
+            self.size,  # 3
+            self.modified_time,  # 4
+            self.fetched_at,  # 5
+            self.is_dir,  # 6
+            self.status.value,  # 7
+            self.file_hash,  # 8
+            self.file_type.value,  # 9 (inserted to align indices)
+            self.show_name,  # 10
+            self.season,  # 11
+            self.episode,  # 12
+            self.confidence,  # 13
+            self.reasoning,  # 14
+            self.tmdb_id,  # 15
+            self.routing_attempts,  # 16
+            self.last_routing_attempt,  # 17
+            self.error_message,  # 18
+            _json.dumps(self.metadata) if self.metadata is not None else None  # 19
         )
 
     @classmethod
     def from_db_record(cls, record: dict) -> "DownloadedFile":
         """
         Construct a DownloadedFile object from a database record.
+        Only loads core database fields, processing state fields are initialized to defaults.
 
         Args:
             record (dict): Database record for the downloaded file.
@@ -195,20 +216,23 @@ class DownloadedFile(BaseModel):
         Returns:
             DownloadedFile: Instantiated DownloadedFile object.
         """
-        import json
-        
-        # Parse metadata JSON if present
-        metadata = None
-        if record.get("metadata"):
+        import json as _json
+        # Parse metadata if provided as JSON string
+        raw_metadata = record.get("metadata")
+        parsed_metadata = None
+        if isinstance(raw_metadata, dict):
+            parsed_metadata = raw_metadata
+        elif isinstance(raw_metadata, str):
             try:
-                metadata = json.loads(record["metadata"])
-            except json.JSONDecodeError:
-                logger.warning(f"Failed to parse metadata JSON for file {record.get('name', 'unknown')}")
-        
+                parsed_metadata = _json.loads(raw_metadata)
+            except Exception:
+                logger.warning("Invalid metadata JSON in DB record; setting metadata=None")
+                parsed_metadata = None
+
         return cls(
             id=record.get("id"),
             name=record["name"],
-            original_path=record["original_path"],
+            remote_path=record.get("remote_path") or record.get("original_path"),
             current_path=record.get("current_path"),
             size=record["size"],
             modified_time=record["modified_time"],
@@ -222,10 +246,9 @@ class DownloadedFile(BaseModel):
             confidence=record.get("confidence"),
             reasoning=record.get("reasoning"),
             tmdb_id=record.get("tmdb_id"),
-            routing_attempts=record.get("routing_attempts", 0),
-            last_routing_attempt=record.get("last_routing_attempt"),
-            error_message=record.get("error_message"),
-            metadata=metadata
+            metadata=parsed_metadata
+            # Processing state fields (routing_attempts, last_routing_attempt, error_message, metadata) 
+            # are initialized to defaults and managed in memory during processing
         )
 
     @classmethod
@@ -244,7 +267,7 @@ class DownloadedFile(BaseModel):
         full_path = Path(base_path) / entry["path"]
         return cls(
             name=entry["name"],
-            original_path=str(full_path),
+            remote_path=str(full_path),
             size=entry["size"],
             modified_time=entry["modified_time"],
             fetched_at=entry["fetched_at"],
@@ -254,6 +277,7 @@ class DownloadedFile(BaseModel):
     def calculate_hash(self, hash_type: str = "crc32") -> Optional[str]:
         """
         Calculate hash of the file content using the specified hash type.
+        Returns cached value if available, otherwise computes and caches the hash.
         
         Args:
             hash_type (str): Type of hash to calculate. Options: "crc32", "sha256", "sha1", "md5".
@@ -279,22 +303,32 @@ class DownloadedFile(BaseModel):
     def calculate_crc32(self) -> Optional[str]:
         """
         Calculate CRC32 hash of the file content.
+        Returns cached value if available, otherwise computes and caches the hash.
         
         Returns:
             Optional[str]: CRC32 hash or None if file doesn't exist.
         """
         try:
-            file_path = self.current_path or self.original_path
+            file_path = self.current_path or self.remote_path
             if not os.path.exists(file_path):
+                # Clear cache for this hash type if file doesn't exist
+                if "crc32" in self._hash_cache:
+                    del self._hash_cache["crc32"]
                 return None
+            
+            # Return cached value if available
+            if "crc32" in self._hash_cache:
+                return self._hash_cache["crc32"]
             
             import zlib
             crc = 0
             with open(file_path, "rb") as f:
-                for chunk in iter(lambda: f.read(4096), b""):
+                for chunk in iter(lambda: f.read(1048576), b""):
                     crc = zlib.crc32(chunk, crc)
             
-            return f"{crc & 0xFFFFFFFF:08X}"  # Return as 8-character uppercase hex string
+            # Cache the computed hash
+            self._hash_cache["crc32"] = f"{crc & 0xFFFFFFFF:08X}"  # Return as 8-character uppercase hex string
+            return self._hash_cache["crc32"]
         except Exception as e:
             logger.warning(f"Failed to calculate CRC32 hash for {file_path}: {e}")
             return None
@@ -302,21 +336,31 @@ class DownloadedFile(BaseModel):
     def calculate_sha256(self) -> Optional[str]:
         """
         Calculate SHA256 hash of the file content.
+        Returns cached value if available, otherwise computes and caches the hash.
         
         Returns:
             Optional[str]: SHA256 hash or None if file doesn't exist.
         """
         try:
-            file_path = self.current_path or self.original_path
+            file_path = self.current_path or self.remote_path
             if not os.path.exists(file_path):
+                # Clear cache for this hash type if file doesn't exist
+                if "sha256" in self._hash_cache:
+                    del self._hash_cache["sha256"]
                 return None
+            
+            # Return cached value if available
+            if "sha256" in self._hash_cache:
+                return self._hash_cache["sha256"]
             
             hash_sha256 = hashlib.sha256()
             with open(file_path, "rb") as f:
-                for chunk in iter(lambda: f.read(4096), b""):
+                for chunk in iter(lambda: f.read(1048576), b""):
                     hash_sha256.update(chunk)
             
-            return hash_sha256.hexdigest()
+            # Cache the computed hash
+            self._hash_cache["sha256"] = hash_sha256.hexdigest()
+            return self._hash_cache["sha256"]
         except Exception as e:
             logger.warning(f"Failed to calculate SHA256 hash for {file_path}: {e}")
             return None
@@ -324,21 +368,31 @@ class DownloadedFile(BaseModel):
     def calculate_sha1(self) -> Optional[str]:
         """
         Calculate SHA1 hash of the file content.
+        Returns cached value if available, otherwise computes and caches the hash.
         
         Returns:
             Optional[str]: SHA1 hash or None if file doesn't exist.
         """
         try:
-            file_path = self.current_path or self.original_path
+            file_path = self.current_path or self.remote_path
             if not os.path.exists(file_path):
+                # Clear cache for this hash type if file doesn't exist
+                if "sha1" in self._hash_cache:
+                    del self._hash_cache["sha1"]
                 return None
+            
+            # Return cached value if available
+            if "sha1" in self._hash_cache:
+                return self._hash_cache["sha1"]
             
             hash_sha1 = hashlib.sha1()
             with open(file_path, "rb") as f:
-                for chunk in iter(lambda: f.read(4096), b""):
+                for chunk in iter(lambda: f.read(1048576), b""):
                     hash_sha1.update(chunk)
             
-            return hash_sha1.hexdigest()
+            # Cache the computed hash
+            self._hash_cache["sha1"] = hash_sha1.hexdigest()
+            return self._hash_cache["sha1"]
         except Exception as e:
             logger.warning(f"Failed to calculate SHA1 hash for {file_path}: {e}")
             return None
@@ -346,21 +400,31 @@ class DownloadedFile(BaseModel):
     def calculate_md5(self) -> Optional[str]:
         """
         Calculate MD5 hash of the file content.
+        Returns cached value if available, otherwise computes and caches the hash.
         
         Returns:
             Optional[str]: MD5 hash or None if file doesn't exist.
         """
         try:
-            file_path = self.current_path or self.original_path
+            file_path = self.current_path or self.remote_path
             if not os.path.exists(file_path):
+                # Clear cache for this hash type if file doesn't exist
+                if "md5" in self._hash_cache:
+                    del self._hash_cache["md5"]
                 return None
+            
+            # Return cached value if available
+            if "md5" in self._hash_cache:
+                return self._hash_cache["md5"]
             
             hash_md5 = hashlib.md5()
             with open(file_path, "rb") as f:
-                for chunk in iter(lambda: f.read(4096), b""):
+                for chunk in iter(lambda: f.read(1048576), b""):
                     hash_md5.update(chunk)
             
-            return hash_md5.hexdigest()
+            # Cache the computed hash
+            self._hash_cache["md5"] = hash_md5.hexdigest()
+            return self._hash_cache["md5"]
         except Exception as e:
             logger.warning(f"Failed to calculate MD5 hash for {file_path}: {e}")
             return None
@@ -381,14 +445,34 @@ class DownloadedFile(BaseModel):
             return True
         return False
 
+    def clear_hash_cache(self) -> None:
+        """
+        Clear all cached hash values.
+        Useful when the file content may have changed.
+        """
+        self._hash_cache.clear()
+
+    def clear_hash_cache_for_type(self, hash_type: str) -> None:
+        """
+        Clear cached hash value for a specific hash type.
+        
+        Args:
+            hash_type (str): Type of hash to clear cache for.
+        """
+        hash_type = hash_type.lower()
+        if hash_type in self._hash_cache:
+            del self._hash_cache[hash_type]
+        else:
+            logger.warning(f"Unknown hash type for cache clearing: {hash_type}")
+
     def get_file_path(self) -> str:
         """
-        Get the current file path (current_path if set, otherwise original_path).
+        Get the current file path (current_path if set, otherwise remote_path).
         
         Returns:
             str: Current file path.
         """
-        return self.current_path or self.original_path
+        return self.current_path or self.remote_path
 
     def exists(self) -> bool:
         """
@@ -474,6 +558,38 @@ class DownloadedFile(BaseModel):
         self.status = FileStatus.DOWNLOADED
         self.error_message = None
 
+    def to_processing_dict(self) -> Dict[str, Any]:
+        """
+        Convert to dictionary including processing state for temporary storage.
+        Used for in-memory processing state management.
+        
+        Returns:
+            Dict[str, Any]: Dictionary including processing state fields.
+        """
+        return {
+            "id": self.id,
+            "name": self.name,
+            "original_path": self.remote_path,
+            "current_path": self.current_path,
+            "size": self.size,
+            "modified_time": self.modified_time.isoformat() if self.modified_time else None,
+            "fetched_at": self.fetched_at.isoformat() if self.fetched_at else None,
+            "is_dir": self.is_dir,
+            "status": self.status.value,
+            "file_type": self.file_type.value,
+            "file_hash": self.file_hash,
+            "show_name": self.show_name,
+            "season": self.season,
+            "episode": self.episode,
+            "confidence": self.confidence,
+            "reasoning": self.reasoning,
+            "tmdb_id": self.tmdb_id,
+            "routing_attempts": self.routing_attempts,
+            "last_routing_attempt": self.last_routing_attempt.isoformat() if self.last_routing_attempt else None,
+            "error_message": self.error_message,
+            "metadata": self.metadata
+        }
+
     def to_dict(self) -> Dict[str, Any]:
         """
         Convert to dictionary representation.
@@ -484,7 +600,7 @@ class DownloadedFile(BaseModel):
         return {
             "id": self.id,
             "name": self.name,
-            "original_path": self.original_path,
+            "original_path": self.remote_path,
             "current_path": self.current_path,
             "size": self.size,
             "modified_time": self.modified_time.isoformat() if self.modified_time else None,

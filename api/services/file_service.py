@@ -63,7 +63,7 @@ class FileService:
                 "files_routed": len(routed) if routed else 0,
                 "files": [
                     {
-                        "original_path": item["original_path"],
+                        "remote_path": item["original_path"],
                         "routed_path": item["routed_path"],
                         "show_name": item["show_name"],
                         "season": int(item["season"]) if item["season"] is not None else None,

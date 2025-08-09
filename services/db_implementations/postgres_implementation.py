@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from models.episode import Episode
 from models.show import Show
 from services.db_implementations.db_interface import DatabaseInterface
+from models.downloaded_file import DownloadedFile, FileStatus
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 logger = logging.getLogger(__name__)
@@ -35,9 +36,21 @@ class PostgresDBService(DatabaseInterface):
         episodes_exist(tmdb_id): Check if episodes exist for a show.
         get_episodes_by_tmdb_id(tmdb_id): Get all episodes for a show.
         get_inventory_files(): Get all inventory files.
-        get_downloaded_files(): Get all downloaded files.
-        add_downloaded_files(files): Add multiple downloaded files.
-        get_sftp_diffs(): Get differences between SFTP and downloaded files.
+        get_downloaded_files(): Get all downloaded files (legacy view).
+        add_downloaded_files(files): Add multiple downloaded files (legacy insert; maps to new schema where used).
+        add_downloaded_file(file): Add a single downloaded file (legacy insert; maps to new schema where used).
+        get_sftp_diffs(): Get differences between SFTP temp listing and downloaded files (by remote_path).
+        clear_downloaded_files(): Drop and recreate downloaded_files table.
+        clear_sftp_temp_files(): Drop and recreate sftp_temp_files table.
+        copy_sftp_temp_to_downloaded(): Copy temp entries into downloaded_files (legacy helper).
+        upsert_downloaded_file(file): Insert or update DownloadedFile by remote_path.
+        set_downloaded_file_hash(...): Update hash fields for a downloaded file.
+        update_downloaded_file_location(...): Update current/previous path and status.
+        update_downloaded_file_location_by_current_path(...): Update by current path.
+        mark_downloaded_file_error(...): Mark error status and message.
+        get_downloaded_files_by_status(status): List records by status.
+        get_downloaded_file_by_remote_path(path): Fetch by remote_path.
+        search_downloaded_files(...): Filtered, paginated listing.
         backup_database(): Backup the database.
     """
     
@@ -65,77 +78,105 @@ class PostgresDBService(DatabaseInterface):
         finally:
             conn.close()
 
+    def _create_table_tv_shows(self, cursor) -> None:
+        cursor.execute('''CREATE TABLE IF NOT EXISTS tv_shows (
+            id SERIAL PRIMARY KEY,
+            sys_name TEXT NOT NULL,
+            sys_path TEXT NOT NULL,
+            tmdb_name TEXT,
+            tmdb_aliases TEXT,
+            tmdb_id INTEGER,
+            tmdb_first_aired TIMESTAMP,
+            tmdb_last_aired TIMESTAMP,
+            tmdb_year INTEGER,
+            tmdb_overview TEXT,
+            tmdb_season_count INTEGER,
+            tmdb_episode_count INTEGER,
+            tmdb_episode_groups TEXT,
+            tmdb_episodes_fetched_at TIMESTAMP,
+            tmdb_status TEXT,
+            tmdb_external_ids TEXT,
+            fetched_at TIMESTAMP
+        )''')
+
+    def _create_table_episodes(self, cursor) -> None:
+        cursor.execute('''CREATE TABLE IF NOT EXISTS episodes (
+            id SERIAL PRIMARY KEY,
+            tmdb_id INTEGER NOT NULL,
+            season INTEGER,
+            episode INTEGER,
+            abs_episode INTEGER,
+            episode_type TEXT,
+            episode_id INTEGER,
+            air_date TIMESTAMP,
+            fetched_at TIMESTAMP,
+            name TEXT,
+            overview TEXT,
+            CONSTRAINT FK_episodes_tv_shows FOREIGN KEY (tmdb_id) REFERENCES tv_shows(tmdb_id)
+        )''')
+        cursor.execute('''CREATE UNIQUE INDEX IF NOT EXISTS idx_episodes_unique ON episodes (tmdb_id, season, episode)''')
+
+    def _create_table_downloaded_files(self, cursor) -> None:
+        cursor.execute('''CREATE TABLE IF NOT EXISTS downloaded_files (
+            id SERIAL PRIMARY KEY,
+            name TEXT NOT NULL,
+            remote_path TEXT NOT NULL UNIQUE,
+            current_path TEXT NULL,
+            previous_path TEXT NULL,
+            size BIGINT NOT NULL,
+            modified_time TIMESTAMP NOT NULL,
+            fetched_at TIMESTAMP NOT NULL,
+            is_dir BOOLEAN NOT NULL,
+            status TEXT NOT NULL,
+            file_type TEXT NOT NULL,
+            file_hash_value TEXT NULL,
+            file_hash_algo TEXT NULL,
+            hash_calculated_at TIMESTAMP NULL,
+            show_name TEXT NULL,
+            season INT NULL,
+            episode INT NULL,
+            confidence DOUBLE PRECISION NULL,
+            reasoning TEXT NULL,
+            tmdb_id INT NULL,
+            routing_attempts INT NOT NULL DEFAULT 0,
+            last_routing_attempt TIMESTAMP NULL,
+            error_message TEXT NULL,
+            metadata JSONB NULL
+        )''')
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_downloaded_files_status ON downloaded_files(status)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_downloaded_files_current_path ON downloaded_files(current_path)")
+
+    def _create_table_sftp_temp_files(self, cursor) -> None:
+        cursor.execute('''CREATE TABLE IF NOT EXISTS sftp_temp_files (
+            id SERIAL PRIMARY KEY,
+            name TEXT NOT NULL,
+            size BIGINT NOT NULL,
+            modified_time TIMESTAMP NOT NULL,
+            path TEXT NOT NULL,
+            fetched_at TIMESTAMP NOT NULL,
+            is_dir BOOLEAN NOT NULL
+        )''')
+
+    def _create_table_inventory(self, cursor) -> None:
+        cursor.execute('''CREATE TABLE IF NOT EXISTS anime_tv_inventory (
+            id SERIAL PRIMARY KEY,
+            name TEXT NOT NULL,
+            size BIGINT NOT NULL,
+            modified_time TIMESTAMP NOT NULL,
+            path TEXT NOT NULL,
+            fetched_at TIMESTAMP NOT NULL,
+            is_dir BOOLEAN NOT NULL
+        )''')
+
     def initialize(self) -> None:
         """Initialize the database schema."""
         with self._connection() as conn:
             cursor = conn.cursor()
-            # Create tables
-            cursor.execute('''CREATE TABLE IF NOT EXISTS tv_shows (
-                id SERIAL PRIMARY KEY,
-                sys_name TEXT NOT NULL,
-                sys_path TEXT NOT NULL,
-                tmdb_name TEXT,
-                tmdb_aliases TEXT,
-                tmdb_id INTEGER,
-                tmdb_first_aired TIMESTAMP,
-                tmdb_last_aired TIMESTAMP,
-                tmdb_year INTEGER,
-                tmdb_overview TEXT,
-                tmdb_season_count INTEGER,
-                tmdb_episode_count INTEGER,
-                tmdb_episode_groups TEXT,
-                tmdb_episodes_fetched_at TIMESTAMP,
-                tmdb_status TEXT,
-                tmdb_external_ids TEXT,
-                fetched_at TIMESTAMP
-            )''')
-            
-            cursor.execute('''CREATE TABLE IF NOT EXISTS episodes (
-                id SERIAL PRIMARY KEY,
-                tmdb_id INTEGER NOT NULL,
-                season INTEGER,
-                episode INTEGER,
-                abs_episode INTEGER,
-                episode_type TEXT,
-                episode_id INTEGER,
-                air_date TIMESTAMP,
-                fetched_at TIMESTAMP,
-                name TEXT,
-                overview TEXT,
-                CONSTRAINT FK_episodes_tv_shows FOREIGN KEY (tmdb_id) REFERENCES tv_shows(tmdb_id)
-            )''')
-            
-            cursor.execute('''CREATE TABLE IF NOT EXISTS downloaded_files (
-                id SERIAL PRIMARY KEY,
-                name TEXT NOT NULL,
-                size BIGINT NOT NULL,
-                modified_time TIMESTAMP NOT NULL,
-                path TEXT NOT NULL,
-                fetched_at TIMESTAMP NOT NULL,
-                is_dir BOOLEAN NOT NULL
-            )''')
-            
-            cursor.execute('''CREATE TABLE IF NOT EXISTS sftp_temp_files (
-                id SERIAL PRIMARY KEY,
-                name TEXT NOT NULL,
-                size BIGINT NOT NULL,
-                modified_time TIMESTAMP NOT NULL,
-                path TEXT NOT NULL,
-                fetched_at TIMESTAMP NOT NULL,
-                is_dir BOOLEAN NOT NULL
-            )''')
-            
-            cursor.execute('''CREATE TABLE IF NOT EXISTS anime_tv_inventory (
-                id SERIAL PRIMARY KEY,
-                name TEXT NOT NULL,
-                size BIGINT NOT NULL,
-                modified_time TIMESTAMP NOT NULL,
-                path TEXT NOT NULL,
-                fetched_at TIMESTAMP NOT NULL,
-                is_dir BOOLEAN NOT NULL
-            )''')
-            
-            cursor.execute('''CREATE UNIQUE INDEX idx_episodes_unique ON episodes (tmdb_id, season, episode)''')
+            self._create_table_tv_shows(cursor)
+            self._create_table_episodes(cursor)
+            self._create_table_downloaded_files(cursor)
+            self._create_table_sftp_temp_files(cursor)
+            self._create_table_inventory(cursor)
             conn.commit()
             logger.info("Database initialized successfully")
 
@@ -398,15 +439,14 @@ class PostgresDBService(DatabaseInterface):
             logger.info(f"Inserted {len(files)} records into downloaded_files.")
 
     def get_sftp_diffs(self) -> List[Dict[str, Any]]:
-        """Get differences between SFTP and downloaded files."""
+        """Get differences between SFTP temp listing and new downloaded_files by remote_path."""
         with self._connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT name, size, modified_time, path, is_dir
-                FROM sftp_temp_files
-                EXCEPT
-                SELECT name, size, modified_time, path, is_dir
-                FROM downloaded_files
+                SELECT s.name, s.size, s.modified_time, s.path, s.is_dir
+                FROM sftp_temp_files s
+                LEFT JOIN downloaded_files d ON s.path = d.remote_path
+                WHERE d.id IS NULL
             """)
             columns = [desc[0] for desc in cursor.description]
             diffs = [dict(zip(columns, row)) for row in cursor.fetchall()]
@@ -455,14 +495,7 @@ class PostgresDBService(DatabaseInterface):
         with self._connection() as conn:
             cursor = conn.cursor()
             cursor.execute("DROP TABLE IF EXISTS sftp_temp_files")
-            cursor.execute('''CREATE TABLE IF NOT EXISTS sftp_temp_files (
-                                id SERIAL PRIMARY KEY,
-                                name TEXT NOT NULL,
-                                size BIGINT NOT NULL,
-                                modified_time TIMESTAMP NOT NULL,
-                                path TEXT NOT NULL,
-                                fetched_at TIMESTAMP NOT NULL,
-                                is_dir BOOLEAN NOT NULL)''')
+            self._create_table_sftp_temp_files(cursor)
             conn.commit()
             logger.info("sftp_temp_files table reset.")
 
@@ -471,14 +504,7 @@ class PostgresDBService(DatabaseInterface):
         with self._connection() as conn:
             cursor = conn.cursor()
             cursor.execute("DROP TABLE IF EXISTS downloaded_files")
-            cursor.execute('''CREATE TABLE IF NOT EXISTS downloaded_files (
-                                id SERIAL PRIMARY KEY,
-                                name TEXT NOT NULL,
-                                size BIGINT NOT NULL,
-                                modified_time TIMESTAMP NOT NULL,
-                                path TEXT NOT NULL,
-                                fetched_at TIMESTAMP NOT NULL,
-                                is_dir BOOLEAN NOT NULL)''')
+            self._create_table_downloaded_files(cursor)
             conn.commit()
             logger.info("downloaded_files table reset.")
 
@@ -623,3 +649,315 @@ class PostgresDBService(DatabaseInterface):
         to achieve true read-only access for PostgreSQL.
         """
         return self.read_only 
+
+    # --------------------- DownloadedFile methods ---------------------
+
+    def upsert_downloaded_file(self, file: DownloadedFile) -> DownloadedFile:
+        remote_path = file.remote_path
+        row = (
+            file.name,
+            remote_path,
+            file.current_path,
+            getattr(file, "previous_path", None),
+            file.size,
+            file.modified_time,
+            file.fetched_at,
+            file.is_dir,
+            file.status.value,
+            file.file_type.value,
+            file.file_hash,
+            "CRC32" if file.file_hash and len(file.file_hash) == 8 else None,
+            None,
+            file.show_name,
+            file.season,
+            file.episode,
+            file.confidence,
+            file.reasoning,
+            file.tmdb_id,
+            file.routing_attempts,
+            file.last_routing_attempt,
+            file.error_message,
+            json.dumps(file.metadata) if file.metadata is not None else None,
+        )
+        with self._connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO downloaded_files (
+                    name, remote_path, current_path, previous_path, size, modified_time, fetched_at, is_dir,
+                    status, file_type, file_hash_value, file_hash_algo, hash_calculated_at, show_name, season,
+                    episode, confidence, reasoning, tmdb_id, routing_attempts, last_routing_attempt, error_message, metadata
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                )
+                ON CONFLICT (remote_path) DO UPDATE SET
+                    name=EXCLUDED.name,
+                    current_path=EXCLUDED.current_path,
+                    previous_path=EXCLUDED.previous_path,
+                    size=EXCLUDED.size,
+                    modified_time=EXCLUDED.modified_time,
+                    fetched_at=EXCLUDED.fetched_at,
+                    is_dir=EXCLUDED.is_dir,
+                    status=EXCLUDED.status,
+                    file_type=EXCLUDED.file_type,
+                    file_hash_value=COALESCE(EXCLUDED.file_hash_value, downloaded_files.file_hash_value),
+                    file_hash_algo=COALESCE(EXCLUDED.file_hash_algo, downloaded_files.file_hash_algo),
+                    show_name=EXCLUDED.show_name,
+                    season=EXCLUDED.season,
+                    episode=EXCLUDED.episode,
+                    confidence=EXCLUDED.confidence,
+                    reasoning=EXCLUDED.reasoning,
+                    tmdb_id=EXCLUDED.tmdb_id,
+                    routing_attempts=EXCLUDED.routing_attempts,
+                    last_routing_attempt=EXCLUDED.last_routing_attempt,
+                    error_message=EXCLUDED.error_message,
+                    metadata=EXCLUDED.metadata
+                RETURNING id
+                """,
+                row,
+            )
+            res = cursor.fetchone()
+            if res:
+                file.id = res[0]
+            conn.commit()
+            return file
+
+    def set_downloaded_file_hash(self, file_id: int, algo: str, value: str, calculated_at: Optional[datetime.datetime] = None) -> None:
+        if calculated_at is None:
+            calculated_at = datetime.datetime.now()
+        with self._connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                UPDATE downloaded_files
+                SET file_hash_value = %s, file_hash_algo = %s, hash_calculated_at = %s
+                WHERE id = %s
+                """,
+                (value, algo, calculated_at, file_id),
+            )
+            conn.commit()
+
+    def update_downloaded_file_location(self, file_id: int, new_path: str, new_status: FileStatus = FileStatus.ROUTED, routed_at: Optional[datetime.datetime] = None) -> None:
+        if routed_at is None:
+            routed_at = datetime.datetime.now()
+        with self._connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                UPDATE downloaded_files
+                SET previous_path = current_path,
+                    current_path = %s,
+                    status = %s,
+                    routing_attempts = routing_attempts + 1,
+                    last_routing_attempt = %s
+                WHERE id = %s
+                """,
+                (new_path, new_status.value, routed_at, file_id),
+            )
+            conn.commit()
+
+    def update_downloaded_file_location_by_current_path(self, current_path: str, new_path: str, new_status: FileStatus = FileStatus.ROUTED, routed_at: Optional[datetime.datetime] = None) -> None:
+        if routed_at is None:
+            routed_at = datetime.datetime.now()
+        with self._connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                UPDATE downloaded_files
+                SET previous_path = current_path,
+                    current_path = %s,
+                    status = %s,
+                    routing_attempts = routing_attempts + 1,
+                    last_routing_attempt = %s
+                WHERE current_path = %s
+                """,
+                (new_path, new_status.value, routed_at, current_path),
+            )
+            conn.commit()
+
+    def mark_downloaded_file_error(self, file_id: int, message: str) -> None:
+        now = datetime.datetime.now()
+        with self._connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                UPDATE downloaded_files
+                SET status = %s, error_message = %s, last_routing_attempt = %s
+                WHERE id = %s
+                """,
+                (FileStatus.ERROR.value, message, now, file_id),
+            )
+            conn.commit()
+
+    def update_downloaded_file_status(self, file_id: int, new_status: FileStatus, error_message: Optional[str] = None) -> None:
+        with self._connection() as conn:
+            cursor = conn.cursor()
+            if error_message is None:
+                cursor.execute(
+                    "UPDATE downloaded_files SET status = %s WHERE id = %s",
+                    (new_status.value, file_id),
+                )
+            else:
+                cursor.execute(
+                    "UPDATE downloaded_files SET status = %s, error_message = %s WHERE id = %s",
+                    (new_status.value, error_message, file_id),
+                )
+            conn.commit()
+
+    def get_downloaded_files_by_status(self, status: FileStatus) -> List[DownloadedFile]:
+        with self._connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM downloaded_files WHERE status = %s", (status.value,))
+            columns = [desc[0] for desc in cursor.description]
+            rows = cursor.fetchall()
+            items = []
+            for r in rows:
+                row = dict(zip(columns, r))
+                items.append(DownloadedFile(
+                    id=row.get("id"),
+                    name=row.get("name"),
+                    remote_path=row.get("remote_path"),
+                    current_path=row.get("current_path"),
+                    size=row.get("size"),
+                    modified_time=row.get("modified_time"),
+                    fetched_at=row.get("fetched_at"),
+                    is_dir=row.get("is_dir"),
+                    status=FileStatus(row.get("status")),
+                    file_hash=row.get("file_hash_value"),
+                    show_name=row.get("show_name"),
+                    season=row.get("season"),
+                    episode=row.get("episode"),
+                    confidence=row.get("confidence"),
+                    reasoning=row.get("reasoning"),
+                    tmdb_id=row.get("tmdb_id"),
+                ))
+            return items
+
+    def get_downloaded_file_by_remote_path(self, remote_path: str) -> Optional[DownloadedFile]:
+        with self._connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM downloaded_files WHERE remote_path = %s", (remote_path,))
+            columns = [desc[0] for desc in cursor.description]
+            r = cursor.fetchone()
+            if not r:
+                return None
+            row = dict(zip(columns, r))
+            return DownloadedFile(
+                id=row.get("id"),
+                name=row.get("name"),
+                remote_path=row.get("remote_path"),
+                current_path=row.get("current_path"),
+                size=row.get("size"),
+                modified_time=row.get("modified_time"),
+                fetched_at=row.get("fetched_at"),
+                is_dir=row.get("is_dir"),
+                status=FileStatus(row.get("status")),
+                file_hash=row.get("file_hash_value"),
+                show_name=row.get("show_name"),
+                season=row.get("season"),
+                episode=row.get("episode"),
+                confidence=row.get("confidence"),
+                reasoning=row.get("reasoning"),
+                tmdb_id=row.get("tmdb_id"),
+            )
+
+    def search_downloaded_files(self,
+        *,
+        status: Optional[FileStatus] = None,
+        file_type: Optional[str] = None,
+        q: Optional[str] = None,
+        tmdb_id: Optional[int] = None,
+        page: int = 1,
+        page_size: int = 50,
+        sort_by: str = "modified_time",
+        sort_order: str = "desc",
+    ) -> Tuple[List[DownloadedFile], int]:
+        where = []
+        params: list = []
+        if status:
+            where.append("status = %s")
+            params.append(status.value)
+        if file_type:
+            where.append("file_type = %s")
+            params.append(file_type)
+        if tmdb_id is not None:
+            where.append("tmdb_id = %s")
+            params.append(tmdb_id)
+        if q:
+            where.append("(name ILIKE %s OR remote_path ILIKE %s OR current_path ILIKE %s)")
+            like = f"%{q}%"
+            params.extend([like, like, like])
+
+        where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+
+        sort_order = "DESC" if sort_order.lower() == "desc" else "ASC"
+        allowed_sort = {"modified_time", "fetched_at", "name", "size"}
+        sort_by = sort_by if sort_by in allowed_sort else "modified_time"
+
+        limit = max(1, min(page_size, 200))
+        offset = max(0, (max(1, page) - 1) * limit)
+
+        with self._connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                f"SELECT COUNT(*) FROM downloaded_files {where_sql}",
+                tuple(params),
+            )
+            total = cursor.fetchone()[0]
+
+            cursor.execute(
+                f"SELECT * FROM downloaded_files {where_sql} ORDER BY {sort_by} {sort_order} LIMIT %s OFFSET %s",
+                tuple(params + [limit, offset]),
+            )
+            columns = [desc[0] for desc in cursor.description]
+            rows = cursor.fetchall()
+            items = []
+            for r in rows:
+                row = dict(zip(columns, r))
+                items.append(DownloadedFile(
+                    id=row.get("id"),
+                    name=row.get("name"),
+                    remote_path=row.get("remote_path"),
+                    current_path=row.get("current_path"),
+                    size=row.get("size"),
+                    modified_time=row.get("modified_time"),
+                    fetched_at=row.get("fetched_at"),
+                    is_dir=row.get("is_dir"),
+                    status=FileStatus(row.get("status")),
+                    file_hash=row.get("file_hash_value"),
+                    show_name=row.get("show_name"),
+                    season=row.get("season"),
+                    episode=row.get("episode"),
+                    confidence=row.get("confidence"),
+                    reasoning=row.get("reasoning"),
+                    tmdb_id=row.get("tmdb_id"),
+                ))
+            return items, int(total)
+
+    def get_downloaded_file_by_id(self, file_id: int) -> Optional[DownloadedFile]:
+        with self._connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM downloaded_files WHERE id = %s", (file_id,))
+            columns = [desc[0] for desc in cursor.description]
+            r = cursor.fetchone()
+            if not r:
+                return None
+            row = dict(zip(columns, r))
+            return DownloadedFile(
+                id=row.get("id"),
+                name=row.get("name"),
+                remote_path=row.get("remote_path"),
+                current_path=row.get("current_path"),
+                size=row.get("size"),
+                modified_time=row.get("modified_time"),
+                fetched_at=row.get("fetched_at"),
+                is_dir=row.get("is_dir"),
+                status=FileStatus(row.get("status")),
+                file_hash=row.get("file_hash_value"),
+                show_name=row.get("show_name"),
+                season=row.get("season"),
+                episode=row.get("episode"),
+                confidence=row.get("confidence"),
+                reasoning=row.get("reasoning"),
+                tmdb_id=row.get("tmdb_id"),
+            )

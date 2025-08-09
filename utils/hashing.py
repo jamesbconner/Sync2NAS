@@ -1,75 +1,30 @@
 """
-Hashing utilities for calculating CRC32, MD5, and SHA1 hashes of files.
+Deprecated functional hashing helpers. Use services.hashing_service.HashingService instead.
+
+This module remains for backward compatibility and CLI usage. Internally it delegates
+to HashingService with a 1 MiB default chunk size.
 """
+
+from __future__ import annotations
+
 import os
 import sys
-import hashlib
-import binascii
+from services.hashing_service import HashingService
 
 
-def calculate_crc32(file_path: str, chunk_size: int = 65536) -> str:
-    """
-    Calculate the CRC32 hash of a file.
+def calculate_crc32(file_path: str, chunk_size: int = 1_048_576) -> str:
+    return HashingService(chunk_size=chunk_size).calculate_crc32(file_path)
 
-    Args:
-        file_path (str): Path to the file.
-        chunk_size (int): Size of chunks to read at a time.
 
-    Returns:
-        str: CRC32 hash as an 8-character uppercase hex string.
-    """
-    crc32 = 0
-    with open(file_path, 'rb') as f:
-        while True:
-            data = f.read(chunk_size)
-            if not data:
-                break
-            crc32 = binascii.crc32(data, crc32)
-    return f"{crc32:08X}"
+def calculate_md5(file_path: str, chunk_size: int = 1_048_576) -> str:
+    return HashingService(chunk_size=chunk_size).calculate_md5(file_path)
 
-def calculate_md5(file_path: str) -> str:
-    """
-    Calculate the MD5 hash of a file.
 
-    Args:
-        file_path (str): Path to the file.
-
-    Returns:
-        str: MD5 hash as a lowercase hex string.
-    """
-    md5 = hashlib.md5()
-    with open(file_path, 'rb') as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            md5.update(chunk)
-    return md5.hexdigest()
-
-def sha1sum(file_path: str) -> str:
-    """
-    Calculate the SHA1 hash of a file.
-
-    Args:
-        file_path (str): Path to the file.
-
-    Returns:
-        str: SHA1 hash as a lowercase hex string.
-    """
-    sha1 = hashlib.sha1()
-    with open(file_path, 'rb') as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            sha1.update(chunk)
-    return sha1.hexdigest()
+def sha1sum(file_path: str, chunk_size: int = 1_048_576) -> str:
+    return HashingService(chunk_size=chunk_size).calculate_sha1(file_path)
 
 
 if __name__ == "__main__":
-    """
-    Returns the CRC32 hash of a file.
-    This is a simple hash function that can be used to verify the integrity of a file.
-    
-    Usage: python hashing.py <file_path>
-    
-    Example: python hashing.py /path/to/file.mp4
-    Output: [EC01EB33]
-    """
     if len(sys.argv) != 2:
         print("Usage: python hashing.py <file_path>")
         sys.exit(1)

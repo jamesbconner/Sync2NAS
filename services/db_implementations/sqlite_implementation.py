@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from models.episode import Episode
 from services.db_implementations.db_interface import DatabaseInterface
 from models.show import Show
+from models.downloaded_file import DownloadedFile, FileStatus
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +37,21 @@ class SQLiteDBService(DatabaseInterface):
         episodes_exist(tmdb_id): Check if episodes exist for a show.
         get_episodes_by_tmdb_id(tmdb_id): Get all episodes for a show.
         get_inventory_files(): Get all inventory files.
-        get_downloaded_files(): Get all downloaded files.
-        add_downloaded_files(files): Add multiple downloaded files.
-        get_sftp_diffs(): Get differences between SFTP and downloaded files.
+        get_downloaded_files(): Get all downloaded files (legacy view).
+        add_downloaded_files(files): Add multiple downloaded files (legacy insert; maps to new schema).
+        add_downloaded_file(file): Add a single downloaded file (legacy insert; maps to new schema).
+        get_sftp_diffs(): Get differences between SFTP temp listing and downloaded files (by remote_path).
+        clear_downloaded_files(): Drop and recreate downloaded_files table.
+        clear_sftp_temp_files(): Drop and recreate sftp_temp_files table.
+        copy_sftp_temp_to_downloaded(): Copy temp entries into downloaded_files with defaults.
+        upsert_downloaded_file(file): Insert or update DownloadedFile by remote_path.
+        set_downloaded_file_hash(...): Update hash fields for a downloaded file.
+        update_downloaded_file_location(...): Update current/previous path and status.
+        update_downloaded_file_location_by_current_path(...): Update by current path.
+        mark_downloaded_file_error(...): Mark error status and message.
+        get_downloaded_files_by_status(status): List records by status.
+        get_downloaded_file_by_remote_path(path): Fetch by remote_path.
+        search_downloaded_files(...): Filtered, paginated listing.
         backup_database(): Backup the database.
     """
     
@@ -134,68 +147,101 @@ class SQLiteDBService(DatabaseInterface):
                 raise
         return True
 
+    def _create_table_tv_shows(self, conn: sqlite3.Connection) -> None:
+        conn.execute('''CREATE TABLE IF NOT EXISTS tv_shows (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            sys_name TEXT NOT NULL,
+                            sys_path TEXT NOT NULL,
+                            tmdb_name TEXT,
+                            tmdb_aliases TEXT,
+                            tmdb_id INTEGER,
+                            tmdb_first_aired DATETIME,
+                            tmdb_last_aired DATETIME,
+                            tmdb_year INTEGER,
+                            tmdb_overview TEXT,
+                            tmdb_season_count INTEGER,
+                            tmdb_episode_count INTEGER,
+                            tmdb_episode_groups TEXT,  
+                            tmdb_episodes_fetched_at DATETIME,
+                            tmdb_status TEXT,
+                            tmdb_external_ids TEXT,
+                            fetched_at DATETIME)''')
+
+    def _create_table_episodes(self, conn: sqlite3.Connection) -> None:
+        conn.execute('''CREATE TABLE IF NOT EXISTS episodes (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            tmdb_id INTEGER NOT NULL,
+                            season INTEGER,
+                            episode INTEGER,
+                            abs_episode INTEGER,
+                            episode_type TEXT,
+                            episode_id INTEGER, 
+                            air_date DATETIME, 
+                            fetched_at DATETIME, 
+                            name TEXT, 
+                            overview TEXT, 
+                            UNIQUE (tmdb_id, season, episode) ON CONFLICT REPLACE,
+                            CONSTRAINT FK_episodes_tv_shows FOREIGN KEY (tmdb_id) REFERENCES tv_shows(tmdb_id))''')
+
+    def _create_table_downloaded_files(self, conn: sqlite3.Connection) -> None:
+        conn.execute('''CREATE TABLE IF NOT EXISTS downloaded_files (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            name TEXT NOT NULL,
+                            path TEXT NOT NULL,
+                            remote_path TEXT NOT NULL UNIQUE,
+                            current_path TEXT NULL,
+                            previous_path TEXT NULL,
+                            size INTEGER NOT NULL,
+                            modified_time DATETIME NOT NULL,
+                            fetched_at DATETIME NOT NULL,
+                            is_dir BOOLEAN NOT NULL,
+                            status TEXT NOT NULL,
+                            file_type TEXT NOT NULL,
+                            file_hash_value TEXT NULL,
+                            file_hash_algo TEXT NULL,
+                            hash_calculated_at DATETIME NULL,
+                            show_name TEXT NULL,
+                            season INTEGER NULL,
+                            episode INTEGER NULL,
+                            confidence REAL NULL,
+                            reasoning TEXT NULL,
+                            tmdb_id INTEGER NULL,
+                            routing_attempts INTEGER NOT NULL DEFAULT 0,
+                            last_routing_attempt DATETIME NULL,
+                            error_message TEXT NULL,
+                            metadata TEXT NULL)''')
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_downloaded_files_status ON downloaded_files(status)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_downloaded_files_current_path ON downloaded_files(current_path)")
+
+    def _create_table_sftp_temp_files(self, conn: sqlite3.Connection) -> None:
+        conn.execute('''CREATE TABLE IF NOT EXISTS sftp_temp_files (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            name TEXT NOT NULL,
+                            size INTEGER NOT NULL,
+                            modified_time DATETIME NOT NULL,
+                            path TEXT NOT NULL,
+                            fetched_at DATETIME NOT NULL,
+                            is_dir BOOLEAN NOT NULL)''')
+
+    def _create_table_inventory(self, conn: sqlite3.Connection) -> None:
+        conn.execute('''CREATE TABLE IF NOT EXISTS anime_tv_inventory (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            name TEXT NOT NULL,
+                            size INTEGER NOT NULL,
+                            modified_time DATETIME NOT NULL,
+                            path TEXT NOT NULL,
+                            fetched_at DATETIME NOT NULL,
+                            is_dir BOOLEAN NOT NULL)''')
+
     def _initialize_database(self):
         """Initialize the database schema by creating necessary tables if they don't exist."""
         _ = self._check_database_path()
         with self._connection() as conn:
-            conn.execute('''CREATE TABLE IF NOT EXISTS tv_shows (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                sys_name TEXT NOT NULL,
-                                sys_path TEXT NOT NULL,
-                                tmdb_name TEXT,
-                                tmdb_aliases TEXT,
-                                tmdb_id INTEGER,
-                                tmdb_first_aired DATETIME,
-                                tmdb_last_aired DATETIME,
-                                tmdb_year INTEGER,
-                                tmdb_overview TEXT,
-                                tmdb_season_count INTEGER,
-                                tmdb_episode_count INTEGER,
-                                tmdb_episode_groups TEXT,  
-                                tmdb_episodes_fetched_at DATETIME,
-                                tmdb_status TEXT,
-                                tmdb_external_ids TEXT,
-                                fetched_at DATETIME)''')
-            # Additional table creation statements remain the same...
-            conn.execute('''CREATE TABLE IF NOT EXISTS episodes (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                tmdb_id INTEGER NOT NULL,
-                                season INTEGER,
-                                episode INTEGER,
-                                abs_episode INTEGER,
-                                episode_type TEXT,
-                                episode_id INTEGER, 
-                                air_date DATETIME, 
-                                fetched_at DATETIME, 
-                                name TEXT, 
-                                overview TEXT, 
-                                UNIQUE (tmdb_id, season, episode) ON CONFLICT REPLACE,
-                                CONSTRAINT FK_episodes_tv_shows FOREIGN KEY (tmdb_id) REFERENCES tv_shows(tmdb_id))''')
-            # Rest of table definitions...
-            conn.execute('''CREATE TABLE IF NOT EXISTS downloaded_files (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                name TEXT NOT NULL,
-                                size INTEGER NOT NULL,
-                                modified_time DATETIME NOT NULL,
-                                path TEXT NOT NULL,
-                                fetched_at DATETIME NOT NULL,
-                                is_dir BOOLEAN NOT NULL)''')
-            conn.execute('''CREATE TABLE IF NOT EXISTS sftp_temp_files (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                name TEXT NOT NULL,
-                                size INTEGER NOT NULL,
-                                modified_time DATETIME NOT NULL,
-                                path TEXT NOT NULL,
-                                fetched_at DATETIME NOT NULL,
-                                is_dir BOOLEAN NOT NULL)''')
-            conn.execute('''CREATE TABLE IF NOT EXISTS anime_tv_inventory (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                name TEXT NOT NULL,
-                                size INTEGER NOT NULL,
-                                modified_time DATETIME NOT NULL,
-                                path TEXT NOT NULL,
-                                fetched_at DATETIME NOT NULL,
-                                is_dir BOOLEAN NOT NULL)''')
+            self._create_table_tv_shows(conn)
+            self._create_table_episodes(conn)
+            self._create_table_downloaded_files(conn)
+            self._create_table_sftp_temp_files(conn)
+            self._create_table_inventory(conn)
             conn.commit()
             logger.info("Database initialized successfully")
  
@@ -450,14 +496,15 @@ class SQLiteDBService(DatabaseInterface):
             conn.executemany(
                 """
                 INSERT INTO downloaded_files (
-                    name, size, modified_time, path, is_dir, fetched_at
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    name, size, modified_time, path, remote_path, is_dir, fetched_at, status, file_type
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'downloaded', 'unknown')
                 """,
                 [
                     (
                         f["name"],
                         f["size"],
                         f["modified_time"],
+                        f["path"],
                         f["path"],
                         f["is_dir"],
                         f["fetched_at"],
@@ -504,13 +551,14 @@ class SQLiteDBService(DatabaseInterface):
             conn.execute(
                 """
                 INSERT INTO downloaded_files (
-                    name, size, modified_time, path, is_dir, fetched_at
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    name, size, modified_time, path, remote_path, is_dir, fetched_at, status, file_type
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'downloaded', 'unknown')
                 """,
                 (
                     file["name"],
                     file["size"],
                     file["modified_time"],
+                    file["path"],
                     file["path"],
                     file["is_dir"],
                     file["fetched_at"],
@@ -523,14 +571,7 @@ class SQLiteDBService(DatabaseInterface):
         """Drop and recreate the sftp_temp_files table to refresh remote listing."""
         with self._connection() as conn:
             conn.execute("DROP TABLE IF EXISTS sftp_temp_files")
-            conn.execute('''CREATE TABLE IF NOT EXISTS sftp_temp_files (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                name TEXT NOT NULL,
-                                size INTEGER NOT NULL,
-                                modified_time DATETIME NOT NULL,
-                                path TEXT NOT NULL,
-                                fetched_at DATETIME NOT NULL,
-                                is_dir BOOLEAN NOT NULL)''')
+            self._create_table_sftp_temp_files(conn)
             conn.commit()
             logger.info("sftp_temp_files table reset.")
 
@@ -538,14 +579,7 @@ class SQLiteDBService(DatabaseInterface):
         """Drop and recreate the downloaded_files table to refresh local listing."""
         with self._connection() as conn:
             conn.execute("DROP TABLE IF EXISTS downloaded_files")
-            conn.execute('''CREATE TABLE IF NOT EXISTS downloaded_files (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                name TEXT NOT NULL,
-                                size INTEGER NOT NULL,
-                                modified_time DATETIME NOT NULL,
-                                path TEXT NOT NULL,
-                                fetched_at DATETIME NOT NULL,
-                                is_dir BOOLEAN NOT NULL)''')
+            self._create_table_downloaded_files(conn)
             conn.commit()
             logger.info("downloaded_files table reset.")
 
@@ -609,13 +643,13 @@ class SQLiteDBService(DatabaseInterface):
             logger.info(f"Deleted {deleted_episodes} episodes and {deleted_shows} show(s) for tmdb_id={tmdb_id}")
 
     def get_sftp_diffs(self) -> List[Dict[str, Any]]:
-        """Get differences between SFTP and downloaded files."""
+        """Get differences between SFTP temp listing and new downloaded_files by remote_path."""
         with self._connection() as conn:
             conn.row_factory = sqlite3.Row
             query = """
                 SELECT s.name, s.size, s.modified_time, s.path, s.is_dir
                 FROM sftp_temp_files s
-                LEFT JOIN downloaded_files d ON s.path = d.path
+                LEFT JOIN downloaded_files d ON s.path = d.remote_path
                 WHERE d.id IS NULL
             """
             cursor = conn.execute(query)
@@ -627,8 +661,10 @@ class SQLiteDBService(DatabaseInterface):
         """Copy all records from sftp_temp_files to downloaded_files."""
         with self._connection() as conn:
             conn.execute("""
-                INSERT INTO downloaded_files (name, size, modified_time, path, fetched_at, is_dir)
-                SELECT name, size, modified_time, path, fetched_at, is_dir
+                INSERT INTO downloaded_files (
+                    name, size, modified_time, path, remote_path, fetched_at, is_dir, status, file_type
+                )
+                SELECT name, size, modified_time, path, path, fetched_at, is_dir, 'downloaded', 'unknown'
                 FROM sftp_temp_files
             """)
             conn.commit()
@@ -659,3 +695,295 @@ class SQLiteDBService(DatabaseInterface):
         shutil.copy2(self.db_file, backup_path)
         logger.info(f"SQLite database backed up to {backup_path}")
         return backup_path
+
+    # --------------------- DownloadedFile methods ---------------------
+    def _initialize_downloaded_files(self) -> None:
+        with self._connection() as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS downloaded_files (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    remote_path TEXT NOT NULL UNIQUE,
+                    current_path TEXT NULL,
+                    previous_path TEXT NULL,
+                    size INTEGER NOT NULL,
+                    modified_time DATETIME NOT NULL,
+                    fetched_at DATETIME NOT NULL,
+                    is_dir BOOLEAN NOT NULL,
+                    status TEXT NOT NULL,
+                    file_type TEXT NOT NULL,
+                    file_hash_value TEXT NULL,
+                    file_hash_algo TEXT NULL,
+                    hash_calculated_at DATETIME NULL,
+                    show_name TEXT NULL,
+                    season INTEGER NULL,
+                    episode INTEGER NULL,
+                    confidence REAL NULL,
+                    reasoning TEXT NULL,
+                    tmdb_id INTEGER NULL,
+                    routing_attempts INTEGER NOT NULL DEFAULT 0,
+                    last_routing_attempt DATETIME NULL,
+                    error_message TEXT NULL,
+                    metadata TEXT NULL
+                )
+                """
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_downloaded_files_status ON downloaded_files(status)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_downloaded_files_current_path ON downloaded_files(current_path)"
+            )
+
+    def _df_row_to_model(self, row: sqlite3.Row) -> DownloadedFile:
+        return DownloadedFile(
+            id=row["id"],
+            name=row["name"],
+            remote_path=row["remote_path"],
+            current_path=row["current_path"],
+            previous_path=row["previous_path"],
+            size=row["size"],
+            modified_time=row["modified_time"],
+            fetched_at=row["fetched_at"],
+            is_dir=bool(row["is_dir"]),
+            status=FileStatus(row["status"]),
+            file_hash=row["file_hash_value"],
+            show_name=row["show_name"],
+            season=row["season"],
+            episode=row["episode"],
+            confidence=row["confidence"],
+            reasoning=row["reasoning"],
+            tmdb_id=row["tmdb_id"],
+            routing_attempts=row["routing_attempts"],
+            last_routing_attempt=row["last_routing_attempt"],
+            error_message=row["error_message"],
+        )
+
+    def upsert_downloaded_file(self, file: DownloadedFile) -> DownloadedFile:
+        remote_path = file.remote_path
+        row = (
+            file.name,
+            file.remote_path,  # path
+            remote_path,
+            file.current_path,
+            getattr(file, "previous_path", None),
+            file.size,
+            file.modified_time,
+            file.fetched_at,
+            int(file.is_dir),
+            file.status.value,
+            file.file_type.value,
+            file.file_hash,
+            "CRC32" if file.file_hash and len(file.file_hash) == 8 else None,
+            None,
+            file.show_name,
+            file.season,
+            file.episode,
+            file.confidence,
+            file.reasoning,
+            file.tmdb_id,
+            file.routing_attempts,
+            file.last_routing_attempt,
+            file.error_message,
+            json.dumps(file.metadata) if file.metadata is not None else None,
+        )
+        with self._connection() as conn:
+            cur = conn.execute(
+                """
+                INSERT INTO downloaded_files (
+                    name, path, remote_path, current_path, previous_path, size, modified_time, fetched_at, is_dir,
+                    status, file_type, file_hash_value, file_hash_algo, hash_calculated_at, show_name, season,
+                    episode, confidence, reasoning, tmdb_id, routing_attempts, last_routing_attempt, error_message, metadata
+                ) VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                )
+                ON CONFLICT(remote_path) DO UPDATE SET
+                    name=excluded.name,
+                    path=excluded.path,
+                    current_path=excluded.current_path,
+                    previous_path=excluded.previous_path,
+                    size=excluded.size,
+                    modified_time=excluded.modified_time,
+                    fetched_at=excluded.fetched_at,
+                    is_dir=excluded.is_dir,
+                    status=excluded.status,
+                    file_type=excluded.file_type,
+                    file_hash_value=COALESCE(excluded.file_hash_value, downloaded_files.file_hash_value),
+                    file_hash_algo=COALESCE(excluded.file_hash_algo, downloaded_files.file_hash_algo),
+                    show_name=excluded.show_name,
+                    season=excluded.season,
+                    episode=excluded.episode,
+                    confidence=excluded.confidence,
+                    reasoning=excluded.reasoning,
+                    tmdb_id=excluded.tmdb_id,
+                    routing_attempts=excluded.routing_attempts,
+                    last_routing_attempt=excluded.last_routing_attempt,
+                    error_message=excluded.error_message,
+                    metadata=excluded.metadata
+                """,
+                row,
+            )
+            file_id = cur.lastrowid
+            if not file_id:
+                cur2 = conn.execute(
+                    "SELECT id FROM downloaded_files WHERE remote_path = ?",
+                    (remote_path,),
+                )
+                res = cur2.fetchone()
+                if res:
+                    file_id = res[0]
+            file.id = file_id
+            return file
+
+    def set_downloaded_file_hash(self, file_id: int, algo: str, value: str, calculated_at: Optional[datetime.datetime] = None) -> None:
+        if calculated_at is None:
+            calculated_at = datetime.datetime.now()
+        with self._connection() as conn:
+            conn.execute(
+                """
+                UPDATE downloaded_files
+                SET file_hash_value = ?, file_hash_algo = ?, hash_calculated_at = ?
+                WHERE id = ?
+                """,
+                (value, algo, calculated_at, file_id),
+            )
+
+    def update_downloaded_file_location(self, file_id: int, new_path: str, new_status: FileStatus = FileStatus.ROUTED, routed_at: Optional[datetime.datetime] = None) -> None:
+        if routed_at is None:
+            routed_at = datetime.datetime.now()
+        with self._connection() as conn:
+            conn.execute(
+                """
+                UPDATE downloaded_files
+                SET previous_path = current_path,
+                    current_path = ?,
+                    status = ?,
+                    routing_attempts = routing_attempts + 1,
+                    last_routing_attempt = ?
+                WHERE id = ?
+                """,
+                (new_path, new_status.value, routed_at, file_id),
+            )
+
+    def update_downloaded_file_location_by_current_path(self, current_path: str, new_path: str, new_status: FileStatus = FileStatus.ROUTED, routed_at: Optional[datetime.datetime] = None) -> None:
+        if routed_at is None:
+            routed_at = datetime.datetime.now()
+        with self._connection() as conn:
+            conn.execute(
+                """
+                UPDATE downloaded_files
+                SET previous_path = current_path,
+                    current_path = ?,
+                    status = ?,
+                    routing_attempts = routing_attempts + 1,
+                    last_routing_attempt = ?
+                WHERE current_path = ?
+                """,
+                (new_path, new_status.value, routed_at, current_path),
+            )
+
+    def mark_downloaded_file_error(self, file_id: int, message: str) -> None:
+        now = datetime.datetime.now()
+        with self._connection() as conn:
+            conn.execute(
+                """
+                UPDATE downloaded_files
+                SET status = ?, error_message = ?, last_routing_attempt = ?
+                WHERE id = ?
+                """,
+                (FileStatus.ERROR.value, message, now, file_id),
+            )
+
+    def update_downloaded_file_status(self, file_id: int, new_status: FileStatus, error_message: Optional[str] = None) -> None:
+        with self._connection() as conn:
+            if error_message is None:
+                conn.execute(
+                    "UPDATE downloaded_files SET status = ? WHERE id = ?",
+                    (new_status.value, file_id),
+                )
+            else:
+                conn.execute(
+                    "UPDATE downloaded_files SET status = ?, error_message = ? WHERE id = ?",
+                    (new_status.value, error_message, file_id),
+                )
+
+    def get_downloaded_files_by_status(self, status: FileStatus) -> List[DownloadedFile]:
+        with self._connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cur = conn.execute(
+                "SELECT * FROM downloaded_files WHERE status = ?",
+                (status.value,),
+            )
+            return [self._df_row_to_model(r) for r in cur.fetchall()]
+
+    def get_downloaded_file_by_remote_path(self, remote_path: str) -> Optional[DownloadedFile]:
+        with self._connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cur = conn.execute(
+                "SELECT * FROM downloaded_files WHERE remote_path = ?",
+                (remote_path,),
+            )
+            row = cur.fetchone()
+            return self._df_row_to_model(row) if row else None
+
+    def get_downloaded_file_by_id(self, file_id: int) -> Optional[DownloadedFile]:
+        with self._connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cur = conn.execute(
+                "SELECT * FROM downloaded_files WHERE id = ?",
+                (file_id,),
+            )
+            row = cur.fetchone()
+            return self._df_row_to_model(row) if row else None
+
+    def search_downloaded_files(
+        self,
+        *,
+        status: Optional[FileStatus] = None,
+        file_type: Optional[str] = None,
+        q: Optional[str] = None,
+        tmdb_id: Optional[int] = None,
+        page: int = 1,
+        page_size: int = 50,
+        sort_by: str = "modified_time",
+        sort_order: str = "desc",
+    ) -> Tuple[List[DownloadedFile], int]:
+        where = []
+        params: list = []
+        if status:
+            where.append("status = ?")
+            params.append(status.value)
+        if file_type:
+            where.append("file_type = ?")
+            params.append(file_type)
+        if tmdb_id is not None:
+            where.append("tmdb_id = ?")
+            params.append(tmdb_id)
+        if q:
+            where.append("(name LIKE ? OR remote_path LIKE ? OR current_path LIKE ?)")
+            like = f"%{q}%"
+            params.extend([like, like, like])
+
+        where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+
+        sort_order = "DESC" if sort_order.lower() == "desc" else "ASC"
+        allowed_sort = {"modified_time", "fetched_at", "name", "size"}
+        sort_by = sort_by if sort_by in allowed_sort else "modified_time"
+
+        limit = max(1, min(page_size, 200))
+        offset = max(0, (max(1, page) - 1) * limit)
+
+        with self._connection() as conn:
+            conn.row_factory = sqlite3.Row
+            count_cur = conn.execute(
+                f"SELECT COUNT(*) as c FROM downloaded_files {where_sql}", params
+            )
+            total = count_cur.fetchone()[0]
+
+            page_cur = conn.execute(
+                f"SELECT * FROM downloaded_files {where_sql} ORDER BY {sort_by} {sort_order} LIMIT ? OFFSET ?",
+                params + [limit, offset],
+            )
+            items = [self._df_row_to_model(r) for r in page_cur.fetchall()]
+            return items, int(total)

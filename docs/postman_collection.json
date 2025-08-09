@@ -1,0 +1,181 @@
+{
+  "info": {
+    "name": "Sync2NAS Files API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Files - List Downloaded (default)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/files/downloaded",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "files",
+            "downloaded"
+          ],
+          "query": []
+        },
+        "description": "Returns first page of files with default filter status=downloaded."
+      },
+      "response": []
+    },
+    {
+      "name": "Files - List Routed (pagination)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/files/downloaded?status=routed&page=1&page_size=25",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "files",
+            "downloaded"
+          ],
+          "query": [
+            {"key": "status", "value": "routed"},
+            {"key": "page", "value": "1"},
+            {"key": "page_size", "value": "25"}
+          ]
+        },
+        "description": "Returns routed files with pagination."
+      },
+      "response": []
+    },
+    {
+      "name": "Files - Search MKV (sort by name asc)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/files/downloaded?q=.mkv&sort_by=name&sort_order=asc",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "files",
+            "downloaded"
+          ],
+          "query": [
+            {"key": "q", "value": ".mkv"},
+            {"key": "sort_by", "value": "name"},
+            {"key": "sort_order", "value": "asc"}
+          ]
+        },
+        "description": "Search files with '.mkv' in name/paths, sorted by name ascending."
+      },
+      "response": []
+    },
+    {
+      "name": "Files - Filter by file_type & tmdb_id",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/files/downloaded?file_type=subtitle&tmdb_id=12345",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "files",
+            "downloaded"
+          ],
+          "query": [
+            {"key": "file_type", "value": "subtitle"},
+            {"key": "tmdb_id", "value": "12345"}
+          ]
+        },
+        "description": "Filter by file_type and tmdb_id."
+      },
+      "response": []
+    },
+    {
+      "name": "Files - Get Downloaded Detail",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/files/downloaded/1",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "files",
+            "downloaded",
+            "1"
+          ]
+        },
+        "description": "Get a single DownloadedFile by id."
+      },
+      "response": []
+    },
+    {
+      "name": "Files - Update Status (processing)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/files/downloaded/1",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "files",
+            "downloaded",
+            "1"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"processing\"\n}"
+        },
+        "description": "Update status of a DownloadedFile."
+      },
+      "response": []
+    },
+    {
+      "name": "Files - Rehash",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/files/downloaded/1/rehash",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "files",
+            "downloaded",
+            "1",
+            "rehash"
+          ]
+        },
+        "description": "Recompute CRC32 and persist."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000"
+    }
+  ]
+}
+
+
