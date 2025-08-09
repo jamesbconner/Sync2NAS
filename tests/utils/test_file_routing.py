@@ -5,6 +5,7 @@ import datetime
 from unittest.mock import Mock, patch, MagicMock
 from utils.file_routing import file_routing
 from services.db_implementations.sqlite_implementation import SQLiteDBService
+from models.downloaded_file import DownloadedFile, FileStatus
 from models.show import Show
 from utils.filename_parser import parse_filename
 
@@ -856,6 +857,84 @@ def test_file_routing_with_llm_service(tmp_path, mocker):
     assert result[0]["show_name"] == "Show Name"
     assert result[0]["confidence"] == 0.9
     assert result[0]["reasoning"] == "LLM assisted parsing"
+
+
+def test_file_routing_scdupdate_sqlite_e2e(tmp_path, monkeypatch):
+    """End-to-end SCD update using real SQLiteDBService."""
+    incoming_path = tmp_path / "incoming"
+    anime_tv_path = tmp_path / "anime_tv"
+    db_file = tmp_path / "test.db"
+    incoming_path.mkdir()
+    anime_tv_path.mkdir()
+
+    # Create a test file in incoming
+    test_file = incoming_path / "Show.Name.S01E01.mkv"
+    test_file.write_text("content")
+
+    # Real SQLite DB
+    db = SQLiteDBService(str(db_file))
+    db.initialize()
+
+    # Seed a DownloadedFile row with current_path = source file
+    now = datetime.datetime(2024, 1, 1, 12, 0, 0)
+    df = DownloadedFile(
+        name=test_file.name,
+        remote_path=f"/remote/{test_file.name}",
+        current_path=str(test_file),
+        size=100,
+        modified_time=now,
+        fetched_at=now,
+        is_dir=False,
+        status=FileStatus.DOWNLOADED,
+    )
+    db.upsert_downloaded_file(df)
+
+    # Monkeypatch show/episode lookups on the real db instance
+    show_dir = anime_tv_path / "Show Name"
+    monkeypatch.setattr(
+        db,
+        "get_show_by_name_or_alias",
+        lambda name: {
+            "sys_name": "Show Name",
+            "sys_path": str(show_dir),
+            "tmdb_id": 123,
+            "tmdb_name": "Show Name",
+            "tmdb_aliases": None,
+            "tmdb_first_aired": None,
+            "tmdb_last_aired": None,
+            "tmdb_year": None,
+            "tmdb_overview": None,
+            "tmdb_season_count": 0,
+            "tmdb_episode_count": 0,
+            "tmdb_episode_groups": None,
+            "tmdb_status": None,
+            "tmdb_external_ids": None,
+            "tmdb_episodes_fetched_at": None,
+            "fetched_at": None,
+        },
+        raising=False,
+    )
+    monkeypatch.setattr(
+        db,
+        "get_episode_by_absolute_number",
+        lambda tmdb_id, abs_ep: {"season": 1, "episode": 1},
+        raising=False,
+    )
+
+    # Run routing
+    result = file_routing(str(incoming_path), str(anime_tv_path), db, dry_run=False, tmdb=MagicMock())
+
+    # Verify file moved and SCD updated
+    target = show_dir / "Season 01" / test_file.name
+    assert target.exists()
+    assert not test_file.exists()
+
+    updated = db.get_downloaded_file_by_remote_path(f"/remote/{test_file.name}")
+    assert updated is not None
+    assert updated.current_path == str(target)
+    assert getattr(updated, "previous_path", None) == str(test_file)
+    assert updated.status == FileStatus.ROUTED
+    assert updated.routing_attempts >= 1
 
 parse_filename_cases = [
     ("[Ssseeblpau] Surmme Copeskt - 01 (1080p) [841471A0].mkv", "Surmme Copeskt", 1, None),

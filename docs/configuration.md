@@ -128,6 +128,23 @@ port = 8000
 
 ---
 
+### [Hashing] (Optional)
+
+Configure hashing behavior for large files.
+
+```ini
+[Hashing]
+; Either set chunk_size_bytes directly, or chunk_size_mib (MiB)
+; chunk_size_bytes = 1048576
+chunk_size_mib = 1
+```
+- `chunk_size_bytes`: Read chunk size in bytes used when hashing large files.
+- `chunk_size_mib`: Convenience option; multiplied by 1,048,576 to derive bytes.
+
+Defaults to 1 MiB if not specified.
+
+---
+
 ### [llm] Section
 Specifies which LLM backend to use for filename parsing.
 

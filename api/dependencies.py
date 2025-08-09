@@ -102,3 +102,9 @@ def get_llm_service(request: Request):
     """
     services = request.app.state.services
     return services["llm_service"] 
+
+
+def get_db_service(request: Request):
+    """Dependency for direct DB service access in endpoints."""
+    services = request.app.state.services
+    return services["db"]

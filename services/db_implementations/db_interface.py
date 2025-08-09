@@ -5,6 +5,7 @@ import logging
 from models.episode import Episode
 from contextlib import contextmanager
 import os
+from models.downloaded_file import DownloadedFile, FileStatus
 
 logger = logging.getLogger(__name__)
 
@@ -126,4 +127,58 @@ class DatabaseInterface(ABC):
     @abstractmethod
     def is_read_only(self) -> bool:
         """Check if database is in read-only mode."""
+        pass
+
+    @abstractmethod
+    def upsert_downloaded_file(self, file: DownloadedFile) -> DownloadedFile:
+        """Insert/update a DownloadedFile keyed by remote_path (bridged from original_path)."""
+        pass
+
+    @abstractmethod
+    def set_downloaded_file_hash(self, file_id: int, algo: str, value: str, calculated_at: Optional[datetime.datetime] = None) -> None:
+        pass
+
+    @abstractmethod
+    def update_downloaded_file_location(self, file_id: int, new_path: str, new_status: FileStatus = FileStatus.ROUTED, routed_at: Optional[datetime.datetime] = None) -> None:
+        pass
+
+    @abstractmethod
+    def update_downloaded_file_location_by_current_path(self, current_path: str, new_path: str, new_status: FileStatus = FileStatus.ROUTED, routed_at: Optional[datetime.datetime] = None) -> None:
+        pass
+
+    @abstractmethod
+    def mark_downloaded_file_error(self, file_id: int, message: str) -> None:
+        pass
+
+    @abstractmethod
+    def get_downloaded_files_by_status(self, status: FileStatus) -> List[DownloadedFile]:
+        pass
+
+    @abstractmethod
+    def get_downloaded_file_by_remote_path(self, remote_path: str) -> Optional[DownloadedFile]:
+        pass
+
+    @abstractmethod
+    def search_downloaded_files(self,
+        *,
+        status: Optional[FileStatus] = None,
+        file_type: Optional[str] = None,
+        q: Optional[str] = None,
+        tmdb_id: Optional[int] = None,
+        page: int = 1,
+        page_size: int = 50,
+        sort_by: str = "modified_time",
+        sort_order: str = "desc",
+    ) -> Tuple[List[DownloadedFile], int]:
+        """Search downloaded files with filters and pagination."""
+        pass
+
+    @abstractmethod
+    def get_downloaded_file_by_id(self, file_id: int) -> Optional[DownloadedFile]:
+        """Fetch a single DownloadedFile by its primary key id."""
+        pass
+
+    @abstractmethod
+    def update_downloaded_file_status(self, file_id: int, new_status: FileStatus, error_message: Optional[str] = None) -> None:
+        """Update only the status (and optionally error_message) of a downloaded file by id."""
         pass

@@ -4,11 +4,14 @@ SFTP orchestrator utilities for processing SFTP diffs, downloading files, and bo
 import os
 import logging
 import datetime
-from typing import List, Dict
+from typing import List, Dict, Optional
 from services.sftp_service import SFTPService
 from services.db_implementations.db_interface import DatabaseInterface
 from utils.file_filters import is_valid_media_file, is_valid_directory
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+from models.downloaded_file import DownloadedFile
+from services.hashing_service import HashingService
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +24,7 @@ def process_sftp_diffs(
     dry_run: bool = False,
     llm_service=None,
     max_workers: int = 4,
+    hashing_service: Optional[HashingService] = None,
 ) -> None:
     """
     Process a list of SFTP diffs: download new files or directories and record them.
@@ -50,14 +54,17 @@ def process_sftp_diffs(
     def download_file_task(remote_path, local_path):
         sftp = SFTPService(**sftp_params)
         with sftp:
+            start_ts = datetime.datetime.now()
             sftp.download_file(remote_path, local_path)
+            duration = (datetime.datetime.now() - start_ts).total_seconds()
+            logger.info(f"Downloaded {remote_path} -> {local_path} in {duration:.2f}s")
 
     # Separate files and directories
     file_entries = []
     dir_entries = []
     for entry in diffs:
         name = entry["name"]
-        remote_path = entry["path"]
+        remote_path = entry.get("remote_path") or entry.get("path")
         relative_path = os.path.relpath(remote_path, remote_base)
         local_path = os.path.join(local_base, relative_path)
         entry['fetched_at'] = datetime.datetime.now()
@@ -81,7 +88,16 @@ def process_sftp_diffs(
         try:
             logger.info(f"Starting download of DIR: {remote_path} -> {local_path}")
             sftp_service.download_dir(remote_path, local_path, max_workers=max_workers)
-            db_service.add_downloaded_file(entry)
+            db_service.add_downloaded_file({**entry, "path": entry.get("remote_path") or entry.get("path")})
+            # Upsert record via DB service
+            try:
+                file_model = DownloadedFile.from_sftp_entry(
+                    {**entry, "path": entry.get("remote_path") or entry.get("path"), "local_path": local_path},
+                    base_path=local_base,
+                )
+                db_service.upsert_downloaded_file(file_model)
+            except Exception as repo_exc:
+                logger.warning(f"DownloadedFile upsert failed for DIR {remote_path}: {repo_exc}")
             logger.info(f"Downloaded DIR: {remote_path} -> {local_path}")
         except Exception as e:
             logger.exception(f"Failed to download DIR {remote_path}: {e}")
@@ -100,7 +116,29 @@ def process_sftp_diffs(
                 entry, remote_path, local_path = future_to_entry[future]
                 try:
                     future.result()
-                    db_service.add_downloaded_file(entry)
+                    db_service.add_downloaded_file({**entry, "path": entry.get("remote_path") or entry.get("path")})
+                    # Upsert record via DB service
+                    try:
+                        file_model = DownloadedFile.from_sftp_entry(
+                            {**entry, "path": entry.get("remote_path") or entry.get("path"), "local_path": local_path},
+                            base_path=local_base,
+                        )
+                        # Compute CRC32 if hashing_service provided
+                        if hashing_service is not None and not entry.get("is_dir", False):
+                            try:
+                                hash_start = datetime.datetime.now()
+                                crc = hashing_service.calculate_crc32(local_path)
+                                file_model.file_hash = crc
+                                hash_secs = (datetime.datetime.now() - hash_start).total_seconds()
+                                logger.info(f"CRC32 computed for {local_path} in {hash_secs:.2f}s")
+                            except Exception as h_exc:
+                                logger.warning(f"CRC32 compute failed for {local_path}: {h_exc}")
+                        upsert_start = datetime.datetime.now()
+                        db_service.upsert_downloaded_file(file_model)
+                        upsert_secs = (datetime.datetime.now() - upsert_start).total_seconds()
+                        logger.info(f"Upserted DownloadedFile for {local_path} in {upsert_secs:.2f}s")
+                    except Exception as repo_exc:
+                        logger.warning(f"DownloadedFile upsert failed for FILE {remote_path}: {repo_exc}")
                     logger.info(f"Downloaded FILE: {remote_path} -> {local_path}")
                 except Exception as e:
                     logger.exception(f"Failed to download FILE {remote_path}: {e}")
@@ -111,7 +149,8 @@ def download_from_remote(
     remote_paths: List[str],
     incoming_path: str,
     dry_run: bool = False,
-    max_workers: int = 4
+    max_workers: int = 4,
+    hashing_service: Optional[HashingService] = None,
 ) -> None:
     """
     Orchestrates remote file download:
@@ -152,6 +191,7 @@ def download_from_remote(
             local_base=incoming_path,
             dry_run=dry_run,
             max_workers=max_workers,
+            hashing_service=hashing_service,
         )
 
 def list_remote_files(sftp_service: SFTPService, remote_path: str) -> List[Dict]:

@@ -22,7 +22,7 @@ def file_routing(
     tmdb,
     dry_run: bool = False,
     llm_service: Optional[LLMInterface] = None,
-    llm_confidence_threshold: float = 0.7
+    llm_confidence_threshold: float = 0.7,
 ) -> List[Dict[str, str]]:
     """
     Scan the incoming directory, identify files to route, and move them to their destination paths.
@@ -130,6 +130,15 @@ def file_routing(
                     os.makedirs(season_dir, exist_ok=True)
                     shutil.move(source_path, target_path)
                     logger.info(f"Moved {source_path} to {target_path}")
+                    # Update SCD location using DB service directly
+                    try:
+                        # DB schema is initialized at startup; no per-table init needed
+                        db.update_downloaded_file_location_by_current_path(
+                            current_path=source_path,
+                            new_path=target_path,
+                        )
+                    except Exception as repo_exc:
+                        logger.warning(f"Failed to update SCD location for {source_path}: {repo_exc}")
                 except FileNotFoundError:
                     logger.exception(f"File not found: {source_path}, target path: {target_path}, season dir: {season_dir}")
                 except PermissionError:
