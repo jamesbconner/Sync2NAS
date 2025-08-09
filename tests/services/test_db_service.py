@@ -174,7 +174,10 @@ def test_add_downloaded_files(db_service):
     }]
     db_service.add_downloaded_files(files)
     downloaded = db_service.get_downloaded_files()
-    assert any(f["name"] == "downloaded1.txt" and f["path"] == "/path/to/downloaded1.txt" for f in downloaded)
+    assert any(
+        f["name"] == "downloaded1.txt" and f["remote_path"] == "/path/to/downloaded1.txt"
+        for f in downloaded
+    )
 
 def test_get_sftp_diffs_returns_expected(db_service):
     now = datetime.datetime.now()
