@@ -156,7 +156,7 @@ class SFTPService:
 
             entries.append({
                 "name": name,
-                "path": path,
+                "remote_path": path,
                 "size": attr.st_size,
                 "modified_time": modified_time,
                 "is_dir": is_dir,
@@ -196,7 +196,7 @@ class SFTPService:
             
             entries.append({
                 "name": name,
-                "path": path,
+                "remote_path": path,
                 "size": entry.st_size,
                 "modified_time": modified_time,
                 "is_dir": is_dir,
@@ -234,7 +234,7 @@ class SFTPService:
 
             entries.append({
                 "name": name,
-                "path": path,
+                "remote_path": path,
                 "size": attr.st_size,
                 "modified_time": modified_time,
                 "is_dir": False,

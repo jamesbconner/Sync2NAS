@@ -64,7 +64,7 @@ def process_sftp_diffs(
     dir_entries = []
     for entry in diffs:
         name = entry["name"]
-        remote_path = entry["path"]
+        remote_path = entry.get("remote_path") or entry.get("path")
         relative_path = os.path.relpath(remote_path, remote_base)
         local_path = os.path.join(local_base, relative_path)
         entry['fetched_at'] = datetime.datetime.now()
@@ -88,10 +88,10 @@ def process_sftp_diffs(
         try:
             logger.info(f"Starting download of DIR: {remote_path} -> {local_path}")
             sftp_service.download_dir(remote_path, local_path, max_workers=max_workers)
-            db_service.add_downloaded_file(entry)
-                # Upsert record via DB service
+            db_service.add_downloaded_file({**entry, "path": entry.get("remote_path") or entry.get("path")})
+            # Upsert record via DB service
             try:
-                file_model = DownloadedFile.from_sftp_entry(entry, base_path=local_base)
+                file_model = DownloadedFile.from_sftp_entry({**entry, "path": entry.get("remote_path") or entry.get("path")}, base_path=local_base)
                 db_service.upsert_downloaded_file(file_model)
             except Exception as repo_exc:
                 logger.warning(f"DownloadedFile upsert failed for DIR {remote_path}: {repo_exc}")
@@ -113,10 +113,10 @@ def process_sftp_diffs(
                 entry, remote_path, local_path = future_to_entry[future]
                 try:
                     future.result()
-                    db_service.add_downloaded_file(entry)
-                        # Upsert record via DB service
+                    db_service.add_downloaded_file({**entry, "path": entry.get("remote_path") or entry.get("path")})
+                    # Upsert record via DB service
                     try:
-                        file_model = DownloadedFile.from_sftp_entry(entry, base_path=local_base)
+                        file_model = DownloadedFile.from_sftp_entry({**entry, "path": entry.get("remote_path") or entry.get("path")}, base_path=local_base)
                         # Compute CRC32 if hashing_service provided
                         if hashing_service is not None and not entry.get("is_dir", False):
                             try:

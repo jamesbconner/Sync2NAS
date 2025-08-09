@@ -482,7 +482,7 @@ class SQLiteDBService(DatabaseInterface):
         with self._connection() as conn:
             conn.row_factory = sqlite3.Row
             query = """
-                SELECT name, size, modified_time, path, is_dir
+                SELECT name, size, modified_time, remote_path, is_dir
                 FROM downloaded_files
             """
             cursor = conn.execute(query)
@@ -504,8 +504,8 @@ class SQLiteDBService(DatabaseInterface):
                         f["name"],
                         f["size"],
                         f["modified_time"],
-                        f["path"],
-                        f["path"],
+                        f.get("remote_path") or f["path"],
+                        f.get("remote_path") or f["path"],
                         f["is_dir"],
                         f["fetched_at"],
                     )
@@ -520,10 +520,10 @@ class SQLiteDBService(DatabaseInterface):
         with self._connection() as conn:
             conn.row_factory = sqlite3.Row
             query = """
-                SELECT name, size, modified_time, path, is_dir
+                SELECT name, size, modified_time, path AS remote_path, is_dir
                 FROM sftp_temp_files
                 EXCEPT
-                SELECT name, size, modified_time, path, is_dir
+                SELECT name, size, modified_time, remote_path, is_dir
                 FROM downloaded_files
             """
             cursor = conn.execute(query)
@@ -558,8 +558,8 @@ class SQLiteDBService(DatabaseInterface):
                     file["name"],
                     file["size"],
                     file["modified_time"],
-                    file["path"],
-                    file["path"],
+                    file.get("remote_path") or file["path"],
+                    file.get("remote_path") or file["path"],
                     file["is_dir"],
                     file["fetched_at"],
                 ),
@@ -593,7 +593,7 @@ class SQLiteDBService(DatabaseInterface):
             ''', [
                 (
                     entry["name"],
-                    entry["path"],
+                    entry.get("remote_path") or entry["path"],
                     entry["size"],
                     entry["modified_time"] if isinstance(entry["modified_time"], str) else entry["modified_time"].isoformat(),
                     entry["fetched_at"] if isinstance(entry["fetched_at"], str) else entry["fetched_at"].isoformat(),

@@ -408,7 +408,7 @@ class PostgresDBService(DatabaseInterface):
         with self._connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT name, size, modified_time, path, is_dir
+                SELECT name, size, modified_time, remote_path, is_dir
                 FROM downloaded_files
             """)
             columns = [desc[0] for desc in cursor.description]
@@ -422,14 +422,14 @@ class PostgresDBService(DatabaseInterface):
             cursor = conn.cursor()
             cursor.executemany("""
                 INSERT INTO downloaded_files (
-                    name, size, modified_time, path, is_dir, fetched_at
-                ) VALUES (%s, %s, %s, %s, %s, %s)
+                    name, size, modified_time, remote_path, is_dir, fetched_at, status, file_type
+                ) VALUES (%s, %s, %s, %s, %s, %s, 'downloaded', 'unknown')
             """, [
                 (
                     f["name"],
                     f["size"],
                     f["modified_time"],
-                    f["path"],
+                    f.get("remote_path") or f["path"],
                     f["is_dir"],
                     f["fetched_at"],
                 )
@@ -443,7 +443,7 @@ class PostgresDBService(DatabaseInterface):
         with self._connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT s.name, s.size, s.modified_time, s.path, s.is_dir
+                SELECT s.name, s.size, s.modified_time, s.path AS remote_path, s.is_dir
                 FROM sftp_temp_files s
                 LEFT JOIN downloaded_files d ON s.path = d.remote_path
                 WHERE d.id IS NULL
@@ -475,14 +475,14 @@ class PostgresDBService(DatabaseInterface):
             cursor.execute(
                 """
                 INSERT INTO downloaded_files (
-                    name, size, modified_time, path, is_dir, fetched_at
-                ) VALUES (%s, %s, %s, %s, %s, %s)
+                    name, size, modified_time, remote_path, is_dir, fetched_at, status, file_type
+                ) VALUES (%s, %s, %s, %s, %s, %s, 'downloaded', 'unknown')
                 """,
                 (
                     file["name"],
                     file["size"],
                     file["modified_time"],
-                    file["path"],
+                    file.get("remote_path") or file["path"],
                     file["is_dir"],
                     file["fetched_at"],
                 ),
@@ -519,7 +519,7 @@ class PostgresDBService(DatabaseInterface):
             ''', [
                 (
                     entry["name"],
-                    entry["path"],
+                    entry.get("remote_path") or entry["path"],
                     entry["size"],
                     entry["modified_time"] if isinstance(entry["modified_time"], str) else entry["modified_time"].isoformat(),
                     entry["fetched_at"] if isinstance(entry["fetched_at"], str) else entry["fetched_at"].isoformat(),
@@ -574,8 +574,8 @@ class PostgresDBService(DatabaseInterface):
         with self._connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO downloaded_files (name, size, modified_time, path, fetched_at, is_dir)
-                SELECT name, size, modified_time, path, fetched_at, is_dir
+                INSERT INTO downloaded_files (name, size, modified_time, remote_path, fetched_at, is_dir, status, file_type)
+                SELECT name, size, modified_time, path, fetched_at, is_dir, 'downloaded', 'unknown'
                 FROM sftp_temp_files
             """)
             conn.commit()

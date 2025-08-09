@@ -264,7 +264,7 @@ class DownloadedFile(BaseModel):
             DownloadedFile: Instantiated DownloadedFile object.
         """
         # Use Path for cross-platform path handling
-        full_path = Path(base_path) / entry["path"]
+        full_path = Path(base_path) / (entry.get("remote_path") or entry.get("path"))
         return cls(
             name=entry["name"],
             remote_path=str(full_path),
