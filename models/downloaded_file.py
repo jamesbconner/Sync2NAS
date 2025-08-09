@@ -85,6 +85,8 @@ class DownloadedFile(BaseModel):
     
     # Content identification
     file_hash: Optional[str] = Field(None, description="CRC32 hash of file content (default)")
+    file_hash_algo: Optional[str] = Field(None, description="Hash algorithm used (e.g., CRC32)")
+    hash_calculated_at: Optional[datetime.datetime] = Field(None, description="When file hash was calculated")
     
     def __init__(self, **data):
         # Backward compatibility: accept 'original_path' as input
@@ -235,21 +237,25 @@ class DownloadedFile(BaseModel):
             name=record["name"],
             remote_path=record.get("remote_path") or record.get("original_path"),
             current_path=record.get("current_path"),
+            previous_path=record.get("previous_path"),
             size=record["size"],
             modified_time=record["modified_time"],
             fetched_at=record["fetched_at"],
             is_dir=record["is_dir"],
             status=FileStatus(record.get("status", "downloaded")),
-            file_hash=record.get("file_hash"),
+            file_hash=record.get("file_hash_value") or record.get("file_hash"),
+            file_hash_algo=record.get("file_hash_algo"),
+            hash_calculated_at=record.get("hash_calculated_at"),
             show_name=record.get("show_name"),
             season=record.get("season"),
             episode=record.get("episode"),
             confidence=record.get("confidence"),
             reasoning=record.get("reasoning"),
             tmdb_id=record.get("tmdb_id"),
+            routing_attempts=record.get("routing_attempts", 0),
+            last_routing_attempt=record.get("last_routing_attempt"),
+            error_message=record.get("error_message"),
             metadata=parsed_metadata
-            # Processing state fields (routing_attempts, last_routing_attempt, error_message, metadata) 
-            # are initialized to defaults and managed in memory during processing
         )
 
     @classmethod

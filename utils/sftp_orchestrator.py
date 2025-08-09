@@ -128,8 +128,11 @@ def process_sftp_diffs(
                             try:
                                 hash_start = datetime.datetime.now()
                                 crc = hashing_service.calculate_crc32(local_path)
+                                hash_end = datetime.datetime.now()
                                 file_model.file_hash = crc
-                                hash_secs = (datetime.datetime.now() - hash_start).total_seconds()
+                                file_model.file_hash_algo = "CRC32"
+                                file_model.hash_calculated_at = hash_end
+                                hash_secs = (hash_end - hash_start).total_seconds()
                                 logger.info(f"CRC32 computed for {local_path} in {hash_secs:.2f}s")
                             except Exception as h_exc:
                                 logger.warning(f"CRC32 compute failed for {local_path}: {h_exc}")
