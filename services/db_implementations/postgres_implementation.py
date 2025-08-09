@@ -666,7 +666,7 @@ class PostgresDBService(DatabaseInterface):
             file.status.value,
             file.file_type.value,
             file.file_hash,
-            getattr(file, "file_hash_algo", "CRC32" if file.file_hash and len(file.file_hash) == 8 else None),
+            (file.file_hash_algo if file.file_hash_algo is not None else ("CRC32" if file.file_hash and len(file.file_hash) == 8 else None)),
             getattr(file, "hash_calculated_at", None),
             file.show_name,
             file.season,
@@ -853,6 +853,7 @@ class PostgresDBService(DatabaseInterface):
                 name=row.get("name"),
                 remote_path=row.get("remote_path"),
                 current_path=row.get("current_path"),
+                previous_path=row.get("previous_path"),
                 size=row.get("size"),
                 modified_time=row.get("modified_time"),
                 fetched_at=row.get("fetched_at"),
@@ -867,6 +868,9 @@ class PostgresDBService(DatabaseInterface):
                 confidence=row.get("confidence"),
                 reasoning=row.get("reasoning"),
                 tmdb_id=row.get("tmdb_id"),
+                routing_attempts=row.get("routing_attempts", 0),
+                last_routing_attempt=row.get("last_routing_attempt"),
+                error_message=row.get("error_message"),
             )
 
     def search_downloaded_files(self,
@@ -962,6 +966,7 @@ class PostgresDBService(DatabaseInterface):
                 name=row.get("name"),
                 remote_path=row.get("remote_path"),
                 current_path=row.get("current_path"),
+                previous_path=row.get("previous_path"),
                 size=row.get("size"),
                 modified_time=row.get("modified_time"),
                 fetched_at=row.get("fetched_at"),
@@ -976,4 +981,7 @@ class PostgresDBService(DatabaseInterface):
                 confidence=row.get("confidence"),
                 reasoning=row.get("reasoning"),
                 tmdb_id=row.get("tmdb_id"),
+                routing_attempts=row.get("routing_attempts", 0),
+                last_routing_attempt=row.get("last_routing_attempt"),
+                error_message=row.get("error_message"),
             )

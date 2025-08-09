@@ -777,7 +777,7 @@ class SQLiteDBService(DatabaseInterface):
             file.status.value,
             file.file_type.value,
             file.file_hash,
-            getattr(file, "file_hash_algo", "CRC32" if file.file_hash and len(file.file_hash) == 8 else None),
+            (file.file_hash_algo if file.file_hash_algo is not None else ("CRC32" if file.file_hash and len(file.file_hash) == 8 else None)),
             getattr(file, "hash_calculated_at", None),
             file.show_name,
             file.season,
