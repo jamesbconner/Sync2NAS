@@ -7,7 +7,7 @@ import hashlib
 import logging
 from typing import Optional, Dict, Any, List
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from pydantic import BaseModel, Field, ConfigDict, field_validator, PrivateAttr
 from enum import Enum
 
 logger = logging.getLogger(__name__)
@@ -63,6 +63,9 @@ class DownloadedFile(BaseModel):
         validate_assignment=True,
         extra='forbid'
     )
+
+    # Private attributes (not part of the public model fields)
+    _hash_cache: Dict[str, str] = PrivateAttr(default_factory=dict)
     
     # Database fields
     id: Optional[int] = Field(None, description="Database ID (auto-generated)")
@@ -88,8 +91,6 @@ class DownloadedFile(BaseModel):
         if 'original_path' in data and 'remote_path' not in data:
             data['remote_path'] = data.pop('original_path')
         super().__init__(**data)
-        # Initialize hash cache as a private attribute
-        self._hash_cache = {}
 
     # Backward compatibility for code/tests still using original_path
     @property
