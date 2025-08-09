@@ -237,21 +237,25 @@ class DownloadedFile(BaseModel):
             name=record["name"],
             remote_path=record.get("remote_path") or record.get("original_path"),
             current_path=record.get("current_path"),
+            previous_path=record.get("previous_path"),
             size=record["size"],
             modified_time=record["modified_time"],
             fetched_at=record["fetched_at"],
             is_dir=record["is_dir"],
             status=FileStatus(record.get("status", "downloaded")),
-            file_hash=record.get("file_hash"),
+            file_hash=record.get("file_hash_value") or record.get("file_hash"),
+            file_hash_algo=record.get("file_hash_algo"),
+            hash_calculated_at=record.get("hash_calculated_at"),
             show_name=record.get("show_name"),
             season=record.get("season"),
             episode=record.get("episode"),
             confidence=record.get("confidence"),
             reasoning=record.get("reasoning"),
             tmdb_id=record.get("tmdb_id"),
+            routing_attempts=record.get("routing_attempts", 0),
+            last_routing_attempt=record.get("last_routing_attempt"),
+            error_message=record.get("error_message"),
             metadata=parsed_metadata
-            # Processing state fields (routing_attempts, last_routing_attempt, error_message, metadata) 
-            # are initialized to defaults and managed in memory during processing
         )
 
     @classmethod
