@@ -85,6 +85,8 @@ class DownloadedFile(BaseModel):
     
     # Content identification
     file_hash: Optional[str] = Field(None, description="CRC32 hash of file content (default)")
+    file_hash_algo: Optional[str] = Field(None, description="Hash algorithm used (e.g., CRC32)")
+    hash_calculated_at: Optional[datetime.datetime] = Field(None, description="When file hash was calculated")
     
     def __init__(self, **data):
         # Backward compatibility: accept 'original_path' as input

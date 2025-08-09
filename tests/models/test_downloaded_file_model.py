@@ -28,15 +28,18 @@ def sample_db_record():
     return {
         "id": 1,
         "name": "test_video.mkv",
-        "original_path": "/incoming/test_video.mkv",
+        "remote_path": "/incoming/test_video.mkv",
         "current_path": "/shows/Test Show/Season 01/test_video.mkv",
+        "previous_path": None,
         "size": 1024000,
         "modified_time": datetime.datetime(2024, 1, 1, 12, 0, 0),
         "fetched_at": datetime.datetime(2024, 1, 1, 13, 0, 0),
         "is_dir": False,
         "status": "routed",
         "file_type": "video",
-        "file_hash": "abc123",
+        "file_hash_value": "abc123",
+        "file_hash_algo": "CRC32",
+        "hash_calculated_at": datetime.datetime(2024, 1, 1, 12, 30, 0),
         "show_name": "Test Show",
         "season": 1,
         "episode": 1,
@@ -59,8 +62,8 @@ class TestDownloadedFileCreation:
         file = DownloadedFile.from_sftp_entry(sample_sftp_entry, base_path)
         
         assert file.name == "test_video.mkv"
-        # original_path should reflect the actual remote path
-        assert file.original_path == "remote/path/test_video.mkv"
+        # remote_path should reflect the actual remote path
+        assert file.remote_path == "remote/path/test_video.mkv"
         # current_path should reflect the local download destination (base_path + remote relative path)
         expected_path = str(Path("/incoming") / "remote" / "path" / "test_video.mkv")
         assert file.current_path == expected_path
@@ -219,7 +222,7 @@ class TestDownloadedFileMethods:
             modified_time=datetime.datetime.now()
         )
         
-        # Should return original_path when current_path is None
+        # Should return remote_path when current_path is None
         assert file.get_file_path() == "/original/test.mkv"
         
         # Should return current_path when set
