@@ -104,18 +104,47 @@ def process_sftp_diffs(
             continue
         try:
             logger.info(f"Starting download of DIR: {remote_path} -> {local_path}")
-            sftp_service.download_dir(remote_path, local_path, max_workers=max_workers)
+            downloaded_items = sftp_service.download_dir(remote_path, local_path, max_workers=max_workers)
+            # Record the directory itself
             db_service.add_downloaded_file({**entry, "path": entry.get("remote_path") or entry.get("path")})
-            # Upsert record via DB service
             try:
-                file_model = DownloadedFile.from_sftp_entry(
+                dir_model = DownloadedFile.from_sftp_entry(
                     {**entry, "path": entry.get("remote_path") or entry.get("path"), "local_path": local_path},
                     base_path=local_base,
                 )
-                db_service.upsert_downloaded_file(file_model)
+                db_service.upsert_downloaded_file(dir_model)
             except Exception as repo_exc:
                 logger.warning(f"DownloadedFile upsert failed for DIR {remote_path}: {repo_exc}")
-            logger.info(f"Downloaded DIR: {remote_path} -> {local_path}")
+            # Record each file within the directory
+            for itm in (downloaded_items or []):
+                try:
+                    leaf = {
+                        "name": itm["name"],
+                        "remote_path": itm.get("remote_path") or itm.get("path") or itm.get("remote_entry"),
+                        "size": itm["size"],
+                        "modified_time": itm["modified_time"],
+                        "is_dir": False,
+                        "fetched_at": itm.get("fetched_at") or entry.get("fetched_at"),
+                        "path": itm.get("remote_path") or itm.get("remote_entry"),
+                    }
+                    db_service.add_downloaded_file(leaf)
+                    file_model = DownloadedFile.from_sftp_entry(
+                        {
+                            "name": itm["name"],
+                            "remote_path": leaf["remote_path"],
+                            "path": leaf["remote_path"],
+                            "local_path": itm.get("local_path") or local_path,
+                            "size": itm["size"],
+                            "modified_time": itm["modified_time"],
+                            "is_dir": False,
+                            "fetched_at": leaf["fetched_at"],
+                        },
+                        base_path=local_base,
+                    )
+                    db_service.upsert_downloaded_file(file_model)
+                except Exception as repo_exc:
+                    logger.warning(f"DownloadedFile upsert failed for DIR content {remote_path}: {repo_exc}")
+            logger.info(f"Downloaded DIR: {remote_path} -> {local_path} with {len(downloaded_items or [])} file(s)")
         except Exception as e:
             logger.exception(f"Failed to download DIR {remote_path}: {e}")
 

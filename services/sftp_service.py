@@ -351,8 +351,9 @@ class SFTPService:
         os.makedirs(local_path, exist_ok=True)
 
         # Gather files and subdirectories for parallel download
-        files = []
+        files_info = []
         subdirs = []
+        fetched_at = datetime.now()
         for entry in self.client.listdir_attr(remote_path):
             # Always use forward slashes for remote paths
             remote_entry = remote_path.rstrip('/') + '/' + entry.filename.replace('\\', '/')
@@ -374,7 +375,15 @@ class SFTPService:
                     continue
                 # Use the filename mapping for this directory if present
                 local_filename = new_filename_map[entry.filename] if new_filename_map and entry.filename in new_filename_map else entry.filename
-                files.append((remote_entry, os.path.join(local_path, local_filename)))
+                files_info.append({
+                    "remote_entry": remote_entry,
+                    "local_file": os.path.join(local_path, local_filename),
+                    "size": entry.st_size,
+                    "modified_time": datetime.fromtimestamp(entry.st_mtime),
+                    "name": entry.filename,
+                    "is_dir": False,
+                    "fetched_at": fetched_at,
+                })
 
         # Prepare SFTP connection parameters for new instances (each thread gets its own connection)
         sftp_params = {
@@ -401,20 +410,38 @@ class SFTPService:
                 sftp.download_dir(remote_entry, local_dir, filename_map=subdir_filename_map, max_workers=max_workers)
 
         # Use a thread pool to download all files and subdirectories in parallel
+        results = []
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = []
+            future_to_kind = {}
             # Submit all file download tasks
-            for remote_entry, local_file in files:
-                futures.append(executor.submit(file_download_task, remote_entry, local_file))
+            for info in files_info:
+                fut = executor.submit(file_download_task, info["remote_entry"], info["local_file"])
+                future_to_kind[fut] = ("file", info)
             # Submit all subdirectory download tasks (each will recurse in parallel)
             for remote_entry, local_dir, subdir_filename_map in subdirs:
-                futures.append(executor.submit(dir_download_task, remote_entry, local_dir, subdir_filename_map))
+                fut = executor.submit(dir_download_task, remote_entry, local_dir, subdir_filename_map)
+                future_to_kind[fut] = ("dir", None)
             # Wait for all downloads to complete, logging any exceptions
-            for future in as_completed(futures):
+            for future in as_completed(future_to_kind):
+                kind, info = future_to_kind[future]
                 try:
-                    future.result()
+                    res = future.result()
+                    if kind == "file" and info is not None:
+                        results.append({
+                            "name": info["name"],
+                            "remote_path": info["remote_entry"],
+                            "size": info["size"],
+                            "modified_time": info["modified_time"],
+                            "is_dir": False,
+                            "fetched_at": info["fetched_at"],
+                            "local_path": info["local_file"],
+                        })
+                    elif kind == "dir" and isinstance(res, list):
+                        results.extend(res)
                 except Exception as e:
                     logger.exception(f"Failed to download entry in {remote_path}: {e}")
+
+        return results
 
     @retry_sftp_operation
     def download_file(self, remote_path, local_path, max_path_length=250):
