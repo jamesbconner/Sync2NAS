@@ -79,6 +79,9 @@ class BaseLLMService(LLMInterface):
             "confidence": result.get("confidence", 0.0),
             "reasoning": result.get("reasoning", "No reasoning provided")
         }
+        # Preserve optional hash if present from LLM output
+        if "hash" in result and isinstance(result.get("hash"), str):
+            validated["hash"] = result.get("hash")
         try:
             if validated["season"] is not None:
                 validated["season"] = int(validated["season"])

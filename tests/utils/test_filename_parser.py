@@ -1,4 +1,7 @@
+import os
 import pytest
+from pathlib import Path
+from utils.sync2nas_config import load_configuration
 from utils.filename_parser import parse_filename
 
 class MockLLM:
@@ -73,3 +76,27 @@ def test_filename_parser_basic():
     """Basic placeholder test for utils/filename_parser.py functionality."""
     # TODO: Add tests for utils/filename_parser.py
     assert True 
+
+@pytest.mark.integration
+def test_llm_parsing_against_resource_file():
+    """Integration test that exercises the real Ollama client using the provided file list.
+
+    Requires OLLAMA_HOST to be set and the model to be available locally; otherwise skipped.
+    """
+
+    # Import locally to avoid heavy imports when skipped
+    from services.llm_implementations.ollama_implementation import OllamaLLMService
+    
+    config = load_configuration(Path(__file__).parent / 'config' / 'sync2nas_config_test.ini')
+
+    service = OllamaLLMService(config)
+    file_list_path = Path(__file__).parent.parent / 'resources' / 'file_list.txt'
+    lines = [l.strip() for l in file_list_path.read_text(encoding='utf-8').splitlines() if l.strip()]
+
+    successes = 0
+    for line in lines:
+        parsed = service.parse_filename(line)
+        # Count success if an episode is identified and confidence is reasonable
+        if parsed.get('episode') is not None and parsed.get('confidence', 0.0) >= 0.5:
+            successes += 1
+    assert successes >= max(1, len(lines) // 2)

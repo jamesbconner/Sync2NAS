@@ -1,0 +1,149 @@
+INFO: Parsing filename: [Asakura] Tensei Shitara Slime Datta Ken 3rd Season 49 [BDRip 1920x1080 x265 10bit FLAC] [36E425AB].mkv
+{
+  "show_name": "Tensei Shitara Slime Datta Ken",
+  "season": 3,
+  "episode": 49,
+  "hash": "[36E425AB]",
+  "confidence": 0.95,
+  "reasoning": "Season number is explicitly stated as '3rd Season' and episode number 49 follows; hash matches CRC32 pattern."
+}
+
+INFO: Parsing filename: [cloaknsmoke-rips]_The_Genius_Princes_Guide_to_Raising_a_Nation_Out_of_Debt_S01_E02(02)_1080p_AV1_[66EB819D].mkv
+{
+  "show_name": "The Genius Princes Guide to Raising a Nation Out of Debt",
+  "season": 1,
+  "episode": 2,
+  "hash": "[66EB819D]",
+  "confidence": 0.97,
+  "reasoning": "Season and episode are clearly indicated as S01_E02; show name extracted from the part before the season/episode marker; hash present in brackets."
+}
+
+INFO: Parsing filename: [Erai-raws] Kidou Senshi Gundam GQuuuuuuX - 12 [1080p AMZN WEB-DL AVC E26].mkv
+{
+  "show_name": "Kidou Senshi Gundam GQuuuuuuX",
+  "season": null,
+  "episode": 12,
+  "hash": null,
+  "confidence": 0.95,
+  "reasoning": "Episode number 12 is clearly indicated after the show title; no season is present and no 8‑character hash is found."
+}
+
+INFO: Parsing filename: [MTBB] The Dangers in My Heart S2 - 07 (BD 1080p) [673FE79D].mkv
+{
+  "show_name": "The Dangers in My Heart",
+  "season": 2,
+  "episode": 7,
+  "hash": "[673FE79D]",
+  "confidence": 0.95,
+  "reasoning": "Season number is explicitly stated as 'S2' and episode number as '07'; the show title precedes these markers and contains no additional separators, so it is taken as the full name. The hash is present in brackets. All fields are unambiguous, yielding high confidence."
+}
+
+INFO: Parsing filename: [SubsPlease] Aparida - 24 (1080p) [23037792].mkv
+{
+  "show_name": "Aparida",
+  "season": null,
+  "episode": 24,
+  "hash": "[23037792]",
+  "confidence": 0.95,
+  "reasoning": "The filename contains the show title \"Aparida\" followed by a dash and the episode number 24. No season indicator is present, so season is null. The 8‑character hexadecimal string in brackets is a valid CRC32 hash, captured as [23037792]. All fields are explicitly stated, yielding high confidence."
+}
+
+INFO: Parsing filename: [SubsPlease] Kaijuu 8-gou - 01 (1080p) [4896D2A9].mkv
+{
+  "show_name": "Kaijuu 8-gou",
+  "season": null,
+  "episode": 1,
+  "hash": "[4896D2A9]",
+  "confidence": 0.95,
+  "reasoning": "Episode number 01 appears clearly after the show name; no season is indicated. Hash [4896D2A9] is present."
+}
+
+INFO: Parsing filename: [SubsPlease] Shingeki no Kyojin (The Final Season) - 60 (1080p) [11F4C2A5].mkv
+{
+  "show_name": "Shingeki no Kyojin (The Final Season)",
+  "season": null,
+  "episode": 60,
+  "hash": "[11F4C2A5]",
+  "confidence": 0.95,
+  "reasoning": "Episode number 60 is clearly indicated after the dash separator; no season number is explicitly present, so season is null. The 8‑character hash [11F4C2A5] is detected in brackets. All fields are unambiguous, yielding high confidence."
+}
+
+INFO: Parsing filename: [SubsPlease] Sono Bisque Doll wa Koi wo Suru - 01v2 (1080p) [8EA43925].mkv
+{
+  "show_name": "Sono Bisque Doll wa Koi wo Suru",
+  "season": null,
+  "episode": 1,
+  "hash": "[8EA43925]",
+  "confidence": 0.95,
+  "reasoning": "The title before the dash is the show name. The token \"01v2\" contains the episode number 1 (the \"v2\" is a version marker and ignored). No season indicator is present. The 8‑character hex string in brackets is the CRC32 hash."
+}
+
+INFO: Parsing filename: [SubsPlease] Wind Breaker - 17 (1080p) [B8258C7A].mkv
+{
+  "show_name": "Wind Breaker",
+  "season": null,
+  "episode": 17,
+  "hash": "[B8258C7A]",
+  "confidence": 0.95,
+  "reasoning": "Episode number 17 is clearly indicated after the dash separator; no season information is present. The 8‑character hash [B8258C7A] is detected in brackets."
+}
+
+INFO: Parsing filename: [SubsPlease] Zatsu Tabi - That's Journey - 01 (1080p) [EC01EEB3].mkv
+{
+  "show_name": "Zatsu Tabi - That's Journey",
+  "season": null,
+  "episode": 1,
+  "hash": "[EC01EEB3]",
+  "confidence": 0.92,
+  "reasoning": "The filename contains a clear episode number \"01\" following the show title, separated by a dash; no season indicator is present. The 8‑character hash [EC01EEB3] is correctly extracted. The dash inside the title is preserved as part of the show name. All fields are unambiguous, giving high confidence."
+}
+
+INFO: Parsing filename: Isekai de Cheat Skill 01.mkv
+{
+  "show_name": "Isekai de Cheat Skill",
+  "season": null,
+  "episode": 1,
+  "hash": null,
+  "confidence": 0.95,
+  "reasoning": "The filename contains the show title followed by a space and the episode number 01. No season indicator or hash is present, so season is null and hash is null."
+}
+
+INFO: Parsing filename: Lycoris Recoil - S01 E01 [BD 1080p HEVC 10bit FLAC] [Dual-Audio].mkv
+{
+  "show_name": "Lycoris Recoil",
+  "season": 1,
+  "episode": 1,
+  "hash": null,
+  "confidence": 0.95,
+  "reasoning": "Season and episode are clearly indicated as S01 E01; no hash present."
+}
+
+INFO: Parsing filename: Trigun Ep 1 'The $$60 Billion Man' [Remastered].mkv
+{
+  "show_name": "Trigun",
+  "season": null,
+  "episode": 1,
+  "hash": null,
+  "confidence": 0.95,
+  "reasoning": "The filename contains the show title 'Trigun' followed by 'Ep 1', indicating episode 1. No season number or CRC32 hash is present, so those fields are null."
+}
+
+INFO: Parsing filename: SAKAMOTO.DAYS.S01E16.Slice.Slice.Dance.1080p.NF.WEB-DL.DDP5.1.H.264-VARYG.mkv
+{
+  "show_name": "Sakamoto Days",
+  "season": 1,
+  "episode": 16,
+  "hash": null,
+  "confidence": 0.95,
+  "reasoning": "The filename contains a clear S01E16 marker, indicating season 1 episode 16. The show name appears before this marker as \"SAKAMOTO.DAYS\". No CRC32 hash is present. All fields are explicitly stated, giving high confidence."
+}
+
+INFO: Parsing filename: [SubsPlease] Dr. Stone S4 - 17 (1080p) [9B970106].mkv
+{
+  "show_name": "Dr. Stone",
+  "season": 4,
+  "episode": 17,
+  "hash": "[9B970106]",
+  "confidence": 0.95,
+  "reasoning": "The filename contains the explicit season and episode format \"S4 - 17\", indicating season 4 episode 17. The show title \"Dr. Stone\" appears before this pattern, and the hash [9B970106] is present in brackets. All fields are unambiguous, yielding high confidence."
+}
