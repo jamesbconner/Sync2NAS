@@ -407,7 +407,12 @@ class SFTPService:
             sftp = SFTPService(**sftp_params)
             with sftp:
                 # Recursively call download_dir with the correct filename mapping for this subdir
-                sftp.download_dir(remote_entry, local_dir, filename_map=subdir_filename_map, max_workers=max_workers)
+                return sftp.download_dir(
+                    remote_entry,
+                    local_dir,
+                    filename_map=subdir_filename_map,
+                    max_workers=max_workers,
+                )
 
         # Use a thread pool to download all files and subdirectories in parallel
         results = []
