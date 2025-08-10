@@ -15,6 +15,8 @@ from services.sftp_service import SFTPService
 from services.tmdb_service import TMDBService
 from services.llm_factory import create_llm_service
 
+logger = logging.getLogger(__name__)
+
 @rclick.group()
 @click.option('--logfile', '-l', type=click.Path(writable=True), help="Log to file")
 @click.option('--verbose', '-v', count=True, help="Set verbosity level (-v = INFO, -vv = DEBUG)")
@@ -40,8 +42,8 @@ def sync2nas_cli(ctx: click.Context, verbose: int, logfile: str, config: str, dr
         return
     else:
         if ctx.obj is not None:
-            print(f"ctx.obj: {ctx.obj}")
-            print(f"ctx.obj does not contain all required keys")
+            logger.info(f"ctx.obj: {ctx.obj}")
+            logger.info(f"ctx.obj does not contain all required keys")
     
     if logfile:
         os.makedirs(os.path.dirname(logfile), exist_ok=True)
@@ -78,7 +80,7 @@ for filename in os.listdir(COMMAND_DIR):
             else:
                 pass  # No command function found in module
         except Exception as e:
-            print(f"Failed to import {module_name}: {e}")
+            logger.info(f"Failed to import {module_name}: {e}")
             pass
     else:
         pass
