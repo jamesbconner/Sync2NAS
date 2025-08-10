@@ -72,8 +72,16 @@ class BaseLLMService(LLMInterface):
         Raises:
             ValueError: If data types are invalid.
         """
+        raw_show_name = str(result.get("show_name", "")).strip()
+        # Normalize common separators and excessive casing from LLMs
+        normalized_show = re.sub(r"_+", " ", raw_show_name)
+        # Replace dots that are not followed by a space with a space, preserving abbreviations like "Dr. "
+        normalized_show = re.sub(r"\.(?!\s)", " ", normalized_show)
+        normalized_show = re.sub(r"\s+", " ", normalized_show).strip()
+        if normalized_show.isupper():
+            normalized_show = normalized_show.title()
         validated = {
-            "show_name": result.get("show_name", "").strip(),
+            "show_name": normalized_show,
             "season": result.get("season"),
             "episode": result.get("episode"),
             "confidence": result.get("confidence", 0.0),
