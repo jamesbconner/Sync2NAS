@@ -87,6 +87,11 @@ class DownloadedFile(BaseModel):
     file_hash: Optional[str] = Field(None, description="CRC32 hash of file content (default)")
     file_hash_algo: Optional[str] = Field(None, description="Hash algorithm used (e.g., CRC32)")
     hash_calculated_at: Optional[datetime.datetime] = Field(None, description="When file hash was calculated")
+    # Filename-provided integrity hash (e.g., CRC32 present in square brackets in the filename)
+    file_provided_hash_value: Optional[str] = Field(
+        None,
+        description="Hash value extracted from filename, normalized to 8-char uppercase hex when valid"
+    )
     
     def __init__(self, **data):
         # Backward compatibility: accept 'original_path' as input
@@ -246,6 +251,7 @@ class DownloadedFile(BaseModel):
             file_hash=record.get("file_hash_value") or record.get("file_hash"),
             file_hash_algo=record.get("file_hash_algo"),
             hash_calculated_at=record.get("hash_calculated_at"),
+            file_provided_hash_value=record.get("file_provided_hash_value"),
             show_name=record.get("show_name"),
             season=record.get("season"),
             episode=record.get("episode"),
@@ -591,6 +597,7 @@ class DownloadedFile(BaseModel):
             "status": self.status.value,
             "file_type": self.file_type.value,
             "file_hash": self.file_hash,
+            "file_provided_hash_value": self.file_provided_hash_value,
             "show_name": self.show_name,
             "season": self.season,
             "episode": self.episode,
@@ -622,6 +629,7 @@ class DownloadedFile(BaseModel):
             "status": self.status.value,
             "file_type": self.file_type.value,
             "file_hash": self.file_hash,
+            "file_provided_hash_value": self.file_provided_hash_value,
             "show_name": self.show_name,
             "season": self.season,
             "episode": self.episode,

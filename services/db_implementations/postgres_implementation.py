@@ -129,6 +129,7 @@ class PostgresDBService(DatabaseInterface):
             is_dir BOOLEAN NOT NULL,
             status TEXT NOT NULL,
             file_type TEXT NOT NULL,
+            file_provided_hash_value TEXT NULL,
             file_hash_value TEXT NULL,
             file_hash_algo TEXT NULL,
             hash_calculated_at TIMESTAMP NULL,
@@ -665,6 +666,7 @@ class PostgresDBService(DatabaseInterface):
             file.is_dir,
             file.status.value,
             file.file_type.value,
+            getattr(file, "file_provided_hash_value", None),
             file.file_hash,
             (file.file_hash_algo if file.file_hash_algo is not None else ("CRC32" if file.file_hash and len(file.file_hash) == 8 else None)),
             getattr(file, "hash_calculated_at", None),
@@ -685,10 +687,10 @@ class PostgresDBService(DatabaseInterface):
                 """
                 INSERT INTO downloaded_files (
                     name, remote_path, current_path, previous_path, size, modified_time, fetched_at, is_dir,
-                    status, file_type, file_hash_value, file_hash_algo, hash_calculated_at, show_name, season,
+                    status, file_type, file_provided_hash_value, file_hash_value, file_hash_algo, hash_calculated_at, show_name, season,
                     episode, confidence, reasoning, tmdb_id, routing_attempts, last_routing_attempt, error_message, metadata
                 ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                 )
                 ON CONFLICT (remote_path) DO UPDATE SET
                     name=EXCLUDED.name,
@@ -700,6 +702,7 @@ class PostgresDBService(DatabaseInterface):
                     is_dir=EXCLUDED.is_dir,
                     status=EXCLUDED.status,
                     file_type=EXCLUDED.file_type,
+                    file_provided_hash_value=COALESCE(EXCLUDED.file_provided_hash_value, downloaded_files.file_provided_hash_value),
                     file_hash_value=COALESCE(EXCLUDED.file_hash_value, downloaded_files.file_hash_value),
                     file_hash_algo=COALESCE(EXCLUDED.file_hash_algo, downloaded_files.file_hash_algo),
                     show_name=EXCLUDED.show_name,

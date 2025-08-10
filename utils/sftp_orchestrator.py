@@ -153,6 +153,15 @@ def process_sftp_diffs(
                                 file_model.episode = metadata.get("episode")
                                 file_model.confidence = metadata.get("confidence")
                                 file_model.reasoning = metadata.get("reasoning")
+                                # Normalize and store filename-provided CRC32 if present
+                                parsed_hash = metadata.get("hash")
+                                if isinstance(parsed_hash, str):
+                                    trimmed = parsed_hash.strip()
+                                    if trimmed.startswith("[") and trimmed.endswith("]"):
+                                        trimmed = trimmed[1:-1]
+                                    trimmed = trimmed.strip().upper()
+                                    if len(trimmed) == 8 and all(c in "0123456789ABCDEF" for c in trimmed):
+                                        file_model.file_provided_hash_value = trimmed
                                 method = (
                                     "LLM"
                                     if (

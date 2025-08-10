@@ -105,6 +105,42 @@ def test_parse_filename_validation_error_fallback():
         assert isinstance(result, dict)
         assert "show_name" in result
 
+
+def test_parse_filename_avoids_schema_for_gpt_oss():
+    """When model is gpt-oss:20b, service should not pass 'format' to generate and still parse JSON."""
+    class OssConfig:
+        def get(self, section, option, fallback=None):
+            if section == 'ollama' and option == 'model':
+                return 'gpt-oss:20b'
+            return fallback
+
+    with patch('services.llm_implementations.ollama_implementation.Client') as mock_client_ctor:
+        service = OllamaLLMService(OssConfig())
+        mock_response = '{"show_name": "Show", "season": 1, "episode": 2, "confidence": 0.9, "reasoning": "ok"}'
+        service.client.generate = MagicMock(return_value=mock_response)
+        result = service.parse_filename("Show.Name.S01E02.mkv")
+        assert result["episode"] == 2
+        # Ensure call had no 'format' kwarg
+        _, kwargs = service.client.generate.call_args
+        assert 'format' not in kwargs
+
+
+def test_parse_filename_schema_then_retry_without_schema():
+    """When schema call returns empty, retry without schema should succeed and second call must not include 'format'."""
+    with patch('services.llm_implementations.ollama_implementation.Client'):
+        service = OllamaLLMService(DummyConfig())
+        first = {'response': ''}
+        second = {'response': '{"show_name": "Show", "season": 1, "episode": 2, "confidence": 0.9, "reasoning": "ok"}'}
+        service.client.generate = MagicMock(side_effect=[first, second])
+        result = service.parse_filename("Show.Name.S01E02.mkv")
+        assert result["season"] == 1
+        # Two calls: first with format, second without
+        assert service.client.generate.call_count == 2
+        first_call = service.client.generate.call_args_list[0][1]
+        second_call = service.client.generate.call_args_list[1][1]
+        assert 'format' in first_call
+        assert 'format' not in second_call
+
 # ─────────────────────────────────────────────────────────
 # Suggest Short Dirname Tests
 # ─────────────────────────────────────────────────────────

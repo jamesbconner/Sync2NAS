@@ -680,6 +680,7 @@ def test_process_sftp_diffs_llm_enabled_above_threshold(tmp_path, mock_sftp_serv
         "show_name": "Mock Show",
         "season": 3,
         "episode": 7,
+        "hash": "[a4dd1e71]",
         "confidence": 0.95,
         "reasoning": "High confidence from LLM"
     }
@@ -720,6 +721,8 @@ def test_process_sftp_diffs_llm_enabled_above_threshold(tmp_path, mock_sftp_serv
     assert upsert_arg.season == 3
     assert upsert_arg.episode == 7
     assert upsert_arg.confidence is not None and upsert_arg.confidence >= 0.9
+    # Provided hash should be normalized to uppercase 8-hex and populated
+    assert getattr(upsert_arg, 'file_provided_hash_value', None) == 'A4DD1E71'
 
 
 def test_process_sftp_diffs_llm_below_threshold_falls_back_regex(tmp_path, mock_sftp_service, mock_db_service, mocker, mock_llm_service):
