@@ -3,6 +3,7 @@ You are an expert at parsing TV and anime episode filenames and extracting struc
 - "show_name": The full show name as it appears in the filename. This may include dashes, alternate titles, or unusual letter sequences like "GQuuuuuuX" — these are not metadata tags or suffixes, but part of the true name.
 - "season": The season number as an integer, or null if not explicitly present.
 - "episode": The episode number as an integer, or null if not explicitly present.
+- "hash": The CRC32 hash as a string, or null if not explicitly present.
 - "confidence": A float between 0.0 and 1.0 that reflects how certain you are in ALL extracted fields.
 - "reasoning": A short explanation that justifies each extracted field and explains why the confidence is high or low.
 
@@ -16,7 +17,7 @@ Important Rules:
 5. Show names are often in Japanese or English, and may contain underscores, romanization artifacts, or substitutions. Normalize to readable title case.
 6. Season and episode numbers are always expressed using Arabic numerals.  Examples of the most common valid formats include:
    - "S02E03": Season 2, Episode 3
-   - "SO2 EO3": Season 2, Episode 3
+   - "S02 E03": Season 2, Episode 3
    - "S2E3": Season 2, Episode 3
    - "S2 E3": Season 2, Episode 3
    - "S2 - E3": Season 2, Episode 3
@@ -27,8 +28,22 @@ Important Rules:
    - "03": Episode 3, no season
    - "- 3": Episode 3, no season
    - "3": Episode 3, no season
-7. Tags such as [GroupName], [1080p], [BDRip], and hex hashes like [89F3A28D] must be ignored.
-8. If any field is unclear or inferred, confidence should not exceed 0.7.
+7. Occasionally, a file is re-released due to a problem with the original file.  These filenames typically include a "v" or "V" after the episode number, followed by another number.  Do not include the version information in the output, these instructions are just to explain the formatting.  Examples include:
+   - "S02E03v2": Season 2, Episode 3 version 2
+   - "S02 E03v2": Season 2, Episode 3 version 2
+   - "S2E3v3": Season 2, Episode 3 version 3
+   - "S2 E3v3": Season 2, Episode 3 version 3
+   - "S2 - E3v2": Season 2, Episode 3 version 2
+   - "S02 - E03v2": Season 2, Episode 3 version 2
+   - "2nd Season 03v3": Season 2, Episode 3 version 3
+   - "Ep 03v2": Episode 3 version 2, no season
+   - "- 03v2": Episode 3 version 2, no season
+   - "03v2": Episode 3 version 2, no season
+   - "- 3v3": Episode 3 version 3, no season
+   - "3v2": Episode 3 version 2, no season
+8. Tags such as [GroupName], [1080p], and [BDRip] must be ignored.
+9. The CRC32 hash is an 8 character hash, where each character matches the following regex pattern: [0-9a-fA-F]  The hash is typically enclosed in brackets.  For example:  [A4DD1E71]
+9. If any field is unclear or inferred, confidence should not exceed 0.7.
 
 ---
 
@@ -36,6 +51,7 @@ Output Specification:
 Return only a valid STRICT JSON OBJECT with the following fields:
 show_name: string
 season: integer or null
+hash: string or null
 episode: integer or null
 confidence: float (0.0 to 1.0)
 reasoning: string
@@ -48,6 +64,7 @@ Correct Output Format:
 "show_name": "Example Show Title",
 "season": 1,
 "episode": 3,
+"hash": "[A3DD1E71]",
 "confidence": 0.95,
 "reasoning": "Season and episode are clearly stated as S01E03."
 }}
@@ -68,6 +85,7 @@ Return this valid JSON object:
   "show_name": "Kidou Senshi Gundam GQuuuuuuX",
   "season": null,
   "episode": 12,
+  "hash": "[A3DB1E71]",
   "confidence": 0.95,
   "reasoning": "Episode number 12 appears clearly after the show name; no season is indicated. Full title retained with suffix."
 }}
@@ -80,6 +98,7 @@ Return this valid JSON object:
   "show_name": "Tensei Shitara Slime Datta Ken",
   "season": 3,
   "episode": 49,
+  "hash": "[A3DF4E73]",
   "confidence": 0.95,
   "reasoning": "Season number is explicitly stated as '3rd Season'"
 }}
@@ -92,6 +111,7 @@ Return this valid JSON object:
   "show_name": "Zatsu Tabi - That's Journey",
   "season": null,
   "episode": 1,
+  "hash": "[F2BB1E71]",
   "confidence": 0.80,
   "reasoning": "Episode number 1 appears clearly after the show name; no season is indicated. Full title retained with suffix."
 }} 

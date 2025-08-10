@@ -13,6 +13,7 @@ class ParsedFilename(BaseModel):
     show_name: str = Field(..., description="Full show name, as extracted from filename")
     season: int | None = Field(..., description="Season number as integer, or null if not present")
     episode: int = Field(..., description="Episode number as integer, or null if not present")
+    hash: str | None = Field(None, description="CRC32 hash extracted from filename, if present")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence between 0.0 and 1.0")
     reasoning: str = Field(..., description="Explanation of field choices and confidence")
 
@@ -57,30 +58,46 @@ class OllamaLLMService(BaseLLMService):
         cleaned_filename = self._clean_filename_for_llm(filename)
         prompt = self.load_prompt('parse_filename').format(filename=cleaned_filename)
         try:
-            response = self.client.generate(
-                model=self.model,
-                prompt=prompt,
-                stream=False,
-                format=ParsedFilename.model_json_schema(),
-                options={"num_predict": max_tokens, "temperature": 0.0}
-            )
+            # Some models (e.g., gpt-oss) may ignore/break with 'format'. Try with schema, then retry without.
+            use_schema = not str(self.model).lower().startswith("gpt-oss")
+            schema = ParsedFilename.model_json_schema() if use_schema else None
 
-            # Extract the JSON string from the response object
+            def _call_ollama(schema_arg):
+                kwargs = {
+                    "model": self.model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {"num_predict": max_tokens, "temperature": 0.0},
+                }
+                if schema_arg is not None:
+                    kwargs["format"] = schema_arg
+                return self.client.generate(**kwargs)
+
+            response = _call_ollama(schema)
+
+            # Extract the JSON/string content
             if hasattr(response, 'response'):
                 content = response.response
             elif isinstance(response, dict) and 'response' in response:
                 content = response['response']
             else:
-                content = response  # fallback
+                content = response
 
-            if not isinstance(content, str) or not content.strip():
-                logger.error("Empty Ollama response; using fallback parser")
+            text = (content or "").strip() if isinstance(content, str) else str(content)
+            if not text and schema is not None:
+                logger.info("Empty response with schema; retrying without schema")
+                response = _call_ollama(None)
+                content = response.response if hasattr(response, 'response') else (response.get('response') if isinstance(response, dict) else response)
+                text = (content or "").strip() if isinstance(content, str) else str(content)
+
+            if not text:
+                logger.error("Empty Ollama response after retry; using fallback parser")
                 return self._fallback_parse(filename)
 
-            logger.debug(f"Ollama response: {content}")
+            logger.debug(f"Ollama response: {text}")
 
             # Extract first JSON object in case of extra prose or code fences
-            json_text = self._extract_first_json_object(content)
+            json_text = self._extract_first_json_object(text)
             if json_text is None:
                 logger.error("No JSON object found in Ollama response; using fallback parser")
                 return self._fallback_parse(filename)
@@ -255,24 +272,41 @@ class OllamaLLMService(BaseLLMService):
         candidates_json = json.dumps(candidates, ensure_ascii=False, indent=2)
         prompt = prompt_template.format(show_name=show_name, candidates=candidates_json)
         try:
-            response = self.client.generate(
-                model=self.model,
-                prompt=prompt,
-                stream=False,
-                format=SuggestedShowName.model_json_schema(),
-                options={"num_predict": 256, "temperature": 0.1}
-            )
-            content = response.response if hasattr(response, 'response') else response
-            result = json.loads(content)
-            
-            logger.debug(f"LLM response: {content}")
+            use_schema = not str(self.model).lower().startswith("gpt-oss")
+            schema = SuggestedShowName.model_json_schema() if use_schema else None
 
-            # Check if the result has the required fields
+            def _call_ollama(schema_arg):
+                kwargs = {
+                    "model": self.model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {"num_predict": 256, "temperature": 0.1},
+                }
+                if schema_arg is not None:
+                    kwargs["format"] = schema_arg
+                return self.client.generate(**kwargs)
+
+            response = _call_ollama(schema)
+            content = response.response if hasattr(response, 'response') else (response.get('response') if isinstance(response, dict) else response)
+            text = (content or "").strip() if isinstance(content, str) else str(content)
+            if not text and schema is not None:
+                logger.info("Empty response with schema for suggest_show_name; retrying without schema")
+                response = _call_ollama(None)
+                content = response.response if hasattr(response, 'response') else (response.get('response') if isinstance(response, dict) else response)
+                text = (content or "").strip() if isinstance(content, str) else str(content)
+
+            if not text:
+                raise ValueError("Empty Ollama response for suggest_show_name")
+
+            # Try to parse as JSON; tolerate prose-wrapped JSON
+            json_text = self._extract_first_json_object(text) or text
+            result = json.loads(json_text)
+            logger.debug(f"LLM response: {text}")
+
             if 'tmdb_id' in result and 'show_name' in result:
                 return result
             else:
                 logger.warning(f"LLM response missing required fields: {result}")
-                # Fall back to first candidate if required fields are missing
                 if candidates:
                     first = candidates[0]
                     return {'tmdb_id': first['id'], 'show_name': first['name']}
@@ -280,9 +314,8 @@ class OllamaLLMService(BaseLLMService):
                     raise ValueError("No candidates available for fallback")
         except Exception as e:
             logger.exception(f"LLM error: {e}")
-            # Fall back to first candidate on any error
             if candidates:
                 first = candidates[0]
                 return {'tmdb_id': first['id'], 'show_name': first['name']}
             else:
-                raise ValueError("No candidates available for fallback") 
+                raise ValueError("No candidates available for fallback")

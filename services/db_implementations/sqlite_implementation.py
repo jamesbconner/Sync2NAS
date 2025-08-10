@@ -197,6 +197,7 @@ class SQLiteDBService(DatabaseInterface):
                             is_dir BOOLEAN NOT NULL,
                             status TEXT NOT NULL,
                             file_type TEXT NOT NULL,
+                            file_provided_hash_value TEXT NULL,
                             file_hash_value TEXT NULL,
                             file_hash_algo TEXT NULL,
                             hash_calculated_at DATETIME NULL,
@@ -776,6 +777,7 @@ class SQLiteDBService(DatabaseInterface):
             int(file.is_dir),
             file.status.value,
             file.file_type.value,
+            getattr(file, "file_provided_hash_value", None),
             file.file_hash,
             (file.file_hash_algo if file.file_hash_algo is not None else ("CRC32" if file.file_hash and len(file.file_hash) == 8 else None)),
             getattr(file, "hash_calculated_at", None),
@@ -795,10 +797,10 @@ class SQLiteDBService(DatabaseInterface):
                 """
                 INSERT INTO downloaded_files (
                     name, path, remote_path, current_path, previous_path, size, modified_time, fetched_at, is_dir,
-                    status, file_type, file_hash_value, file_hash_algo, hash_calculated_at, show_name, season,
+                    status, file_type, file_provided_hash_value, file_hash_value, file_hash_algo, hash_calculated_at, show_name, season,
                     episode, confidence, reasoning, tmdb_id, routing_attempts, last_routing_attempt, error_message, metadata
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )
                 ON CONFLICT(remote_path) DO UPDATE SET
                     name=excluded.name,
@@ -811,6 +813,7 @@ class SQLiteDBService(DatabaseInterface):
                     is_dir=excluded.is_dir,
                     status=excluded.status,
                     file_type=excluded.file_type,
+                    file_provided_hash_value=COALESCE(excluded.file_provided_hash_value, downloaded_files.file_provided_hash_value),
                     file_hash_value=COALESCE(excluded.file_hash_value, downloaded_files.file_hash_value),
                     file_hash_algo=COALESCE(excluded.file_hash_algo, downloaded_files.file_hash_algo),
                     show_name=excluded.show_name,
