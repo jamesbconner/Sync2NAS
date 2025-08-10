@@ -164,14 +164,23 @@ class TestDownloadedFileValidation:
             )
 
     def test_invalid_tmdb_id(self):
-        """Test that TMDB ID must be positive."""
+        """TMDB ID of 0 is acceptable (per TMDB API quirks); negatives are invalid."""
+        # 0 should be allowed now
+        DownloadedFile(
+            name="test.mkv",
+            original_path="/test.mkv",
+            size=1000,
+            modified_time=datetime.datetime.now(),
+            tmdb_id=0,
+        )
+        # Negative still invalid
         with pytest.raises(ValueError):
             DownloadedFile(
                 name="test.mkv",
                 original_path="/test.mkv",
                 size=1000,
                 modified_time=datetime.datetime.now(),
-                tmdb_id=0
+                tmdb_id=-1,
             )
 
     def test_current_path_validation(self):

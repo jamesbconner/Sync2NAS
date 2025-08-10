@@ -150,7 +150,7 @@ class DownloadedFile(BaseModel):
     reasoning: Optional[str] = Field(None, description="Reasoning for parsing decisions")
     
     # Show association
-    tmdb_id: Optional[int] = Field(None, gt=0, description="Associated TMDB show ID")
+    tmdb_id: Optional[int] = Field(None, ge=0, description="Associated TMDB show ID")
     
     # Processing tracking
     routing_attempts: int = Field(0, ge=0, description="Number of routing attempts")

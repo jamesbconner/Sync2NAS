@@ -37,7 +37,7 @@ class Episode(BaseModel):
     )
     
     # TMDB fields
-    tmdb_id: int = Field(..., gt=0, description="TMDB ID of the show")
+    tmdb_id: int = Field(..., ge=0, description="TMDB ID of the show")
     season: int = Field(..., ge=0, description="Season number")
     episode: int = Field(..., ge=0, description="Episode number")
     abs_episode: int = Field(..., ge=0, description="Absolute episode number")

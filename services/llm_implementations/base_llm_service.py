@@ -79,6 +79,7 @@ class BaseLLMService(LLMInterface):
         normalized_show = re.sub(r"\.(?!\s)", " ", normalized_show)
         normalized_show = re.sub(r"\s+", " ", normalized_show).strip()
         if normalized_show.isupper():
+            # Simple normalization: convert shouting-case to title case
             normalized_show = normalized_show.title()
         validated = {
             "show_name": normalized_show,

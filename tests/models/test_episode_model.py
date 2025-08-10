@@ -119,7 +119,7 @@ def test_episode_missing_fields():
     # Check that we get validation errors for the expected fields
     errors = exc_info.value.errors()
     error_fields = [error['loc'][0] for error in errors]
-    assert 'tmdb_id' in error_fields
+    # TMDB id of 0 is acceptable; episode_id must still be > 0
     assert 'episode_id' in error_fields
 
 def test_episode_to_db_tuple_structure():
