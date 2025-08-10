@@ -78,6 +78,7 @@ ssh/
 anime_tv_path/
 incoming/
 ssh_test/
+tests/config/sync2nas_config_test.ini
 testing/
 testing/*
 testing/anime_tv

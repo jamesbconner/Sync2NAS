@@ -14,7 +14,7 @@ Important Rules:
 2. It is common for filenames to include only a show name and episode number. 
 3. Never infer or assume a value for the season if it doesn't explicitly exist in the filename.  It is valid to have a null value for season if it is not explicitly provided in the filename.  Never hallucinate a season number.
 4. Dashes (-) are commonly used separators, but they can also appear within show names. Use heuristics: if a dash is between the show title and a number, it may be a separator; if it's inside a quoted or known title structure, or if there are words on both sides of the dash, keep it in the title.
-5. Show names are often in Japanese or English, and may contain underscores, romanization artifacts, or substitutions. Normalize to readable title case.
+5. Show names are often in Japanese or English, and may contain underscores, periods, romanization artifacts, or substitutions. Normalize to readable title case.
 6. Season and episode numbers are always expressed using Arabic numerals.  Examples of the most common valid formats include:
    - "S02E03": Season 2, Episode 3
    - "S02 E03": Season 2, Episode 3
@@ -41,8 +41,7 @@ Important Rules:
    - "03v2": Episode 3 version 2, no season
    - "- 3v3": Episode 3 version 3, no season
    - "3v2": Episode 3 version 2, no season
-8. Tags such as [GroupName], [1080p], and [BDRip] must be ignored.
-9. The CRC32 hash is an 8 character hash, where each character matches the following regex pattern: [0-9a-fA-F]  The hash is typically enclosed in brackets.  For example:  [A4DD1E71]
+8. The CRC32 hash is an 8 hex character string, where every character matches the following regex pattern: [0-9a-fA-F]  The hash is typically enclosed in brackets.  For example:  [A4DD1E71].  Other tags, [SceneName], [1080p], and [BDRip] must be ignored.
 9. If any field is unclear or inferred, confidence should not exceed 0.7.
 
 ---
