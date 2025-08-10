@@ -51,7 +51,7 @@ class Show(BaseModel):
     # TMDB fields
     tmdb_name: str = Field(..., description="Official TMDB name")
     tmdb_aliases: Optional[str] = Field(None, description="Alternative names for the show")
-    tmdb_id: int = Field(..., gt=0, description="TMDB ID of the show")
+    tmdb_id: int = Field(..., ge=0, description="TMDB ID of the show")
     tmdb_first_aired: Optional[datetime.datetime] = Field(None, description="First air date")
     tmdb_last_aired: Optional[datetime.datetime] = Field(None, description="Last air date")
     tmdb_year: Optional[int] = Field(None, ge=1900, le=2100, description="Year of first air date")

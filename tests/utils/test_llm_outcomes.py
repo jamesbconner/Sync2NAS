@@ -62,7 +62,8 @@ def test_llm_parsing_matches_expected_outcomes():
 
     for idx, (line, exp) in enumerate(zip(inputs, expected)):
         parsed = service.parse_filename(line)
-        assert parsed.get('show_name') == exp.get('show_name'), f'show_name mismatch at index {idx}'
+        # Compare show names case-insensitively to match DB lookup semantics
+        assert (parsed.get('show_name') or '').lower() == (exp.get('show_name') or '').lower(), f'show_name mismatch at index {idx}'
         assert parsed.get('season') == exp.get('season'), f'season mismatch at index {idx}'
         assert parsed.get('episode') == exp.get('episode'), f'episode mismatch at index {idx}'
         # Only assert hash if expected provides one

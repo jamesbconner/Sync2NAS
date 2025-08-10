@@ -141,12 +141,30 @@ def get_downloaded_file(file_id: int, db = Depends(get_db_service)):
 
 @router.patch("/downloaded/{file_id}")
 def patch_downloaded_file_status(file_id: int, body: UpdateDownloadedFileStatusRequest, db = Depends(get_db_service)):
-    try:
-        from models.downloaded_file import FileStatus
-        new_status = FileStatus(body.status)
-    except Exception:
-        raise HTTPException(status_code=422, detail=f"Invalid status: {body.status}")
-    db.update_downloaded_file_status(file_id, new_status, body.error_message)
+    # Validate state transition rules explicitly
+    item = db.get_downloaded_file_by_id(file_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Downloaded file not found")
+
+    current = item.status
+    target = body.status
+
+    # Allowed transitions
+    allowed = {
+        "downloaded": {"processing", "routed", "error", "deleted"},
+        "processing": {"routed", "error"},
+        "routed": {"error", "deleted"},
+        "error": {"processing", "deleted"},
+        "deleted": set(),
+    }
+
+    if target.value not in allowed[current.value]:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid state transition: {current.value} -> {target.value}",
+        )
+
+    db.update_downloaded_file_status(file_id, target, body.error_message)
     item = db.get_downloaded_file_by_id(file_id)
     if not item:
         raise HTTPException(status_code=404, detail="Downloaded file not found after update")
