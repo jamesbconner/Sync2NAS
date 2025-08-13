@@ -120,13 +120,20 @@ def process_sftp_diffs(
             try:
                 for itm in (downloaded_items or []):
                     try:
-                        local_file_path = itm.get("local_path") or os.path.join(local_path, itm.get("name", ""))
+                        name_value = itm.get("name")
+                        if not name_value or not str(name_value).strip():
+                            logger.warning(
+                                f"Empty file name in download result for DIR {remote_path}; skipping entry: {itm}"
+                            )
+                            continue
+
+                        local_file_path = itm.get("local_path") or os.path.join(local_path, name_value)
 
                         # Record minimal entry in downloaded_files for tracking consistency
                         try:
                             db_service.add_downloaded_file(
                                 {
-                                    "name": itm["name"],
+                                    "name": name_value,
                                     "size": itm["size"],
                                     "modified_time": itm["modified_time"],
                                     "is_dir": False,
@@ -145,11 +152,17 @@ def process_sftp_diffs(
                                 f"Local file not found for {itm.get('remote_path') or itm.get('path')}; skipping upsert."
                             )
                             continue
+                        if os.path.isdir(local_file_path):
+                            logger.warning(
+                                f"Local path points to a directory, not a file: {local_file_path}; skipping upsert."
+                            )
+                            continue
 
                         file_model = DownloadedFile.from_sftp_entry(
                             {
-                                "name": itm["name"],
+                                "name": name_value,
                                 "remote_path": itm.get("remote_path") or itm.get("path") or itm.get("remote_entry"),
+                                "path": itm.get("remote_path") or itm.get("path") or itm.get("remote_entry"),
                                 "local_path": local_file_path,
                                 "size": itm["size"],
                                 "modified_time": itm["modified_time"],
@@ -181,6 +194,35 @@ def process_sftp_diffs(
                                     trimmed = trimmed.strip().upper()
                                     if len(trimmed) == 8 and all(c in "0123456789ABCDEF" for c in trimmed):
                                         file_model.file_provided_hash_value = trimmed
+
+                                # Detailed parsing logs (mirror single-file path)
+                                method = (
+                                    "LLM"
+                                    if (
+                                        use_llm
+                                        and active_llm_service is not None
+                                        and file_model.confidence is not None
+                                        and file_model.confidence >= llm_confidence_threshold
+                                    )
+                                    else "regex"
+                                )
+                                def _fmt_num(value):
+                                    try:
+                                        return f"{int(value):02d}"
+                                    except Exception:
+                                        return "??"
+                                s_display = _fmt_num(file_model.season)
+                                e_display = _fmt_num(file_model.episode)
+                                logger.info(
+                                    "Parsed '%s' via %s: show='%s' S%s E%s (confidence=%.2f)",
+                                    file_model.name,
+                                    method,
+                                    file_model.show_name,
+                                    s_display,
+                                    e_display,
+                                    (file_model.confidence if file_model.confidence is not None else 0.0),
+                                )
+                                logger.debug("Parsing details for '%s': %s", file_model.name, metadata)
                             except Exception as p_exc:
                                 logger.warning(f"Filename parsing failed for {file_model.name}: {p_exc}")
 
