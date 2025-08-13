@@ -116,70 +116,62 @@ def process_sftp_diffs(
             except Exception as repo_exc:
                 logger.warning(f"DownloadedFile upsert failed for DIR {remote_path}: {repo_exc}")
 
-            # After downloading a directory, enumerate contained files and upsert each with parsing + hashing
+            # Use actual download results to record directory contents, avoiding remote re-listing
             try:
-                # List remote files recursively to obtain authoritative remote paths and metadata
-                remote_files = sftp_service.list_remote_files_recursive(remote_path)
-                for rf in remote_files:
-                    if rf.get("is_dir", False):
-                        continue
-                    # Compute expected local path by mirroring directory structure
+                for itm in (downloaded_items or []):
                     try:
-                        rel_remote = os.path.relpath(rf.get("remote_path") or rf.get("path"), remote_path)
-                    except Exception:
-                        rel_remote = os.path.basename(rf.get("remote_path") or rf.get("path") or rf.get("name", ""))
-                    expected_local_file = os.path.join(local_path, rel_remote)
+                        local_file_path = itm.get("local_path") or os.path.join(local_path, itm.get("name", ""))
 
-                    # Fallback: if truncation occurred and file isn't found, attempt a best-effort search by size and extension
-                    local_file_path = expected_local_file
-                    if not os.path.exists(local_file_path):
+                        # Record minimal entry in downloaded_files for tracking consistency
                         try:
-                            target_size = rf.get("size")
-                            _, ext = os.path.splitext(rf.get("name", ""))
-                            candidate = None
-                            for root, _, files in os.walk(local_path):
-                                for fname in files:
-                                    if ext and not fname.lower().endswith(ext.lower()):
-                                        continue
-                                    fpath = os.path.join(root, fname)
-                                    try:
-                                        if target_size is not None and os.path.getsize(fpath) == target_size:
-                                            candidate = fpath
-                                            break
-                                    except Exception:
-                                        continue
-                                if candidate:
-                                    break
-                            if candidate:
-                                local_file_path = candidate
-                        except Exception:
-                            pass
+                            db_service.add_downloaded_file(
+                                {
+                                    "name": itm["name"],
+                                    "size": itm["size"],
+                                    "modified_time": itm["modified_time"],
+                                    "is_dir": False,
+                                    "fetched_at": itm.get("fetched_at") or entry.get("fetched_at") or datetime.datetime.now(),
+                                    "path": itm.get("remote_path") or itm.get("path") or itm.get("remote_entry"),
+                                }
+                            )
+                        except Exception as add_exc:
+                            logger.warning(
+                                f"Failed to add downloaded file record for {itm.get('remote_path') or itm.get('path')}: {add_exc}"
+                            )
 
-                    try:
-                        df_entry = {
-                            "name": rf["name"],
-                            "remote_path": rf.get("remote_path") or rf.get("path"),
-                            "size": rf["size"],
-                            "modified_time": rf["modified_time"],
-                            "fetched_at": rf.get("fetched_at") or datetime.datetime.now(),
-                            "is_dir": False,
-                            "local_path": local_file_path,
-                        }
-                        df_model = DownloadedFile.from_sftp_entry(df_entry, base_path=local_base)
+                        # Only upsert a detailed record if the local file actually exists
+                        if not os.path.exists(local_file_path):
+                            logger.warning(
+                                f"Local file not found for {itm.get('remote_path') or itm.get('path')}; skipping upsert."
+                            )
+                            continue
+
+                        file_model = DownloadedFile.from_sftp_entry(
+                            {
+                                "name": itm["name"],
+                                "remote_path": itm.get("remote_path") or itm.get("path") or itm.get("remote_entry"),
+                                "local_path": local_file_path,
+                                "size": itm["size"],
+                                "modified_time": itm["modified_time"],
+                                "is_dir": False,
+                                "fetched_at": itm.get("fetched_at") or entry.get("fetched_at") or datetime.datetime.now(),
+                            },
+                            base_path=local_base,
+                        )
 
                         # Parse filename to populate show/season/episode if enabled
                         if parse_filenames:
                             try:
                                 metadata = parse_filename(
-                                    df_model.name,
+                                    file_model.name,
                                     llm_service=active_llm_service if use_llm else None,
                                     llm_confidence_threshold=llm_confidence_threshold,
                                 )
-                                df_model.show_name = metadata.get("show_name")
-                                df_model.season = metadata.get("season")
-                                df_model.episode = metadata.get("episode")
-                                df_model.confidence = metadata.get("confidence")
-                                df_model.reasoning = metadata.get("reasoning")
+                                file_model.show_name = metadata.get("show_name")
+                                file_model.season = metadata.get("season")
+                                file_model.episode = metadata.get("episode")
+                                file_model.confidence = metadata.get("confidence")
+                                file_model.reasoning = metadata.get("reasoning")
                                 # Normalize and store filename-provided CRC32 if present
                                 parsed_hash = metadata.get("hash")
                                 if isinstance(parsed_hash, str):
@@ -188,30 +180,30 @@ def process_sftp_diffs(
                                         trimmed = trimmed[1:-1]
                                     trimmed = trimmed.strip().upper()
                                     if len(trimmed) == 8 and all(c in "0123456789ABCDEF" for c in trimmed):
-                                        df_model.file_provided_hash_value = trimmed
+                                        file_model.file_provided_hash_value = trimmed
                             except Exception as p_exc:
-                                logger.warning(f"Filename parsing failed for {df_model.name}: {p_exc}")
+                                logger.warning(f"Filename parsing failed for {file_model.name}: {p_exc}")
 
                         # Compute CRC32 if hashing_service provided and file exists
-                        if hashing_service is not None and os.path.exists(local_file_path):
+                        if hashing_service is not None:
                             try:
                                 hash_start = datetime.datetime.now()
                                 crc = hashing_service.calculate_crc32(local_file_path)
                                 hash_end = datetime.datetime.now()
-                                df_model.file_hash = crc
-                                df_model.file_hash_algo = "CRC32"
-                                df_model.hash_calculated_at = hash_end
+                                file_model.file_hash = crc
+                                file_model.file_hash_algo = "CRC32"
+                                file_model.hash_calculated_at = hash_end
                                 hash_secs = (hash_end - hash_start).total_seconds()
                                 logger.info(f"CRC32 computed for {local_file_path} in {hash_secs:.2f}s")
                             except Exception as h_exc:
                                 logger.warning(f"CRC32 compute failed for {local_file_path}: {h_exc}")
 
-                        db_service.upsert_downloaded_file(df_model)
+                        db_service.upsert_downloaded_file(file_model)
                     except Exception as inner_exc:
                         logger.warning(f"Failed to upsert inner file from DIR {remote_path}: {inner_exc}")
             except Exception as list_exc:
-                logger.warning(f"Failed to enumerate files for DIR {remote_path}: {list_exc}")
-            logger.info(f"Downloaded DIR: {remote_path} -> {local_path}")
+                logger.warning(f"Failed to record files for DIR {remote_path}: {list_exc}")
+            logger.info(f"Downloaded DIR: {remote_path} -> {local_path} with {len(downloaded_items or [])} file(s)")
         except Exception as e:
             logger.exception(f"Failed to download DIR {remote_path}: {e}")
 
