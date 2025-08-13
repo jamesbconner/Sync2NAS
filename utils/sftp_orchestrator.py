@@ -115,35 +115,136 @@ def process_sftp_diffs(
                 db_service.upsert_downloaded_file(dir_model)
             except Exception as repo_exc:
                 logger.warning(f"DownloadedFile upsert failed for DIR {remote_path}: {repo_exc}")
-            # Record each file within the directory
-            for itm in (downloaded_items or []):
-                try:
-                    leaf = {
-                        "name": itm["name"],
-                        "remote_path": itm.get("remote_path") or itm.get("path") or itm.get("remote_entry"),
-                        "size": itm["size"],
-                        "modified_time": itm["modified_time"],
-                        "is_dir": False,
-                        "fetched_at": itm.get("fetched_at") or entry.get("fetched_at"),
-                        "path": itm.get("remote_path") or itm.get("remote_entry"),
-                    }
-                    db_service.add_downloaded_file(leaf)
-                    file_model = DownloadedFile.from_sftp_entry(
-                        {
-                            "name": itm["name"],
-                            "remote_path": leaf["remote_path"],
-                            "path": leaf["remote_path"],
-                            "local_path": itm.get("local_path") or local_path,
-                            "size": itm["size"],
-                            "modified_time": itm["modified_time"],
-                            "is_dir": False,
-                            "fetched_at": leaf["fetched_at"],
-                        },
-                        base_path=local_base,
-                    )
-                    db_service.upsert_downloaded_file(file_model)
-                except Exception as repo_exc:
-                    logger.warning(f"DownloadedFile upsert failed for DIR content {remote_path}: {repo_exc}")
+
+            # Use actual download results to record directory contents, avoiding remote re-listing
+            try:
+                for itm in (downloaded_items or []):
+                    try:
+                        name_value = itm.get("name")
+                        if not name_value or not str(name_value).strip():
+                            logger.warning(
+                                f"Empty file name in download result for DIR {remote_path}; skipping entry: {itm}"
+                            )
+                            continue
+
+                        local_file_path = itm.get("local_path") or os.path.join(local_path, name_value)
+
+                        # Record minimal entry in downloaded_files for tracking consistency
+                        try:
+                            db_service.add_downloaded_file(
+                                {
+                                    "name": name_value,
+                                    "size": itm["size"],
+                                    "modified_time": itm["modified_time"],
+                                    "is_dir": False,
+                                    "fetched_at": itm.get("fetched_at") or entry.get("fetched_at") or datetime.datetime.now(),
+                                    "path": itm.get("remote_path") or itm.get("path") or itm.get("remote_entry"),
+                                }
+                            )
+                        except Exception as add_exc:
+                            logger.warning(
+                                f"Failed to add downloaded file record for {itm.get('remote_path') or itm.get('path')}: {add_exc}"
+                            )
+
+                        # Only upsert a detailed record if the local file actually exists
+                        if not os.path.exists(local_file_path):
+                            logger.warning(
+                                f"Local file not found for {itm.get('remote_path') or itm.get('path')}; skipping upsert."
+                            )
+                            continue
+                        if os.path.isdir(local_file_path):
+                            logger.warning(
+                                f"Local path points to a directory, not a file: {local_file_path}; skipping upsert."
+                            )
+                            continue
+
+                        file_model = DownloadedFile.from_sftp_entry(
+                            {
+                                "name": name_value,
+                                "remote_path": itm.get("remote_path") or itm.get("path") or itm.get("remote_entry"),
+                                "path": itm.get("remote_path") or itm.get("path") or itm.get("remote_entry"),
+                                "local_path": local_file_path,
+                                "size": itm["size"],
+                                "modified_time": itm["modified_time"],
+                                "is_dir": False,
+                                "fetched_at": itm.get("fetched_at") or entry.get("fetched_at") or datetime.datetime.now(),
+                            },
+                            base_path=local_base,
+                        )
+
+                        # Parse filename to populate show/season/episode if enabled
+                        if parse_filenames:
+                            try:
+                                metadata = parse_filename(
+                                    file_model.name,
+                                    llm_service=active_llm_service if use_llm else None,
+                                    llm_confidence_threshold=llm_confidence_threshold,
+                                )
+                                file_model.show_name = metadata.get("show_name")
+                                file_model.season = metadata.get("season")
+                                file_model.episode = metadata.get("episode")
+                                file_model.confidence = metadata.get("confidence")
+                                file_model.reasoning = metadata.get("reasoning")
+                                # Normalize and store filename-provided CRC32 if present
+                                parsed_hash = metadata.get("hash")
+                                if isinstance(parsed_hash, str):
+                                    trimmed = parsed_hash.strip()
+                                    if trimmed.startswith("[") and trimmed.endswith("]"):
+                                        trimmed = trimmed[1:-1]
+                                    trimmed = trimmed.strip().upper()
+                                    if len(trimmed) == 8 and all(c in "0123456789ABCDEF" for c in trimmed):
+                                        file_model.file_provided_hash_value = trimmed
+
+                                # Detailed parsing logs (mirror single-file path)
+                                method = (
+                                    "LLM"
+                                    if (
+                                        use_llm
+                                        and active_llm_service is not None
+                                        and file_model.confidence is not None
+                                        and file_model.confidence >= llm_confidence_threshold
+                                    )
+                                    else "regex"
+                                )
+                                def _fmt_num(value):
+                                    try:
+                                        return f"{int(value):02d}"
+                                    except Exception:
+                                        return "??"
+                                s_display = _fmt_num(file_model.season)
+                                e_display = _fmt_num(file_model.episode)
+                                logger.info(
+                                    "Parsed '%s' via %s: show='%s' S%s E%s (confidence=%.2f)",
+                                    file_model.name,
+                                    method,
+                                    file_model.show_name,
+                                    s_display,
+                                    e_display,
+                                    (file_model.confidence if file_model.confidence is not None else 0.0),
+                                )
+                                logger.debug("Parsing details for '%s': %s", file_model.name, metadata)
+                            except Exception as p_exc:
+                                logger.warning(f"Filename parsing failed for {file_model.name}: {p_exc}")
+
+                        # Compute CRC32 if hashing_service provided and file exists
+                        if hashing_service is not None:
+                            try:
+                                hash_start = datetime.datetime.now()
+                                crc = hashing_service.calculate_crc32(local_file_path)
+                                hash_end = datetime.datetime.now()
+                                file_model.file_hash = crc
+                                file_model.file_hash_algo = "CRC32"
+                                file_model.hash_calculated_at = hash_end
+                                hash_secs = (hash_end - hash_start).total_seconds()
+                                logger.info(f"CRC32 computed for {local_file_path} in {hash_secs:.2f}s")
+                            except Exception as h_exc:
+                                logger.warning(f"CRC32 compute failed for {local_file_path}: {h_exc}")
+
+                        db_service.upsert_downloaded_file(file_model)
+                    except Exception as inner_exc:
+                        logger.warning(f"Failed to upsert inner file from DIR {remote_path}: {inner_exc}")
+            except Exception as list_exc:
+                logger.warning(f"Failed to record files for DIR {remote_path}: {list_exc}")
             logger.info(f"Downloaded DIR: {remote_path} -> {local_path} with {len(downloaded_items or [])} file(s)")
         except Exception as e:
             logger.exception(f"Failed to download DIR {remote_path}: {e}")
