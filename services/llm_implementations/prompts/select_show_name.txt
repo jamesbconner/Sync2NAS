@@ -10,12 +10,14 @@ Instructions:
   - tmdb_id: The TMDB id of the best match.  In the candidates data, this will be seen as "id", but should be returned as "tmdb_id" so it is clear where this identifier came from.  This will be an integer.
   - show_name: The best English name for the show (or the most appropriate name for use as a directory and database key).  This will come from either the name or original_name fields.  The name field is often English, while the original_name field is a mixture of Japanese (in romanji, kanji, katakana and hiragana), English, Chinese, and potentially other languages.
   - confidence: A float between 0.0 and 1.0 that reflects how certain you are of the match.
-  - reasoning: A short explanation as a string that explains the reasoning behidn the confidence score.
+  - reasoning: A short explanation as a string that explains the reasoning behind the confidence score.
 - Higher vote_count and vote_average scores should increase confidence in a match if the names are identical.
 - If the name or original_name fields perfectly match the user provided show name, that is a match.
 - If you are unsure, pick the most likely match.
 - Always remove all commas, semi-colons and colons from the show name.
-- The output MUST BE STRICT JSON, with no markdown, code blocks, or commentary. Return ONLY the raw JSON object with the fields of tmdb_id, show_name, confidence and reasoning.
+- Keep the reasoning extremely brief (no more than 10 words).
+- The output MUST BE STRICT JSON, with no markdown, code blocks, or commentary.
+- Return ONLY the raw JSON object on a single line with the fields of tmdb_id, show_name, confidence and reasoning.
 
 
 Example 1 Search Term: Cowboy Bebop

@@ -92,18 +92,33 @@ def add_show_interactively(
                 raise ValueError("LLM Branch - Could not determine the best show match.")
             
             # If LLM confidence is below the threshold, raise an error
-            if llm_response.get("confidence") < llm_confidence:
-                logger.exception(f"LLM Branch - LLM confidence is below the threshold: {llm_confidence}")
-                raise ValueError(f"LLM Branch - LLM confidence is below the threshold: {llm_confidence}")
-
-            # Use LLM to set the tmdb_id and sys_name vars
-            tmdb_id = llm_response["tmdb_id"]
-            sys_name = sanitize_filename(llm_response["show_name"])
-            details = tmdb.get_show_details(tmdb_id)
-            
-            if not details or "info" not in details:
-                logger.exception(f"LLM Branch - Failed to retrieve full details for TMDB ID {tmdb_id}")
-                raise ValueError(f"LLM Branch - Failed to retrieve full details for TMDB ID {tmdb_id}")
+            confidence_value = llm_response.get("confidence")
+            try:
+                confidence_float = float(confidence_value) if confidence_value is not None else 0.0
+            except (TypeError, ValueError):
+                confidence_float = 0.0
+            if confidence_float < llm_confidence:
+                logger.warning(
+                    f"LLM Branch - Confidence {confidence_float} below threshold {llm_confidence}. Falling back to non-LLM first TMDB result."
+                )
+                # Fallback: use the first TMDB search result deterministically
+                first_result = results["results"][0]
+                tmdb_id = first_result["id"]
+                details = tmdb.get_show_details(tmdb_id)
+                if not details or "info" not in details:
+                    logger.exception(f"LLM Branch Fallback - Failed to retrieve full details for TMDB ID {tmdb_id}")
+                    raise ValueError(f"LLM Branch Fallback - Failed to retrieve full details for TMDB ID {tmdb_id}")
+                sys_name = show_name
+                # Proceed with fallback path
+            else:
+                # Use LLM to set the tmdb_id and sys_name vars
+                tmdb_id = llm_response["tmdb_id"]
+                sys_name = sanitize_filename(llm_response["show_name"])
+                details = tmdb.get_show_details(tmdb_id)
+                
+                if not details or "info" not in details:
+                    logger.exception(f"LLM Branch - Failed to retrieve full details for TMDB ID {tmdb_id}")
+                    raise ValueError(f"LLM Branch - Failed to retrieve full details for TMDB ID {tmdb_id}")
             
         elif show_name:
             logger.info("Using show_name branch")
