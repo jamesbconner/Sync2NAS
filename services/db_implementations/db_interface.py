@@ -125,6 +125,11 @@ class DatabaseInterface(ABC):
         pass
 
     @abstractmethod
+    def update_show_aliases(self, show_id: int, new_aliases: str) -> None:
+        """Update the aliases for a show by its database ID."""
+        pass
+
+    @abstractmethod
     def is_read_only(self) -> bool:
         """Check if database is in read-only mode."""
         pass

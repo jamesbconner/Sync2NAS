@@ -807,6 +807,22 @@ class PostgresDBService(DatabaseInterface):
                 )
             conn.commit()
 
+    def update_show_aliases(self, show_id: int, new_aliases: str) -> None:
+        """Update the aliases for a show by its database ID.
+        
+        Args:
+            show_id: Database ID of the show to update
+            new_aliases: New aliases string to set
+        """
+        with self._connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE tv_shows SET tmdb_aliases = %s WHERE id = %s",
+                (new_aliases, show_id),
+            )
+            conn.commit()
+            logger.info(f"Updated aliases for show ID {show_id} to: {new_aliases}")
+
     def get_downloaded_files_by_status(self, status: FileStatus) -> List[DownloadedFile]:
         with self._connection() as conn:
             cursor = conn.cursor()
