@@ -349,6 +349,19 @@ class OllamaLLMService(BaseLLMService):
                 content = response.response if hasattr(response, 'response') else (response.get('response') if isinstance(response, dict) else response)
                 text = (content or "").strip() if isinstance(content, str) else str(content)
 
+            # If still empty, try a reinforced prompt variant to encourage immediate JSON
+            if not text:
+                logger.info("Empty response for suggest_show_name; retrying with reinforced JSON-only instruction")
+                reinforced_prompt = prompt + "\nReturn ONLY the raw JSON object on a single line now."
+                response = self.client.generate(
+                    model=self.model,
+                    prompt=reinforced_prompt,
+                    stream=False,
+                    options={"num_predict": 256, "temperature": 0.1},
+                )
+                content = response.response if hasattr(response, 'response') else (response.get('response') if isinstance(response, dict) else response)
+                text = (content or "").strip() if isinstance(content, str) else str(content)
+
             if not text:
                 raise ValueError("Empty Ollama response for suggest_show_name")
 
@@ -358,18 +371,33 @@ class OllamaLLMService(BaseLLMService):
             logger.debug(f"LLM response: {text}")
 
             if 'tmdb_id' in result and 'show_name' in result:
+                # Ensure confidence and reasoning are present for downstream logic
+                if 'confidence' not in result or not isinstance(result.get('confidence'), (int, float)):
+                    result['confidence'] = 0.0
+                if 'reasoning' not in result:
+                    result['reasoning'] = 'LLM provided result without confidence/reasoning; defaulted confidence to 0.0.'
                 return result
             else:
                 logger.warning(f"LLM response missing required fields: {result}")
                 if candidates:
                     first = candidates[0]
-                    return {'tmdb_id': first['id'], 'show_name': first['name']}
+                    return {
+                        'tmdb_id': first['id'],
+                        'show_name': first['name'],
+                        'confidence': 0.0,
+                        'reasoning': 'Fell back to first TMDB candidate because LLM response was missing required fields.'
+                    }
                 else:
                     raise ValueError("No candidates available for fallback")
         except Exception as e:
             logger.exception(f"LLM error: {e}")
             if candidates:
                 first = candidates[0]
-                return {'tmdb_id': first['id'], 'show_name': first['name']}
+                return {
+                    'tmdb_id': first['id'],
+                    'show_name': first['name'],
+                    'confidence': 0.0,
+                    'reasoning': 'Fell back to first TMDB candidate due to LLM error.'
+                }
             else:
                 raise ValueError("No candidates available for fallback")
