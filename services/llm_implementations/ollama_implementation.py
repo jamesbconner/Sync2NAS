@@ -295,7 +295,7 @@ class OllamaLLMService(BaseLLMService):
             logger.exception(f"LLM error: {e}.")
             return long_name[:max_length]
 
-    def suggest_show_name(self, show_name: str, detailed_results: list) -> dict:
+    def suggest_show_name(self, show_name: str, detailed_results: list, max_tokens: int = 16384) -> dict:
         """
         Suggest the best show match and English name from TMDB results using the LLM.
         Should return a dict with keys: tmdb_id, show_name
@@ -334,7 +334,7 @@ class OllamaLLMService(BaseLLMService):
                     "model": self.model,
                     "prompt": prompt,
                     "stream": False,
-                    "options": {"num_predict": 256, "temperature": 0.1},
+                    "options": {"num_predict": max_tokens, "temperature": 0.1, "num_ctx": self.num_ctx},
                 }
                 if schema_arg is not None:
                     kwargs["format"] = schema_arg

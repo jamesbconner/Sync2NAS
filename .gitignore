@@ -84,6 +84,11 @@ testing/*
 testing/anime_tv
 testing/incoming
 
+# Debugging
+debugging/
+debugging/*
+debug/
+debug/*
 
 # Future Work
 next_step.py
