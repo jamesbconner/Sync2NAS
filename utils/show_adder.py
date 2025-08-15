@@ -154,16 +154,22 @@ def add_show_interactively(
             sys_path = os.path.join(anime_tv_path, sanitize_filename(sys_name))
             logger.debug(f"Using sanitized derived sys_name for the folder name: {sys_path}")
 
-        # If the show already exists and we're not overriding the directory, raise an error
-        #   If we're overriding the directory, assume we know what we're doing and continue
-        #   Why does this scenario exist:  Remakes like Rurouni Kenshin and Ranma 1/2
-        # TODO:  This is a hack and needs to be refactored with better logic
-        if db.show_exists(sys_name):
+        # Check if the show already exists by multiple criteria
+        # First check by the original show_name (before sanitization)
+        show_exists_by_name = db.show_exists(show_name)
+        # Then check by the sanitized sys_name
+        show_exists_by_sys_name = db.show_exists(sys_name)
+        
+        if show_exists_by_name or show_exists_by_sys_name:
             if not override_dir:
-                logger.exception(f"Show already exists in DB: {sys_name}")
-                raise FileExistsError(f"Show already exists in DB: {sys_name}")
+                # Get the actual existing show name for better error reporting
+                existing_show = db.get_show_by_name_or_alias(show_name) or db.get_show_by_name_or_alias(sys_name)
+                existing_name = existing_show.get('tmdb_name', show_name) if existing_show else show_name
+                # Don't log this as an exception since it's not really an error
+                logger.info(f"Show already exists in DB: {existing_name}")
+                raise FileExistsError(f"Show already exists in DB: {existing_name}")
             else:
-                logger.info(f"Show already exists in DB: {sys_name}, but overriding directory. Likely a remake.")
+                logger.info(f"Show already exists in DB: {show_name}, but overriding directory. Likely a remake.")
 
         # TODO:  Decisioning about sys_name and sys_path for show instantiation is less than ideal.
         show = Show.from_tmdb(show_details=details, sys_name=sys_name, sys_path=sys_path)
@@ -187,5 +193,11 @@ def add_show_interactively(
             "episode_count": len(episodes),
         }
     except Exception as e:
-        logger.exception(f"Exception: {e}")
-        raise
+        # Only log as exception if it's not a FileExistsError for show already exists
+        if isinstance(e, FileExistsError) and "already exists in DB" in str(e):
+            # This is expected, don't log as exception
+            raise
+        else:
+            # This is a real error, log it
+            logger.exception(f"Exception: {e}")
+            raise

@@ -913,6 +913,20 @@ class SQLiteDBService(DatabaseInterface):
                     (new_status.value, error_message, file_id),
                 )
 
+    def update_show_aliases(self, show_id: int, new_aliases: str) -> None:
+        """Update the aliases for a show by its database ID.
+        
+        Args:
+            show_id: Database ID of the show to update
+            new_aliases: New aliases string to set
+        """
+        with self._connection() as conn:
+            conn.execute(
+                "UPDATE tv_shows SET tmdb_aliases = ? WHERE id = ?",
+                (new_aliases, show_id),
+            )
+            logger.info(f"Updated aliases for show ID {show_id} to: {new_aliases}")
+
     def get_downloaded_files_by_status(self, status: FileStatus) -> List[DownloadedFile]:
         with self._connection() as conn:
             conn.row_factory = sqlite3.Row

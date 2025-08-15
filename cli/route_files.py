@@ -82,6 +82,8 @@ def route_files(ctx: click.Context, incoming: str, use_llm: bool, llm_confidence
             for file_info in routed_files:
                 click.echo(f"  {file_info['original_path']} -> {file_info['routed_path']}")
 
+        return 0
+
     except Exception as e:
         logger.exception(f"Error routing files: {str(e)}")
         click.secho(f"Error routing files: {str(e)}", fg="red")
@@ -140,7 +142,7 @@ def _auto_add_missing_shows(ctx: click.Context, incoming_path: str, ignore_files
             #   below the llm_confidence threshold.
             if use_llm:
                 logger.info(f"Using LLM to parse filename: {fname}")
-                metadata = parse_filename(fname, llm_service=llm_service)
+                metadata = parse_filename(fname, llm_service=llm_service, llm_confidence_threshold=llm_confidence)
             else:
                 logger.info(f"Using regex to parse filename: {fname}")
                 metadata = parse_filename(fname)
@@ -160,9 +162,27 @@ def _auto_add_missing_shows(ctx: click.Context, incoming_path: str, ignore_files
             logger.info(f"Adding show to seen set: {show_name}")
             seen.add(show_name)
 
-            # Skip if show already exists in DB (do not duplicate shows)
-            if db.show_exists(show_name):
-                logger.info(f"Show already exists in DB: {show_name}")
+            # Check if show already exists in DB (either by exact name or as an alias)
+            existing_show = db.get_show_by_name_or_alias(show_name)
+            if existing_show:
+                logger.info(f"Show already exists in DB: {existing_show.get('tmdb_name', show_name)} (matched by: {show_name})")
+                # Still update aliases to include the parsed filename for future routing
+                try:
+                    current_aliases = existing_show.get("tmdb_aliases", "")
+                    aliases_list = [a.strip() for a in current_aliases.split(",") if a.strip()]
+                    
+                    # Add the parsed show name if it's not already in aliases
+                    if show_name not in aliases_list:
+                        aliases_list.append(show_name)
+                        new_aliases = ",".join(aliases_list)
+                        
+                        # Update the show's aliases in the database
+                        db.update_show_aliases(existing_show["id"], new_aliases)
+                        logger.info(f"Updated aliases for existing show '{existing_show.get('tmdb_name', show_name)}' to include parsed filename: {new_aliases}")
+                    else:
+                        logger.info(f"Show '{existing_show.get('tmdb_name', show_name)}' already has parsed filename in aliases")
+                except Exception as alias_exc:
+                    logger.warning(f"Failed to update aliases for existing show '{existing_show.get('tmdb_name', show_name)}': {alias_exc}")
                 continue
 
             click.secho(f"[AUTO-ADD] Auto-adding show: {show_name}", fg="yellow")
@@ -180,8 +200,46 @@ def _auto_add_missing_shows(ctx: click.Context, incoming_path: str, ignore_files
             # Invoke the add-show CLI command
             add_show_result = runner.invoke(add_show, add_show_args, obj=ctx.obj)
 
-            # If the add-show command was successful, print a success message
+            # Check the result of the add-show command
             if add_show_result.exit_code == 0:
-                click.secho(f"✅ Auto-added: {show_name}", fg="green")
+                # Check if the output indicates the show already exists
+                if "Show already exists in database" in add_show_result.output:
+                    # This is actually a success - we found an existing show that matches
+                    click.secho(f"✅ Show already exists: {show_name} (matched existing show)", fg="green")
+                    
+                    # Extract the existing show name from the output
+                    # The output format is: "Info: Show already exists in DB: {show_name}"
+                    output_text = add_show_result.output.strip()
+                    if "Show already exists in DB: " in output_text:
+                        existing_show_name = output_text.split("Show already exists in DB: ")[1].split("\n")[0].strip()
+                        logger.info(f"Extracted existing show name from output: {existing_show_name}")
+                        
+                        # Now look up the show by its actual database name
+                        existing_show = db.get_show_by_name_or_alias(existing_show_name)
+                        if existing_show:
+                            try:
+                                current_aliases = existing_show.get("tmdb_aliases", "")
+                                aliases_list = [a.strip() for a in current_aliases.split(",") if a.strip()]
+                                
+                                # Add the parsed show name if it's not already in aliases
+                                if show_name not in aliases_list:
+                                    aliases_list.append(show_name)
+                                    new_aliases = ",".join(aliases_list)
+                                    
+                                    # Update the show's aliases in the database
+                                    db.update_show_aliases(existing_show["id"], new_aliases)
+                                    logger.info(f"Updated aliases for existing show '{existing_show.get('tmdb_name', show_name)}' to include parsed filename: {new_aliases}")
+                                else:
+                                    logger.info(f"Show '{existing_show.get('tmdb_name', show_name)}' already has parsed filename in aliases")
+                            except Exception as alias_exc:
+                                logger.warning(f"Failed to update aliases for existing show '{existing_show.get('tmdb_name', show_name)}': {alias_exc}")
+                        else:
+                            logger.warning(f"Could not retrieve existing show '{existing_show_name}' to update aliases")
+                    else:
+                        logger.warning(f"Could not parse existing show name from output: {output_text}")
+                else:
+                    # The show was successfully added
+                    click.secho(f"✅ Auto-added: {show_name}", fg="green")
             else:
+                # This is a genuine error
                 click.secho(f"[ERROR] Failed to add show '{show_name}': {add_show_result.output.strip()}", fg="red")
