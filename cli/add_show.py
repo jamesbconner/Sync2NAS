@@ -69,6 +69,16 @@ def add_show(ctx: click.Context, show_name: str, override_dir: bool, use_llm: bo
             llm_confidence=llm_confidence
         )
         logger.debug("add_show_interactively completed successfully")
+    except FileExistsError as e:
+        # Handle the case where the show already exists gracefully
+        if "already exists in DB" in str(e):
+            click.secho("ℹ️ Show already exists in database", fg="yellow")
+            click.secho(f"Info: {e}", fg="yellow")
+            # Return success exit code since this isn't really an error
+            return
+        else:
+            # Re-raise if it's a different FileExistsError
+            raise
     except Exception as e:
         logger.exception(f"Exception: {e}")
         click.secho("\u274c Failed to add show", fg="red", bold=True)
