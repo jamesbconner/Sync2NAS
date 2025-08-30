@@ -47,14 +47,14 @@ class OpenAILLMService(BaseLLMService):
         """
         logger.info(f"Parsing filename with OpenAI LLM: {filename}")
         cleaned_filename = self._clean_filename_for_llm(filename)
-        system_prompt = self.load_prompt('parse_filename')
-        user_prompt = self.load_prompt('parse_filename').format(filename=cleaned_filename)
+        prompt_content = self.load_prompt('parse_filename').format(filename=cleaned_filename)
+        system_prompt = "You are an expert at parsing TV and anime episode filenames and extracting structured metadata."
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
+                    {"role": "user", "content": prompt_content}
                 ],
                 max_tokens=max_tokens,
                 temperature=0.1,
@@ -179,6 +179,10 @@ class OpenAILLMService(BaseLLMService):
                 return result
         except Exception as e:
             logger.exception(f"LLM error: {e}")
-            return None
+        # Fallback to first candidate if available
+        if candidates:
+            first = candidates[0]
+            return {'tmdb_id': first['id'], 'show_name': first['name']}
+        return None
         first = candidates[0]
         return {'tmdb_id': first['id'], 'show_name': first['name']} 

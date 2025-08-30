@@ -15,7 +15,7 @@ class ParsedFilename(BaseModel):
     show_name: str = Field(..., description="Full show name, as extracted from filename")
     season: int | None = Field(..., description="Season number as integer, or null if not present")
     episode: int = Field(..., description="Episode number as integer, or null if not present")
-    hash: str | None = Field(None, description="CRC32 hash extracted from filename, if present")
+    hash: str | None = Field(None, description="CRC32 hash if present in the filename. It is always exactly 8 hex characters (0-9A-F), without brackets.")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence between 0.0 and 1.0")
     reasoning: str = Field(..., description="Explanation of field choices and confidence")
 
@@ -43,7 +43,7 @@ class OllamaLLMService(BaseLLMService):
             config: Loaded configuration object
         """
         self.config = config
-        self.model = self.config.get('ollama', 'model', fallback='gpt-oss:20b')
+        self.model = self.config.get('ollama', 'model', fallback='gemma3:12b')
         # Context window for input tokens (model-dependent). Default to 8192 if not specified.
         try:
             self.num_ctx = self.config.getint('ollama', 'num_ctx', fallback=8192)
@@ -86,28 +86,29 @@ class OllamaLLMService(BaseLLMService):
         #prompt = self.load_prompt('parse_filename').format(filename=cleaned_filename)
         prompt = self.load_prompt('parse_filename').format(filename=filename)
         try:
-            # Some models (e.g., gpt-oss) may ignore/break with 'format'. Try with schema, then retry without.
-            use_schema = not str(self.model).lower().startswith("gpt-oss")
-            schema = ParsedFilename.model_json_schema() if use_schema else None
+            # Use format parameter with model_json_schema() for models that support it (like gemma3:12b)
+            # This ensures proper structured output including all required fields
+            use_format = not str(self.model).lower().startswith("gpt-oss")
+            format_schema = ParsedFilename.model_json_schema() if use_format else None
 
-            def _call_ollama(schema_arg):
+            def _call_ollama(format_arg):
                 kwargs = {
                     "model": self.model,
                     "prompt": prompt,
                     "stream": False,
-                    "options": {"num_predict": max_tokens, "temperature": 0.2, "num_ctx": self.num_ctx},
+                    "options": {"num_predict": max_tokens, "temperature": 0.0, "num_ctx": self.num_ctx},
                 }
-                if schema_arg is not None:
-                    kwargs["format"] = schema_arg
+                if format_arg is not None:
+                    kwargs["format"] = format_arg
                 logger.debug(
-                    f"LLM generate() call: model={kwargs['model']}, schema={'on' if schema_arg else 'off'}, "
+                    f"LLM generate() call: model={kwargs['model']}, format={'on' if format_arg else 'off'}, "
                     f"options={kwargs['options']}, prompt_len={len(prompt)}"
                 )
                 logger.debug(f"Prompt head: {prompt[:400]}")
                 return self.client.generate(**kwargs)
 
             start_ts = datetime.datetime.now()
-            response = _call_ollama(schema)
+            response = _call_ollama(format_schema)
             duration_ms = (datetime.datetime.now() - start_ts).total_seconds() * 1000.0
 
             # Extract the JSON/string content
@@ -129,14 +130,14 @@ class OllamaLLMService(BaseLLMService):
                 except Exception:
                     pass
             logger.debug(f"Response head: {text[:400]}")
-            if not text and schema is not None:
-                logger.info("Empty response with schema; retrying without schema")
+            if not text and format_schema is not None:
+                logger.info("Empty response with format; retrying without format")
                 start_ts = datetime.datetime.now()
                 response = _call_ollama(None)
                 content = response.response if hasattr(response, 'response') else (response.get('response') if isinstance(response, dict) else response)
                 text = (content or "").strip() if isinstance(content, str) else str(content)
                 logger.debug(
-                    f"Retry without schema returned text_len={len(text)} in "
+                    f"Retry without format returned text_len={len(text)} in "
                     f"{(datetime.datetime.now() - start_ts).total_seconds() * 1000.0:.0f} ms"
                 )
 
@@ -146,27 +147,46 @@ class OllamaLLMService(BaseLLMService):
                 return self._fallback_parse(filename)
 
             logger.debug(f"Ollama response: {text}")
+            # Also print to console for debugging
+            print(f"🔍 RAW OLLAMA RESPONSE:")
+            print(f"   Model: {self.model}")
+            print(f"   Format schema: {'enabled' if format_schema else 'disabled'}")
+            print(f"   Response length: {len(text)} characters")
+            print(f"   Raw text: {repr(text)}")
+            print(f"   Raw text (pretty): {text}")
 
             # Extract first JSON object in case of extra prose or code fences
             json_text = self._extract_first_json_object(text)
+            print(f"🔍 JSON EXTRACTION:")
+            print(f"   Extracted JSON: {repr(json_text)}")
             if json_text is None:
                 logger.error("No JSON object found in Ollama response; using fallback parser")
+                print(f"   ❌ JSON extraction failed!")
                 self._dump_failure_artifacts("parse_filename_no_json", prompt, text)
                 return self._fallback_parse(filename)
 
             try:
                 result = json.loads(json_text)
+                print(f"🔍 JSON PARSING:")
+                print(f"   Parsed JSON result: {result}")
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to decode JSON from Ollama response: {e}")
+                print(f"   ❌ JSON parsing failed: {e}")
                 self._dump_failure_artifacts("parse_filename_json_error", prompt, text)
                 return self._fallback_parse(filename)
 
             # Strong validation against the Pydantic model to ensure structure/types
             try:
+                print(f"🔍 PYDANTIC VALIDATION:")
+                print(f"   Input to Pydantic: {result}")
+                print(f"   Hash field in input: {result.get('hash', 'NOT_FOUND')}")
                 model_instance = ParsedFilename.model_validate(result)
                 validated_dict = model_instance.model_dump()
+                print(f"   Pydantic validated: {validated_dict}")
+                print(f"   Hash field after validation: {validated_dict.get('hash', 'NOT_FOUND')}")
             except ValidationError as e:
                 logger.error(f"Pydantic validation failed for Ollama response: {e}")
+                print(f"   ❌ Pydantic validation failed: {e}")
                 self._dump_failure_artifacts("parse_filename_validation_error", prompt, text)
                 return self._fallback_parse(filename)
 

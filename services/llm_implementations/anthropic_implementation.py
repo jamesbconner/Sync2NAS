@@ -54,7 +54,7 @@ class AnthropicLLMService(BaseLLMService):
         logger.info(f"Anthropic LLM service initialized with model: {self.model}")
 
 
-    def parse_filename(self, filename: str) -> Dict:
+    def parse_filename(self, filename: str, max_tokens: int = 150) -> Dict:
         """
         Parses a filename to extract show metadata using the LLM.
         Args:
@@ -69,7 +69,7 @@ class AnthropicLLMService(BaseLLMService):
         user_prompt = self.load_prompt('parse_filename').format(filename=cleaned_filename)
         response = self.client.messages.create(
             model=self.model,
-            max_tokens=self.max_tokens,
+            max_tokens=max_tokens,
             temperature=self.temperature,
             system=system_prompt,
             messages=[
