@@ -14,6 +14,7 @@ CLI command to refresh episodes for a show from TMDB and update the local databa
 @click.command("update-episodes", help="Refresh episodes for a show from TMDB and update the local database.")
 @click.argument("show_name", required=False)
 @click.option("--tmdb-id", type=int, help="TMDB ID of the show (overrides show_name search)")
+@click.pass_context
 @pass_sync2nas_context
 def update_episodes(ctx: click.Context, show_name: str, tmdb_id: int) -> None:
     """

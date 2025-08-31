@@ -50,12 +50,14 @@ def health_check(ctx: click.Context, service: str, timeout: int, json_output: bo
         
         if service:
             # Check specific service
-            console.print(f"🔍 Checking health for {service}...")
+            if not json_output:
+                console.print(f"🔍 Checking health for {service}...")
             result = health_checker.check_service_health_sync(service, config)
             results = [result]
         else:
             # Check all configured services
-            console.print("🔍 Checking health for all configured LLM services...")
+            if not json_output:
+                console.print("🔍 Checking health for all configured LLM services...")
             results = health_checker.check_llm_health_sync(config)
         
         if json_output:
@@ -101,11 +103,13 @@ def validate_config(ctx: click.Context, service: str, json_output: bool):
         
         if service:
             # Validate specific service
-            console.print(f"🔍 Validating configuration for {service}...")
+            if not json_output:
+                console.print(f"🔍 Validating configuration for {service}...")
             result = validator.validate_service_config(service, config)
         else:
             # Validate all LLM configuration
-            console.print("🔍 Validating LLM configuration...")
+            if not json_output:
+                console.print("🔍 Validating LLM configuration...")
             result = validator.validate_llm_config(config)
         
         if json_output:
