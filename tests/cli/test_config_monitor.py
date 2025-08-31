@@ -216,6 +216,7 @@ class TestValidateConfigCommand:
             section="llm",
             key="service",
             message="Service is required",
+            suggestion="Add 'service = ollama' to the [llm] section",
             error_code=ErrorCode.MISSING_KEY
         ))
         mock_validator_instance.validate_llm_config.return_value = validation_result

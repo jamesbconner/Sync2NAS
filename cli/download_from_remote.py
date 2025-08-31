@@ -2,6 +2,7 @@ import click
 from utils.sync2nas_config import parse_sftp_paths
 from utils.sftp_orchestrator import download_from_remote as downloader
 from services.hashing_service import HashingService
+from utils.cli_helpers import validate_context_for_command, get_service_from_context
 
 """
 CLI command to download new files or directories from the remote SFTP server and record them in the database.
@@ -17,8 +18,8 @@ def download_from_remote(ctx, max_workers, parse, llm, llm_threshold):
     """
     Download new files or directories from the remote SFTP server and record them.
     """
-    if not ctx.obj:
-        click.secho("[ERROR] No context object found", fg="red", bold=True)
+    # Validate required services
+    if not validate_context_for_command(ctx, required_services=['sftp', 'db', 'config']):
         return
 
     dry_run = ctx.obj["dry_run"]

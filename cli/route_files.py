@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 @click.option("--use-llm", "-l", is_flag=True, help="Use LLM for filename parsing")
 @click.option("--llm-confidence", type=float, default=0.7, help="Minimum LLM confidence threshold (0.0-1.0)")
 @click.option("--auto-add", is_flag=True, default=False, help="Attempt to add missing shows automatically before routing.")
+@click.pass_context
 @pass_sync2nas_context
 def route_files(ctx: click.Context, incoming: str, use_llm: bool, llm_confidence: float, auto_add: bool) -> int:
     """
