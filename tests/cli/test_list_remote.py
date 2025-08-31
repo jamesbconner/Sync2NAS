@@ -5,7 +5,8 @@ from unittest.mock import MagicMock, patch
 from click.testing import CliRunner
 from cli.main import sync2nas_cli
 from services.db_implementations.sqlite_implementation import SQLiteDBService
-from utils.sync2nas_config import load_configuration, write_temp_config
+from utils.sync2nas_config import load_configuration, write_temp_config, get_config_value
+from tests.utils.mock_service_factory import TestConfigurationHelper
 from pathlib import Path
 from cli.list_remote import list_remote
 from datetime import datetime
@@ -32,9 +33,15 @@ def create_temp_config(tmp_path: Path) -> str:
         "port": "22",
         "username": "testuser",
         "ssh_key_path": str(tmp_path / "dummy_key"),
-        "path": str(remote_path)
+        "paths": str(remote_path)
     }
     parser["TMDB"] = {"api_key": "dummy"}
+    parser["llm"] = {"service": "ollama"}
+    parser["ollama"] = {
+        "base_url": "http://localhost:11434",
+        "model": "llama3.2:1b",
+        "timeout": "30"
+    }
 
     return str(write_temp_config(parser, tmp_path))
 
@@ -97,9 +104,9 @@ def mock_db():
 
 @pytest.fixture
 def mock_config():
-    return {"SFTP": {"path": "/remote/path"}}
+    return {"sftp": {"paths": "/remote/path"}}
 
-def test_list_remote_basic(tmp_path: Path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, db_service):
+def test_list_remote_basic(tmp_path: Path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, db_service, mock_llm_service_patch):
     """Test basic remote listing without options"""
     config_path = create_temp_config(tmp_path)
     config = load_configuration(config_path)
@@ -107,8 +114,8 @@ def test_list_remote_basic(tmp_path: Path, mock_tmdb_service, mock_sftp_service,
     db = db_service
     db.initialize()
 
-    remote_path = Path(config["SFTP"]["path"])
-    incoming_path = Path(config["Transfers"]["incoming"])
+    remote_path = Path(get_config_value(config, "sftp", "paths"))
+    incoming_path = Path(get_config_value(config, "transfers", "incoming"))
     remote_path.mkdir(exist_ok=True)
     incoming_path.mkdir(exist_ok=True)
 
@@ -133,17 +140,17 @@ def test_list_remote_basic(tmp_path: Path, mock_tmdb_service, mock_sftp_service,
         "db": db,
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
-        "anime_tv_path": config["Routing"]["anime_tv_path"],
+        "llm_service": None,
+        "anime_tv_path": get_config_value(config, "routing", "anime_tv_path"),
         "incoming_path": str(incoming_path),
-        "llm_service": create_llm_service(config),
         "dry_run": False
     }
 
-    result = cli_runner.invoke(cli, ["-c", config_path, "list-remote"], obj=obj)
+    result = cli_runner.invoke(cli, ["-c", config_path, "--skip-validation", "list-remote"], obj=obj)
     assert result.exit_code == 0
     assert "file1.mkv" in result.output
 
-def test_list_remote_with_path(tmp_path: Path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, db_service):
+def test_list_remote_with_path(tmp_path: Path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, db_service, mock_llm_service_patch):
     """Test remote listing with custom path"""
     config_path = create_temp_config(tmp_path)
     config = load_configuration(config_path)
@@ -151,8 +158,8 @@ def test_list_remote_with_path(tmp_path: Path, mock_tmdb_service, mock_sftp_serv
     db = db_service
     db.initialize()
 
-    remote_path = Path(config["SFTP"]["path"])
-    incoming_path = Path(config["Transfers"]["incoming"])
+    remote_path = Path(get_config_value(config, "sftp", "paths"))
+    incoming_path = Path(get_config_value(config, "transfers", "incoming"))
     remote_path.mkdir(exist_ok=True)
     incoming_path.mkdir(exist_ok=True)
 
@@ -177,17 +184,17 @@ def test_list_remote_with_path(tmp_path: Path, mock_tmdb_service, mock_sftp_serv
         "db": db,
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
-        "anime_tv_path": config["Routing"]["anime_tv_path"],
+        "llm_service": None,
+        "anime_tv_path": get_config_value(config, "routing", "anime_tv_path"),
         "incoming_path": str(incoming_path),
-        "llm_service": create_llm_service(config),
         "dry_run": False
     }
 
-    result = cli_runner.invoke(cli, ["-c", config_path, "list-remote", "--path", "/custom/path"], obj=obj)
+    result = cli_runner.invoke(cli, ["-c", config_path, "--skip-validation", "list-remote", "--path", "/custom/path"], obj=obj)
     assert result.exit_code == 0
     assert "file1.mkv" in result.output
 
-def test_list_remote_dry_run(tmp_path: Path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, db_service):
+def test_list_remote_dry_run(tmp_path: Path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, db_service, mock_llm_service_patch):
     """Test remote listing in dry run mode"""
     config_path = create_temp_config(tmp_path)
     config = load_configuration(config_path)
@@ -195,8 +202,8 @@ def test_list_remote_dry_run(tmp_path: Path, mock_tmdb_service, mock_sftp_servic
     db = db_service
     db.initialize()
 
-    remote_path = Path(config["SFTP"]["path"])
-    incoming_path = Path(config["Transfers"]["incoming"])
+    remote_path = Path(get_config_value(config, "sftp", "paths"))
+    incoming_path = Path(get_config_value(config, "transfers", "incoming"))
     remote_path.mkdir(exist_ok=True)
     incoming_path.mkdir(exist_ok=True)
 
@@ -221,17 +228,17 @@ def test_list_remote_dry_run(tmp_path: Path, mock_tmdb_service, mock_sftp_servic
         "db": db,
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
-        "anime_tv_path": config["Routing"]["anime_tv_path"],
+        "llm_service": MagicMock(),  # Provide a mock LLM service
+        "anime_tv_path": get_config_value(config, "routing", "anime_tv_path"),
         "incoming_path": str(incoming_path),
-        "llm_service": create_llm_service(config),
         "dry_run": True  # Set dry_run to True
     }
 
-    result = cli_runner.invoke(cli, ["-c", config_path, "list-remote"], obj=obj)
+    result = cli_runner.invoke(cli, ["-c", config_path, "--skip-validation", "list-remote"], obj=obj)
     assert result.exit_code == 0
     assert "Dry run: Would list" in result.output
 
-def test_list_remote_with_recursive(tmp_path: Path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, db_service):
+def test_list_remote_with_recursive(tmp_path: Path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, db_service, mock_llm_service_patch):
     """Test remote listing with recursive option"""
     config_path = create_temp_config(tmp_path)
     config = load_configuration(config_path)
@@ -239,8 +246,8 @@ def test_list_remote_with_recursive(tmp_path: Path, mock_tmdb_service, mock_sftp
     db = db_service
     db.initialize()
 
-    remote_path = Path(config["SFTP"]["path"])
-    incoming_path = Path(config["Transfers"]["incoming"])
+    remote_path = Path(get_config_value(config, "sftp", "paths"))
+    incoming_path = Path(get_config_value(config, "transfers", "incoming"))
     remote_path.mkdir(exist_ok=True)
     incoming_path.mkdir(exist_ok=True)
 
@@ -273,18 +280,18 @@ def test_list_remote_with_recursive(tmp_path: Path, mock_tmdb_service, mock_sftp
         "db": db,
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
-        "anime_tv_path": config["Routing"]["anime_tv_path"],
+        "llm_service": MagicMock(),  # Provide a mock LLM service
+        "anime_tv_path": get_config_value(config, "routing", "anime_tv_path"),
         "incoming_path": str(incoming_path),
-        "llm_service": create_llm_service(config),
         "dry_run": False
     }
 
-    result = cli_runner.invoke(cli, ["-c", config_path, "list-remote", "--recursive"], obj=obj)
+    result = cli_runner.invoke(cli, ["-c", config_path, "--skip-validation", "list-remote", "--recursive"], obj=obj)
     assert result.exit_code == 0
     assert "file1.mkv" in result.output
     assert "dir1" in result.output
 
-def test_list_remote_with_populate_sftp_temp(tmp_path: Path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, db_service):
+def test_list_remote_with_populate_sftp_temp(tmp_path: Path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, db_service, mock_llm_service_patch):
     """Test remote listing with populate_sftp_temp option"""
     config_path = create_temp_config(tmp_path)
     config = load_configuration(config_path)
@@ -292,8 +299,8 @@ def test_list_remote_with_populate_sftp_temp(tmp_path: Path, mock_tmdb_service, 
     db = db_service
     db.initialize()
 
-    remote_path = Path(config["SFTP"]["path"])
-    incoming_path = Path(config["Transfers"]["incoming"])
+    remote_path = Path(get_config_value(config, "sftp", "paths"))
+    incoming_path = Path(get_config_value(config, "transfers", "incoming"))
     remote_path.mkdir(exist_ok=True)
     incoming_path.mkdir(exist_ok=True)
 
@@ -321,18 +328,18 @@ def test_list_remote_with_populate_sftp_temp(tmp_path: Path, mock_tmdb_service, 
         "db": db,
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
-        "anime_tv_path": config["Routing"]["anime_tv_path"],
+        "llm_service": MagicMock(),  # Provide a mock LLM service
+        "anime_tv_path": get_config_value(config, "routing", "anime_tv_path"),
         "incoming_path": str(incoming_path),
-        "llm_service": create_llm_service(config),
         "dry_run": False
     }
 
-    result = cli_runner.invoke(cli, ["-c", config_path, "list-remote", "--populate-sftp-temp"], obj=obj)
+    result = cli_runner.invoke(cli, ["-c", config_path, "--skip-validation", "list-remote", "--populate-sftp-temp"], obj=obj)
     assert result.exit_code == 0
     assert "file1.mkv" in result.output
     assert "Populated sftp_temp table" in result.output
 
-def test_list_remote_default(mock_sftp_service, mock_db, mock_config):
+def test_list_remote_default(mock_sftp_service, mock_db, mock_config, mock_llm_service_patch):
     runner = CliRunner()
     
     # Ensure the mock supports the context manager protocol
@@ -360,7 +367,7 @@ def test_list_remote_default(mock_sftp_service, mock_db, mock_config):
     assert result.exit_code == 0
     assert "file1.mkv" in result.output
 
-def test_list_remote_recursive(mock_sftp_service, mock_db, mock_config):
+def test_list_remote_recursive(mock_sftp_service, mock_db, mock_config, mock_llm_service_patch):
     runner = CliRunner()
     
     # Ensure the mock supports the context manager protocol
@@ -388,7 +395,7 @@ def test_list_remote_recursive(mock_sftp_service, mock_db, mock_config):
     assert result.exit_code == 0
     assert "file1.mkv" in result.output
 
-def test_list_remote_populate_sftp_temp(mock_sftp_service, mock_db, mock_config):
+def test_list_remote_populate_sftp_temp(mock_sftp_service, mock_db, mock_config, mock_llm_service_patch):
     runner = CliRunner()
     
     # Ensure the mock supports the context manager protocol

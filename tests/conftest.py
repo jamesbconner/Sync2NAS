@@ -44,7 +44,7 @@ def test_config_path():
     }
     config["TMDB"] = {"api_key": "test_api_key"}
     config["llm"] = {"service": "ollama"}
-    config["ollama"] = {"model": "llama3.2"}
+    config["ollama"] = {"model": "gemma3:12b"}
 
     with config_path.open("w") as config_file:
         config.write(config_file)
@@ -145,6 +145,19 @@ def mock_tmdb_service(mocker):
     }
 
     return mock
+
+@pytest.fixture(scope="function")
+def mock_llm_service_patch():
+    """
+    Fixture that patches LLM service creation to prevent GPU RAM issues.
+    
+    CRITICAL: This ensures tests never load real LLM models which would cause
+    GPU RAM exhaustion and CPU fallback.
+    """
+    from tests.utils.mock_service_factory import MockServiceFactory
+    
+    with MockServiceFactory.patch_llm_service_creation():
+        yield
 
 @pytest.fixture(scope="function")
 def mock_sftp_service(mocker):

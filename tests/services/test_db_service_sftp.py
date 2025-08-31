@@ -17,7 +17,7 @@ def db_service(db_path):
         "Database": {"type": "sqlite"},
         "SQLite": {"db_file": str(db_path)},
         "llm": {"service": "ollama"},
-        "ollama": {"model": "ollama3.2"},
+        "ollama": {"model": "gemma3:12b"},
     }
     db = create_db_service(config)
     db.initialize()

@@ -6,46 +6,35 @@ from click.testing import CliRunner
 from cli.main import sync2nas_cli
 from models.episode import Episode
 from services.db_implementations.sqlite_implementation import SQLiteDBService
-from utils.sync2nas_config import load_configuration
+from utils.sync2nas_config import load_configuration, get_config_value, has_config_section
 from services.llm_factory import create_llm_service
+from tests.utils.mock_service_factory import TestConfigurationHelper
 
 
-def test_add_show_via_name(tmp_path, test_config_path, mock_tmdb_service, mock_sftp_service, cli, cli_runner):
+def test_add_show_via_name(tmp_path, test_config_path, mock_tmdb_service, mock_sftp_service, cli, cli_runner, mock_llm_service_patch):
     runner = cli_runner
 
     config_path = str(test_config_path)
     unique_db_path = tmp_path / "unique_test.db"
     unique_db_path.touch()
 
-    # Update config with the unique DB path
+    # Load and update config with the unique DB path
     config = load_configuration(config_path)
-    config["SQLite"]["db_file"] = str(unique_db_path)
+    if not has_config_section(config, "sqlite"):
+        config["sqlite"] = {}
+    config["sqlite"]["db_file"] = str(unique_db_path)
 
-    with open(config_path, "w") as f:
-        parser = configparser.ConfigParser()
-        parser.read_dict(config)
-        parser.write(f)
+    # Update the config file
+    TestConfigurationHelper.update_config_file_with_normalized_data(config_path, config)
 
-    # Initialize DB and directories
-    db = SQLiteDBService(str(unique_db_path))
-    db.initialize()
-
-    anime_tv_path = tmp_path / "anime_tv_path"
-    anime_tv_path.mkdir(parents=True, exist_ok=True)
-
-    incoming_path = tmp_path / "incoming"
-    incoming_path.mkdir(parents=True, exist_ok=True)
-
-    obj = {
-        "config": config,
-        "db": db,
-        "tmdb": mock_tmdb_service,
-        "sftp": mock_sftp_service,
-        "anime_tv_path": str(anime_tv_path),
-        "incoming_path": str(incoming_path),
-        "llm_service": create_llm_service(config),
-        "dry_run": False
-    }
+    # Create CLI context using helper
+    obj = TestConfigurationHelper.create_cli_context_from_config(
+        config, 
+        tmp_path, 
+        dry_run=False,
+        tmdb=mock_tmdb_service,
+        sftp=mock_sftp_service
+    )
 
     print("Mock TMDB search_show('Mock Show'):", mock_tmdb_service.search_show("Mock Show"))
 
@@ -64,7 +53,7 @@ def test_add_show_via_name(tmp_path, test_config_path, mock_tmdb_service, mock_s
     assert "✅ Show added" in result.output
 
 
-def test_add_show_dry_run(tmp_path, test_config_path, mock_tmdb_service, mock_sftp_service, mocker, cli, cli_runner):
+def test_add_show_dry_run(tmp_path, test_config_path, mock_tmdb_service, mock_sftp_service, mocker, cli, cli_runner, mock_llm_service_patch):
     runner = cli_runner
 
     # Override the show name in the mock
@@ -79,27 +68,23 @@ def test_add_show_dry_run(tmp_path, test_config_path, mock_tmdb_service, mock_sf
     config_path = str(test_config_path)
     unique_db_path = tmp_path / "unique_dry.db"
 
+    # Load and update config
     config = load_configuration(config_path)
-    config["SQLite"]["db_file"] = str(unique_db_path)
+    if not has_config_section(config, "sqlite"):
+        config["sqlite"] = {}
+    config["sqlite"]["db_file"] = str(unique_db_path)
 
-    with open(config_path, "w") as f:
-        parser = configparser.ConfigParser()
-        parser.read_dict(config)
-        parser.write(f)
+    # Update the config file
+    TestConfigurationHelper.update_config_file_with_normalized_data(config_path, config)
 
-    db = SQLiteDBService(str(unique_db_path))
-
-    # Create context object for CLI with dry_run set to True
-    obj = {
-        "config": config,
-        "db": db,
-        "tmdb": mock_tmdb_service,
-        "sftp": mock_sftp_service,
-        "anime_tv_path": str(tmp_path / "anime_tv_path"),
-        "incoming_path": str(tmp_path / "incoming"),
-        "llm_service": create_llm_service(config),
-        "dry_run": True  # Set dry_run to True
-    }
+    # Create CLI context using helper with dry_run=True
+    obj = TestConfigurationHelper.create_cli_context_from_config(
+        config, 
+        tmp_path, 
+        dry_run=True,
+        tmdb=mock_tmdb_service,
+        sftp=mock_sftp_service
+    )
 
     # Init DB
     runner.invoke(cli, ["-c", config_path, "init-db"])

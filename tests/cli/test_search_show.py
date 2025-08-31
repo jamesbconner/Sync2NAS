@@ -17,7 +17,7 @@ def mock_ctx():
     ctx.obj = {'db': db_service, 'tmdb': tmdb_service, 'dry_run': False}
     return ctx, db_service
 
-def test_search_show_lists_all_shows(runner, mock_ctx):
+def test_search_show_lists_all_shows(runner, mock_ctx, mock_llm_service_patch):
     """Test that running search_show with no arguments lists all shows in the database."""
     ctx, db_service = mock_ctx
     db_service.get_all_shows.return_value = [
@@ -28,7 +28,7 @@ def test_search_show_lists_all_shows(runner, mock_ctx):
     assert "Found 1 shows in database" in result.output
     assert "Test Show" in result.output
 
-def test_search_show_exact_match(runner, mock_ctx):
+def test_search_show_exact_match(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show finds and displays a show by exact name match."""
     ctx, db_service = mock_ctx
     db_service.get_show_by_name_or_alias.return_value = {'id': 1, 'tmdb_id': 123, 'tmdb_name': 'Test Show', 'sys_name': 'Test_Show', 'sys_path': '/shows/Test_Show', 'aliases': 'Alias'}
@@ -37,7 +37,7 @@ def test_search_show_exact_match(runner, mock_ctx):
     assert "Found exact match for 'Test Show'" in result.output
     assert "Test Show" in result.output
 
-def test_search_show_partial_match(runner, mock_ctx):
+def test_search_show_partial_match(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show finds and displays shows by partial name match when no exact match is found."""
     ctx, db_service = mock_ctx
     db_service.get_show_by_name_or_alias.return_value = None
@@ -49,7 +49,7 @@ def test_search_show_partial_match(runner, mock_ctx):
     assert "Found 1 partial match for 'Test'" in result.output or "Found 1 partial matches for 'Test'" in result.output
     assert "Test Show" in result.output
 
-def test_search_show_no_match_offers_tmdb(runner, mock_ctx):
+def test_search_show_no_match_offers_tmdb(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show offers TMDB search if no matches are found and user declines."""
     ctx, db_service = mock_ctx
     db_service.get_show_by_name_or_alias.return_value = None
@@ -60,7 +60,7 @@ def test_search_show_no_match_offers_tmdb(runner, mock_ctx):
     assert "No shows found matching 'NoShow'" in result.output or "No exact match found for 'NoShow'" in result.output
     assert "Would you like to search TMDB for similar shows?" in result.output
 
-def test_search_show_by_tmdb_id_found(runner, mock_ctx):
+def test_search_show_by_tmdb_id_found(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show finds and displays a show by TMDB ID."""
     ctx, db_service = mock_ctx
     db_service.get_show_by_tmdb_id.return_value = {'id': 1, 'tmdb_id': 123, 'tmdb_name': 'Test Show', 'sys_name': 'Test_Show', 'sys_path': '/shows/Test_Show', 'aliases': 'Alias'}
@@ -69,7 +69,7 @@ def test_search_show_by_tmdb_id_found(runner, mock_ctx):
     assert "Found show with TMDB ID 123" in result.output
     assert "Test Show" in result.output
 
-def test_search_show_by_tmdb_id_not_found(runner, mock_ctx):
+def test_search_show_by_tmdb_id_not_found(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show prints error and exits if TMDB ID is not found."""
     ctx, db_service = mock_ctx
     db_service.get_show_by_tmdb_id.return_value = None
@@ -77,7 +77,7 @@ def test_search_show_by_tmdb_id_not_found(runner, mock_ctx):
     assert result.exit_code == 1
     assert "No show found with TMDB ID 999" in result.output
 
-def test_search_show_dry_run(runner, mock_ctx):
+def test_search_show_dry_run(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show prints dry run info and does not search database."""
     ctx, db_service = mock_ctx
     ctx.obj['dry_run'] = True
@@ -87,7 +87,7 @@ def test_search_show_dry_run(runner, mock_ctx):
     assert "Show name: Test Show" in result.output
     assert not db_service.get_all_shows.called
 
-def test_search_show_db_error(runner, mock_ctx):
+def test_search_show_db_error(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show prints error and exits if the database call raises an exception."""
     ctx, db_service = mock_ctx
     db_service.get_all_shows.side_effect = Exception('fail!')
@@ -97,13 +97,13 @@ def test_search_show_db_error(runner, mock_ctx):
 
 # New tests to increase coverage
 
-def test_search_show_no_context_object(runner):
+def test_search_show_no_context_object(runner, mock_llm_service_patch):
     """Test that search_show handles missing context object gracefully."""
     result = runner.invoke(search_show, ['Test Show'], obj=None)
     assert result.exit_code == 1
     assert "❌ Error: No context object found" in result.output
 
-def test_search_show_dry_run_with_tmdb_id(runner, mock_ctx):
+def test_search_show_dry_run_with_tmdb_id(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show handles dry run with TMDB ID."""
     ctx, db_service = mock_ctx
     ctx.obj['dry_run'] = True
@@ -113,7 +113,7 @@ def test_search_show_dry_run_with_tmdb_id(runner, mock_ctx):
     assert "TMDB ID: 123" in result.output
     assert not db_service.get_show_by_tmdb_id.called
 
-def test_search_show_multiple_partial_matches(runner, mock_ctx):
+def test_search_show_multiple_partial_matches(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show displays multiple partial matches in a table."""
     ctx, db_service = mock_ctx
     db_service.get_show_by_name_or_alias.return_value = None
@@ -127,7 +127,7 @@ def test_search_show_multiple_partial_matches(runner, mock_ctx):
     assert "Test Show 1" in result.output
     assert "Test Show 2" in result.output
 
-def test_search_show_exact_match_with_verbose(runner, mock_ctx):
+def test_search_show_exact_match_with_verbose(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show displays verbose information when --verbose flag is used."""
     ctx, db_service = mock_ctx
     show_data = {
@@ -150,7 +150,7 @@ def test_search_show_exact_match_with_verbose(runner, mock_ctx):
     assert "Status: Ended" in result.output
     assert "Overview:" in result.output
 
-def test_search_show_exact_match_with_verbose_no_dates(runner, mock_ctx):
+def test_search_show_exact_match_with_verbose_no_dates(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show handles missing date fields in verbose mode."""
     ctx, db_service = mock_ctx
     show_data = {
@@ -164,7 +164,7 @@ def test_search_show_exact_match_with_verbose_no_dates(runner, mock_ctx):
     assert "First Aired: N/A" in result.output
     assert "Last Aired: N/A" in result.output
 
-def test_search_show_exact_match_with_verbose_datetime_objects(runner, mock_ctx):
+def test_search_show_exact_match_with_verbose_datetime_objects(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show handles datetime objects in verbose mode."""
     from datetime import datetime
     ctx, db_service = mock_ctx
@@ -180,7 +180,7 @@ def test_search_show_exact_match_with_verbose_datetime_objects(runner, mock_ctx)
     assert "First Aired: 2020-01-01" in result.output
     assert "Last Aired: 2023-01-01" in result.output
 
-def test_search_show_exact_match_with_verbose_complex_date_strings(runner, mock_ctx):
+def test_search_show_exact_match_with_verbose_complex_date_strings(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show handles complex date strings in verbose mode."""
     ctx, db_service = mock_ctx
     show_data = {
@@ -195,7 +195,7 @@ def test_search_show_exact_match_with_verbose_complex_date_strings(runner, mock_
     assert "First Aired: 2020-01-01" in result.output
     assert "Last Aired: 2023-01-01" in result.output
 
-def test_search_show_exact_match_with_verbose_date_exception(runner, mock_ctx):
+def test_search_show_exact_match_with_verbose_date_exception(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show handles date parsing exceptions in verbose mode."""
     ctx, db_service = mock_ctx
     show_data = {
@@ -211,7 +211,7 @@ def test_search_show_exact_match_with_verbose_date_exception(runner, mock_ctx):
     assert "First Aired: invalid-date" in result.output
     assert "Last Aired: invalid-date" in result.output
 
-def test_search_show_exact_match_only(runner, mock_ctx):
+def test_search_show_exact_match_only(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show uses exact matching only when --exact flag is used."""
     ctx, db_service = mock_ctx
     db_service.get_show_by_name_or_alias.return_value = None
@@ -223,7 +223,7 @@ def test_search_show_exact_match_only(runner, mock_ctx):
     # Should not call get_all_shows for partial matching
     assert not db_service.get_all_shows.called
 
-def test_search_show_tmdb_search_accepted(runner, mock_ctx):
+def test_search_show_tmdb_search_accepted(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show performs TMDB search when user accepts."""
     ctx, db_service = mock_ctx
     tmdb_service = ctx.obj['tmdb']
@@ -241,7 +241,7 @@ def test_search_show_tmdb_search_accepted(runner, mock_ctx):
     assert "Test Show" in result.output
     assert "Tip: Use 'add-show' command with --tmdb-id to add any of these shows" in result.output
 
-def test_search_show_tmdb_search_no_results(runner, mock_ctx):
+def test_search_show_tmdb_search_no_results(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show handles TMDB search with no results."""
     ctx, db_service = mock_ctx
     tmdb_service = ctx.obj['tmdb']
@@ -253,7 +253,7 @@ def test_search_show_tmdb_search_no_results(runner, mock_ctx):
     assert result.exit_code == 0
     assert "No TMDB results found" in result.output
 
-def test_search_show_tmdb_search_error(runner, mock_ctx):
+def test_search_show_tmdb_search_error(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show handles TMDB search errors."""
     ctx, db_service = mock_ctx
     tmdb_service = ctx.obj['tmdb']
@@ -265,7 +265,7 @@ def test_search_show_tmdb_search_error(runner, mock_ctx):
     assert result.exit_code == 0
     assert "Error searching TMDB: TMDB API error" in result.output
 
-def test_search_show_tmdb_search_limited_results(runner, mock_ctx):
+def test_search_show_tmdb_search_limited_results(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show limits TMDB results to 10."""
     ctx, db_service = mock_ctx
     tmdb_service = ctx.obj['tmdb']
@@ -291,7 +291,7 @@ def test_search_show_tmdb_search_limited_results(runner, mock_ctx):
     # Should not show the 11th result
     assert "Test Show 10" not in result.output
 
-def test_search_show_tmdb_search_with_long_overview(runner, mock_ctx):
+def test_search_show_tmdb_search_with_long_overview(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show truncates long overviews in TMDB results."""
     ctx, db_service = mock_ctx
     tmdb_service = ctx.obj['tmdb']
@@ -311,7 +311,7 @@ def test_search_show_tmdb_search_with_long_overview(runner, mock_ctx):
     assert "A" * 150 not in result.output  # Full 150-char overview should not be present
     assert "Test Show" in result.output  # Show name should be present
 
-def test_search_show_empty_database(runner, mock_ctx):
+def test_search_show_empty_database(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show handles empty database gracefully."""
     ctx, db_service = mock_ctx
     db_service.get_all_shows.return_value = []
@@ -319,7 +319,7 @@ def test_search_show_empty_database(runner, mock_ctx):
     assert result.exit_code == 0
     assert "📭 No shows found in database" in result.output
 
-def test_search_show_partial_match_with_aliases(runner, mock_ctx):
+def test_search_show_partial_match_with_aliases(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show finds matches in aliases field."""
     ctx, db_service = mock_ctx
     db_service.get_show_by_name_or_alias.return_value = None
@@ -331,7 +331,7 @@ def test_search_show_partial_match_with_aliases(runner, mock_ctx):
     assert "Found 1 partial match for 'Short'" in result.output
     assert "Full Show Name" in result.output
 
-def test_search_show_partial_match_case_insensitive(runner, mock_ctx):
+def test_search_show_partial_match_case_insensitive(runner, mock_ctx, mock_llm_service_patch):
     """Test that search_show performs case-insensitive partial matching."""
     ctx, db_service = mock_ctx
     db_service.get_show_by_name_or_alias.return_value = None

@@ -15,8 +15,10 @@ def asyncio_run(coro):
 
 def test_download_from_remote_success(mock_sftp_service, db_service, config, mocker):
     """Test that download_from_remote returns success when files are downloaded successfully."""
-    mocker.patch("utils.sync2nas_config.parse_sftp_paths", return_value=["/remote/path"])
-    mocker.patch("utils.sftp_orchestrator.download_from_remote", return_value=None)
+    mocker.patch("api.services.remote_service.parse_sftp_paths", return_value=["/remote/path"])
+    mocker.patch("api.services.remote_service.downloader", return_value=None)
+    mock_sftp_service.__enter__.return_value = mock_sftp_service
+    mock_sftp_service.__exit__.return_value = None
     remote_service = RemoteService(mock_sftp_service, db_service, config)
     result = asyncio_run(remote_service.download_from_remote(dry_run=False))
     assert result["success"] is True
@@ -29,9 +31,6 @@ def test_download_from_remote_no_paths(mock_sftp_service, db_service, config, mo
     mocker.patch("api.services.remote_service.parse_sftp_paths", return_value=[])
     mock_sftp_service.__enter__.return_value = mock_sftp_service
     mock_sftp_service.__exit__.return_value = None
-    if not config.has_section("Transfers"):
-        config.add_section("Transfers")
-    config["Transfers"]["incoming"] = "/tmp/incoming"
     remote_service = RemoteService(mock_sftp_service, db_service, config)
     with pytest.raises(ValueError):
         asyncio_run(remote_service.download_from_remote(dry_run=False))
@@ -43,9 +42,6 @@ def test_download_from_remote_exception(mock_sftp_service, db_service, config, m
     mocker.patch("api.services.remote_service.downloader", side_effect=Exception("fail!"))
     mock_sftp_service.__enter__.return_value = mock_sftp_service
     mock_sftp_service.__exit__.return_value = None
-    if not config.has_section("Transfers"):
-        config.add_section("Transfers")
-    config["Transfers"]["incoming"] = "/tmp/incoming"
     remote_service = RemoteService(mock_sftp_service, db_service, config)
     with pytest.raises(Exception) as exc:
         asyncio_run(remote_service.download_from_remote(dry_run=False))
@@ -94,7 +90,7 @@ def test_get_connection_status_connected(mock_sftp_service, db_service, config):
     result = asyncio_run(remote_service.get_connection_status())
     assert result["success"] is True
     assert result["status"] == "connected"
-    assert result["host"] == config["SFTP"]["host"]
+    assert result["host"] == config["sftp"]["host"]
 
 
 def test_get_connection_status_disconnected(mock_sftp_service, db_service, config, mocker):

@@ -5,8 +5,10 @@ from click.testing import CliRunner
 from cli.main import sync2nas_cli
 from models.show import Show
 from services.db_implementations.sqlite_implementation import SQLiteDBService
-from utils.sync2nas_config import load_configuration
-from utils.sync2nas_config import write_temp_config
+from utils.sync2nas_config import load_configuration, get_config_value
+from tests.utils.mock_service_factory import TestConfigurationHelper
+from utils.sync2nas_config import write_temp_config, get_config_value
+from tests.utils.mock_service_factory import TestConfigurationHelper
 from unittest.mock import patch, MagicMock
 from cli.bootstrap_tv_shows import bootstrap_tv_shows
 from services.llm_factory import create_llm_service
@@ -34,32 +36,36 @@ def create_temp_config(tmp_path) -> str:
         "ssh_key_path": str(tmp_path / "dummy_key"),
     }
     parser["TMDB"] = {"api_key": "dummy"}
+    parser["llm"] = {"service": "ollama"}
+    parser["ollama"] = {
+        "base_url": "http://localhost:11434",
+        "model": "llama3.2:1b",
+        "timeout": "30"
+    }
 
     config_path = write_temp_config(parser, tmp_path)
 
     return str(config_path)
 
 
-def test_bootstrap_tv_shows_adds_show(tmp_path, mock_tmdb_service, mock_sftp_service, cli_runner, cli):
+def test_bootstrap_tv_shows_adds_show(tmp_path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, mock_llm_service_patch):
     config_path = create_temp_config(tmp_path)
     config = load_configuration(config_path)
-    anime_tv_path = config["Routing"]["anime_tv_path"]
+    anime_tv_path = get_config_value(config, "routing", "anime_tv_path")
     show_name = "Mock_Show"
     os.makedirs(os.path.join(anime_tv_path, show_name), exist_ok=True)
 
-    db = SQLiteDBService(config["SQLite"]["db_file"])
+    db = SQLiteDBService(get_config_value(config, "sqlite", "db_file"))
     db.initialize()
 
-    obj = {
-        "config": config,
-        "db": db,
-        "tmdb": mock_tmdb_service,
-        "sftp": mock_sftp_service,
-        "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config),
-        "dry_run": False
-    }
+    obj = TestConfigurationHelper.create_cli_context_from_config(
+        config, 
+        tmp_path, 
+        dry_run=False,
+        db=db,
+        tmdb=mock_tmdb_service,
+        sftp=mock_sftp_service
+    )
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-tv-shows"], obj=obj)
     assert result.exit_code == 0
@@ -69,31 +75,29 @@ def test_bootstrap_tv_shows_adds_show(tmp_path, mock_tmdb_service, mock_sftp_ser
     assert len(shows) == 1
     assert shows[0]["sys_name"] == show_name
 
-def test_bootstrap_tv_shows_skips_existing(tmp_path, mock_tmdb_service, mock_sftp_service, cli_runner, cli):
+def test_bootstrap_tv_shows_skips_existing(tmp_path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, mock_llm_service_patch):
     config_path = create_temp_config(tmp_path)
     config = load_configuration(config_path)
-    anime_tv_path = config["Routing"]["anime_tv_path"]
+    anime_tv_path = get_config_value(config, "routing", "anime_tv_path")
     show_name = "Mock_Show"
     sys_path = os.path.join(anime_tv_path, show_name)
     os.makedirs(sys_path, exist_ok=True)
 
-    db = SQLiteDBService(config["SQLite"]["db_file"])
+    db = SQLiteDBService(get_config_value(config, "sqlite", "db_file"))
     db.initialize()
 
     details = mock_tmdb_service.get_show_details(123)
     show = Show.from_tmdb(details, sys_name=show_name, sys_path=sys_path)
     db.add_show(show)
 
-    obj = {
-        "config": config,
-        "db": db,
-        "tmdb": mock_tmdb_service,
-        "sftp": mock_sftp_service,
-        "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config),
-        "dry_run": False
-    }
+    obj = TestConfigurationHelper.create_cli_context_from_config(
+        config, 
+        tmp_path, 
+        dry_run=False,
+        db=db,
+        tmdb=mock_tmdb_service,
+        sftp=mock_sftp_service
+    )
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-tv-shows"], obj=obj)
     assert result.exit_code == 0
@@ -111,7 +115,7 @@ def test_bootstrap_tv_shows_skips_existing(tmp_path, mock_tmdb_service, mock_sft
     "Mock&Show",            # ampersand
 ])
 
-def test_bootstrap_tv_shows_dir_names(monkeypatch, cli_runner, cli, tmp_path, folder_name, mock_tmdb_service, mock_sftp_service):
+def test_bootstrap_tv_shows_dir_names(monkeypatch, cli_runner, cli, tmp_path, folder_name, mock_tmdb_service, mock_sftp_service, mock_llm_service_patch):
     anime_tv_path = tmp_path / "anime_tv_path"
     anime_tv_path.mkdir(parents=True, exist_ok=True)
 
@@ -147,23 +151,21 @@ def test_bootstrap_tv_shows_dir_names(monkeypatch, cli_runner, cli, tmp_path, fo
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "ollama3.2"}
+    parser["ollama"] = {"model": "gemma3:12b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
 
     db = SQLiteDBService(str(db_path))
     db.initialize()
 
-    obj = {
-        "config": config,
-        "db": db,
-        "tmdb": mock_tmdb_service,
-        "sftp": mock_sftp_service,
-        "anime_tv_path": str(anime_tv_path),
-        "incoming_path": str(incoming_path),
-        "llm_service": create_llm_service(config),
-        "dry_run": False
-    }
+    obj = TestConfigurationHelper.create_cli_context_from_config(
+        config, 
+        tmp_path, 
+        dry_run=False,
+        db=db,
+        tmdb=mock_tmdb_service,
+        sftp=mock_sftp_service
+    )
 
     result = cli_runner.invoke(cli, ["-c", str(config_path), "bootstrap-tv-shows"], obj=obj)
 
@@ -218,7 +220,7 @@ def mock_anime_tv_path(tmp_path):
 def runner():
     return CliRunner()
 
-def test_dry_run(runner, mock_db, mock_tmdb, mock_anime_tv_path):
+def test_dry_run(runner, mock_db, mock_tmdb, mock_anime_tv_path, mock_llm_service_patch):
     """Test dry run mode where no changes are made to the database."""
     result = runner.invoke(
         bootstrap_tv_shows,
@@ -230,7 +232,7 @@ def test_dry_run(runner, mock_db, mock_tmdb, mock_anime_tv_path):
     assert "DRY RUN" in result.output
     mock_db.add_show.assert_not_called()
 
-def test_add_new_show(runner, mock_db, mock_tmdb, mock_anime_tv_path):
+def test_add_new_show(runner, mock_db, mock_tmdb, mock_anime_tv_path, mock_llm_service_patch):
     """Test adding a new show successfully."""
     result = runner.invoke(
         bootstrap_tv_shows,
@@ -241,7 +243,7 @@ def test_add_new_show(runner, mock_db, mock_tmdb, mock_anime_tv_path):
     assert "Added: 2" in result.output
     assert mock_db.add_show.call_count == 2
 
-def test_skip_existing_show(runner, mock_db, mock_tmdb, mock_anime_tv_path):
+def test_skip_existing_show(runner, mock_db, mock_tmdb, mock_anime_tv_path, mock_llm_service_patch):
     """Test skipping a show that already exists in the database."""
     mock_db.show_exists.return_value = True
     
@@ -254,7 +256,7 @@ def test_skip_existing_show(runner, mock_db, mock_tmdb, mock_anime_tv_path):
     assert "Skipped: 2" in result.output
     mock_db.add_show.assert_not_called()
 
-def test_tmdb_search_failure(runner, mock_db, mock_tmdb, mock_anime_tv_path):
+def test_tmdb_search_failure(runner, mock_db, mock_tmdb, mock_anime_tv_path, mock_llm_service_patch):
     """Test handling TMDB search failures."""
     mock_tmdb.search_show.return_value = {"results": []}
     
@@ -267,7 +269,7 @@ def test_tmdb_search_failure(runner, mock_db, mock_tmdb, mock_anime_tv_path):
     assert "Failed: 2" in result.output
     mock_db.add_show.assert_not_called()
 
-def test_tmdb_details_failure(runner, mock_db, mock_tmdb, mock_anime_tv_path):
+def test_tmdb_details_failure(runner, mock_db, mock_tmdb, mock_anime_tv_path, mock_llm_service_patch):
     """Test handling TMDB details failures."""
     mock_tmdb.get_show_details.return_value = {}
     
@@ -280,7 +282,7 @@ def test_tmdb_details_failure(runner, mock_db, mock_tmdb, mock_anime_tv_path):
     assert "Failed: 2" in result.output
     mock_db.add_show.assert_not_called()
 
-def test_error_handling(runner, mock_db, mock_tmdb, mock_anime_tv_path):
+def test_error_handling(runner, mock_db, mock_tmdb, mock_anime_tv_path, mock_llm_service_patch):
     """Test error handling during show processing."""
     mock_tmdb.search_show.side_effect = Exception("Test error")
     

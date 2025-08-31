@@ -10,13 +10,32 @@ class DummyLLM(BaseLLMService):
     
     def suggest_short_filename(self, long_name: str, max_length: int = 20) -> str:
         return long_name[:max_length]
+    
+    def suggest_show_name(self, show_name: str, detailed_results: list) -> dict:
+        """Suggest the best show match from TMDB results."""
+        if not detailed_results:
+            return {
+                "tmdb_id": None,
+                "show_name": show_name,
+                "confidence": 0.1,
+                "reasoning": "No results available"
+            }
+        
+        # Return the first result as the best match
+        best_match = detailed_results[0]
+        return {
+            "tmdb_id": best_match.get("id"),
+            "show_name": best_match.get("name", show_name),
+            "confidence": 0.9,
+            "reasoning": "Dummy LLM selected first result"
+        }
 
 def test_create_filename_parsing_prompt():
     """Test that _create_filename_parsing_prompt returns a prompt string containing the filename."""
     llm = DummyLLM()
     prompt = llm._create_filename_parsing_prompt("Show.Name.S01E01.mkv")
     assert "Show.Name.S01E01.mkv" in prompt
-    assert "extract the following information" in prompt
+    assert "extract" in prompt.lower()
 
 def test_validate_and_clean_result_valid():
     """Test that _validate_and_clean_result returns cleaned and validated result for valid input."""

@@ -24,7 +24,7 @@ def test_successful_initialization(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "test-api-key",
-            "model": "claude-3-haiku",
+            "model": "gemma3:12b",
             "max_tokens": 300,
             "temperature": 0.2,
             "llm_confidence_threshold": 0.75,
@@ -38,7 +38,7 @@ def test_successful_initialization(monkeypatch):
     monkeypatch.setattr("services.llm_implementations.anthropic_implementation.anthropic.Anthropic", DummyClient)
 
     service = AnthropicLLMService(config=dummy_conf)
-    assert service.model == "claude-3-haiku"
+    assert service.model == "gemma3:12b"
     assert service.api_key == "test-api-key"
     assert service.max_tokens == 300
     assert service.temperature == 0.2
@@ -51,7 +51,7 @@ def test_missing_required_field_raises_value_error(missing_key, monkeypatch):
     config_dict = {
         "anthropic": {
             "api_key": "test-api-key",
-            "model": "claude-3-haiku",
+            "model": "gemma3:12b",
             "max_tokens": 300,
             "temperature": 0.2,
             "llm_confidence_threshold": 0.75,
@@ -77,11 +77,12 @@ def test_missing_required_field_raises_value_error(missing_key, monkeypatch):
     ("temperature", "not-a-float", ValueError),
     ("llm_confidence_threshold", "not-a-float", ValueError),
 ])
-def test_invalid_types_raise_typeerror(bad_key, bad_value, expected_type, monkeypatch):
+def test_invalid_types_raise_valueerror(bad_key, bad_value, expected_type, monkeypatch):
+    """Test that invalid type values raise ValueError during type conversion."""
     config_dict = {
         "anthropic": {
             "api_key": "test-api-key",
-            "model": "claude-3-haiku",
+            "model": "gemma3:12b",
             "max_tokens": 300,
             "temperature": 0.2,
             "llm_confidence_threshold": 0.75,
@@ -100,7 +101,7 @@ def test_parse_filename_success(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "claude-3-haiku",
+            "model": "gemma3:12b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -158,7 +159,7 @@ def test_initialization_with_non_integer_max_tokens(monkeypatch):
 
     monkeypatch.setattr("services.llm_implementations.anthropic_implementation.anthropic.Anthropic", lambda api_key: None)
 
-    with pytest.raises(TypeError, match="Anthropic max_tokens must be an integer"):
+    with pytest.raises(ValueError, match="Invalid configuration values for Anthropic service"):
         AnthropicLLMService(config=dummy_conf)
 
 def test_initialization_with_non_float_temperature(monkeypatch):
@@ -180,7 +181,7 @@ def test_initialization_with_non_float_temperature(monkeypatch):
 
     monkeypatch.setattr("services.llm_implementations.anthropic_implementation.anthropic.Anthropic", lambda api_key: None)
 
-    with pytest.raises(TypeError, match="Anthropic temperature must be a float"):
+    with pytest.raises(ValueError, match="Invalid configuration values for Anthropic service"):
         AnthropicLLMService(config=dummy_conf)
 
 def test_initialization_with_non_float_confidence_threshold(monkeypatch):
@@ -202,7 +203,35 @@ def test_initialization_with_non_float_confidence_threshold(monkeypatch):
 
     monkeypatch.setattr("services.llm_implementations.anthropic_implementation.anthropic.Anthropic", lambda api_key: None)
 
-    with pytest.raises(TypeError, match="Anthropic confidence_threshold must be a float"):
+    with pytest.raises(ValueError, match="Invalid configuration values for Anthropic service"):
+        AnthropicLLMService(config=dummy_conf)
+
+def test_initialization_with_empty_api_key(monkeypatch):
+    """Test initialization fails when API key is empty string."""
+    dummy_conf = DummyConfig({
+        "anthropic": {
+            "api_key": "",  # Empty string
+            "model": "claude-3-sonnet-20240229",
+        }
+    })
+
+    monkeypatch.setattr("services.llm_implementations.anthropic_implementation.anthropic.Anthropic", lambda api_key: None)
+
+    with pytest.raises(ValueError, match="Anthropic API key is required"):
+        AnthropicLLMService(config=dummy_conf)
+
+def test_initialization_with_none_api_key(monkeypatch):
+    """Test initialization fails when API key is None."""
+    dummy_conf = DummyConfig({
+        "anthropic": {
+            "api_key": None,  # None value
+            "model": "claude-3-sonnet-20240229",
+        }
+    })
+
+    monkeypatch.setattr("services.llm_implementations.anthropic_implementation.anthropic.Anthropic", lambda api_key: None)
+
+    with pytest.raises(ValueError, match="Anthropic API key is required"):
         AnthropicLLMService(config=dummy_conf)
 
 # ─────────────────────────────────────────────────────────
@@ -214,7 +243,7 @@ def test_parse_filename_json_decode_error(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "claude-3-haiku",
+            "model": "gemma3:12b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -255,7 +284,7 @@ def test_parse_filename_empty_response(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "claude-3-haiku",
+            "model": "gemma3:12b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -300,7 +329,7 @@ def test_suggest_short_dirname_success(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "claude-3-haiku",
+            "model": "gemma3:12b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -338,7 +367,7 @@ def test_suggest_short_dirname_with_special_characters(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "claude-3-haiku",
+            "model": "gemma3:12b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -377,7 +406,7 @@ def test_suggest_short_dirname_exception_handling(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "claude-3-haiku",
+            "model": "gemma3:12b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -413,7 +442,7 @@ def test_suggest_short_dirname_empty_response(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "claude-3-haiku",
+            "model": "gemma3:12b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -456,7 +485,7 @@ def test_suggest_short_filename_success(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "claude-3-haiku",
+            "model": "gemma3:12b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -494,7 +523,7 @@ def test_suggest_short_filename_with_special_characters(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "claude-3-haiku",
+            "model": "gemma3:12b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -533,7 +562,7 @@ def test_suggest_short_filename_exception_handling(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "claude-3-haiku",
+            "model": "gemma3:12b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -569,7 +598,7 @@ def test_suggest_short_filename_empty_response(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "claude-3-haiku",
+            "model": "gemma3:12b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -612,7 +641,7 @@ def test_suggest_show_name_success(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "claude-3-haiku",
+            "model": "gemma3:12b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -664,7 +693,7 @@ def test_suggest_show_name_json_decode_error(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "claude-3-haiku",
+            "model": "gemma3:12b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -717,7 +746,7 @@ def test_suggest_show_name_missing_required_fields(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "claude-3-haiku",
+            "model": "gemma3:12b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -770,7 +799,7 @@ def test_suggest_show_name_exception_handling(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "claude-3-haiku",
+            "model": "gemma3:12b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -820,7 +849,7 @@ def test_suggest_show_name_empty_response(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "claude-3-haiku",
+            "model": "gemma3:12b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -873,7 +902,7 @@ def test_suggest_show_name_empty_candidates(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "claude-3-haiku",
+            "model": "gemma3:12b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,

@@ -5,7 +5,8 @@ import configparser
 from click.testing import CliRunner
 from cli.main import sync2nas_cli
 from services.db_implementations.sqlite_implementation import SQLiteDBService
-from utils.sync2nas_config import load_configuration, write_temp_config
+from utils.sync2nas_config import load_configuration, write_temp_config, get_config_value
+from tests.utils.mock_service_factory import TestConfigurationHelper
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from cli.bootstrap_inventory import bootstrap_inventory
@@ -61,59 +62,61 @@ def create_temp_config(tmp_path) -> str:
         "ssh_key_path": str(tmp_path / "dummy_key"),
     }
     parser["TMDB"] = {"api_key": "dummy"}
+    parser["llm"] = {"service": "ollama"}
+    parser["ollama"] = {
+        "base_url": "http://localhost:11434",
+        "model": "llama3.2:1b",
+        "timeout": "30"
+    }
 
     return str(write_temp_config(parser, tmp_path))
 
-def test_bootstrap_inventory_dry_run(tmp_path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, db_service):
+def test_bootstrap_inventory_dry_run(tmp_path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, db_service, mock_llm_service_patch):
     config_path = create_temp_config(tmp_path)
     config = load_configuration(config_path)
 
     db = db_service
     db.initialize()
 
-    anime_tv_path = config["Routing"]["anime_tv_path"]
+    anime_tv_path = get_config_value(config, "routing", "anime_tv_path")
     os.makedirs(anime_tv_path, exist_ok=True)
     (Path(anime_tv_path) / "file1.mp4").write_text("content")
     (Path(anime_tv_path) / "file2.txt").write_text("content")  # All files should be included
 
-    obj = {
-        "config": config,
-        "db": db,
-        "tmdb": mock_tmdb_service,
-        "sftp": mock_sftp_service,
-        "anime_tv_path": anime_tv_path,
-        "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config),
-        "dry_run": True  # Set dry_run to True
-    }
+    obj = TestConfigurationHelper.create_cli_context_from_config(
+        config, 
+        tmp_path, 
+        dry_run=True,
+        db=db,
+        tmdb=mock_tmdb_service,
+        sftp=mock_sftp_service
+    )
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-inventory"], obj=obj)
 
     assert result.exit_code == 0
     assert "[DRY RUN] Would insert 2 entries into anime_tv_inventory table." in result.output
 
-def test_bootstrap_inventory_insert(tmp_path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, db_service):
+def test_bootstrap_inventory_insert(tmp_path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, db_service, mock_llm_service_patch):
     config_path = create_temp_config(tmp_path)
     config = load_configuration(config_path)
 
     db = db_service
     db.initialize()
 
-    anime_tv_path = config["Routing"]["anime_tv_path"]
+    anime_tv_path = get_config_value(config, "routing", "anime_tv_path")
     os.makedirs(anime_tv_path, exist_ok=True)
     (Path(anime_tv_path) / "file1.mp4").write_text("content")
     (Path(anime_tv_path) / "file2.txt").write_text("content")  # All files should be included
 
-    obj = {
-        "config": config,
-        "db": db,
-        "tmdb": mock_tmdb_service,
-        "sftp": mock_sftp_service,
-        "anime_tv_path": anime_tv_path,
-        "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config),
-        "dry_run": False
-    }
+    obj = TestConfigurationHelper.create_cli_context_from_config(
+        config, 
+        tmp_path, 
+        dry_run=False,
+        db=db,
+        tmdb=mock_tmdb_service,
+        sftp=mock_sftp_service
+    )
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-inventory"], obj=obj)
 
@@ -126,28 +129,26 @@ def test_bootstrap_inventory_insert(tmp_path, mock_tmdb_service, mock_sftp_servi
     assert inventory[0]["name"] == "file1.mp4"
     assert inventory[1]["name"] == "file2.txt"
 
-def test_bootstrap_inventory_file_filtering(tmp_path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, db_service):
+def test_bootstrap_inventory_file_filtering(tmp_path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, db_service, mock_llm_service_patch):
     config_path = create_temp_config(tmp_path)
     config = load_configuration(config_path)
 
     db = db_service
     db.initialize()
 
-    anime_tv_path = config["Routing"]["anime_tv_path"]
+    anime_tv_path = get_config_value(config, "routing", "anime_tv_path")
     os.makedirs(anime_tv_path, exist_ok=True)
     (Path(anime_tv_path) / "file1.mp4").write_text("content")
     (Path(anime_tv_path) / "file2.txt").write_text("content")  # All files should be included
 
-    obj = {
-        "config": config,
-        "db": db,
-        "tmdb": mock_tmdb_service,
-        "sftp": mock_sftp_service,
-        "anime_tv_path": anime_tv_path,
-        "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config),
-        "dry_run": True  # Set dry_run to True
-    }
+    obj = TestConfigurationHelper.create_cli_context_from_config(
+        config, 
+        tmp_path, 
+        dry_run=True,
+        db=db,
+        tmdb=mock_tmdb_service,
+        sftp=mock_sftp_service
+    )
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-inventory"], obj=obj)
 

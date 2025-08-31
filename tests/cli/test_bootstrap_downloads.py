@@ -5,7 +5,8 @@ import configparser
 from click.testing import CliRunner
 from cli.main import sync2nas_cli
 from services.db_implementations.sqlite_implementation import SQLiteDBService
-from utils.sync2nas_config import load_configuration, write_temp_config, parse_sftp_paths
+from utils.sync2nas_config import load_configuration, write_temp_config, parse_sftp_paths, get_config_value
+from tests.utils.mock_service_factory import TestConfigurationHelper
 from unittest.mock import MagicMock
 from services.llm_factory import create_llm_service
 
@@ -31,6 +32,12 @@ def create_temp_config(tmp_path) -> str:
         "paths": str(tmp_path / "remote")
     }
     parser["TMDB"] = {"api_key": "dummy"}
+    parser["llm"] = {"service": "ollama"}
+    parser["ollama"] = {
+        "base_url": "http://localhost:11434",
+        "model": "llama3.2:1b",
+        "timeout": "30"
+    }
 
     return str(write_temp_config(parser, tmp_path))
 
@@ -44,7 +51,7 @@ def db_service(db_path):
     db.initialize()
     return db
 
-def test_bootstrap_downloads_dry_run(tmp_path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, db_service):
+def test_bootstrap_downloads_dry_run(tmp_path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, db_service, mock_llm_service_patch):
     config_path = create_temp_config(tmp_path)
     config = load_configuration(config_path)
 
@@ -75,23 +82,21 @@ def test_bootstrap_downloads_dry_run(tmp_path, mock_tmdb_service, mock_sftp_serv
     mock_sftp_service.download_file = MagicMock()
     mock_sftp_service.download_dir = MagicMock()
 
-    obj = {
-        "config": config,
-        "db": db,
-        "tmdb": mock_tmdb_service,
-        "sftp": mock_sftp_service,
-        "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config),
-        "dry_run": True  # Set dry_run to True
-    }
+    obj = TestConfigurationHelper.create_cli_context_from_config(
+        config, 
+        tmp_path, 
+        dry_run=True,
+        db=db,
+        tmdb=mock_tmdb_service,
+        sftp=mock_sftp_service
+    )
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-downloads"], obj=obj)
 
     assert result.exit_code == 0
     assert "[DRY RUN] Would baseline downloaded_files from SFTP listing." in result.output
 
-def test_bootstrap_downloads_insert(tmp_path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, db_service):
+def test_bootstrap_downloads_insert(tmp_path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, db_service, mock_llm_service_patch):
     config_path = create_temp_config(tmp_path)
     config = load_configuration(config_path)
 
@@ -122,16 +127,14 @@ def test_bootstrap_downloads_insert(tmp_path, mock_tmdb_service, mock_sftp_servi
     mock_sftp_service.download_file = MagicMock()
     mock_sftp_service.download_dir = MagicMock()
 
-    obj = {
-        "config": config,
-        "db": db,
-        "tmdb": mock_tmdb_service,
-        "sftp": mock_sftp_service,
-        "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config),
-        "dry_run": False
-    }
+    obj = TestConfigurationHelper.create_cli_context_from_config(
+        config, 
+        tmp_path, 
+        dry_run=False,
+        db=db,
+        tmdb=mock_tmdb_service,
+        sftp=mock_sftp_service
+    )
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-downloads"], obj=obj)
 
