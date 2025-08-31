@@ -8,7 +8,8 @@ from cli.main import sync2nas_cli
 from models.show import Show
 from datetime import datetime
 from pathlib import Path
-from utils.sync2nas_config import write_temp_config
+from utils.sync2nas_config import write_temp_config, get_config_value
+from tests.utils.mock_service_factory import TestConfigurationHelper
 from models.episode import Episode
 from models.show import Show
 from services.llm_factory import create_llm_service
@@ -17,7 +18,7 @@ from services.llm_factory import create_llm_service
 # Fixtures
 # -------------------------------
 @pytest.fixture
-def test_config(tmp_path):
+def test_config(tmp_path, mock_llm_service_patch):
     """
     Creates a test configuration file and directory structure for SQLite.
     """
@@ -30,6 +31,7 @@ def test_config(tmp_path):
     incoming_path.mkdir()
     db_path.touch()
 
+    config["Database"] = {"type": "sqlite"}
     config["SQLite"] = {"db_file": str(db_path)}
     config["Routing"] = {"anime_tv_path": str(anime_tv_path)}
     config["Transfers"] = {"incoming": str(incoming_path)}
@@ -38,18 +40,24 @@ def test_config(tmp_path):
         "port": "22",
         "username": "user",
         "ssh_key_path": str(tmp_path / "dummy.key"),
-        "path": "/remote/path"
+        "paths": "/remote/path"
     }
     config["TMDB"] = {"api_key": "dummy"}
+    config["llm"] = {"service": "ollama"}
+    config["ollama"] = {
+        "base_url": "http://localhost:11434",
+        "model": "llama3.2:1b",
+        "timeout": "30"
+    }
 
     config_path = write_temp_config(config, tmp_path)
     return config, config_path
 
 
 @pytest.fixture
-def test_db(test_config):
+def test_db(test_config, mock_llm_service_patch):
     config, _ = test_config
-    db = SQLiteDBService(config["SQLite"]["db_file"])
+    db = SQLiteDBService(get_config_value(config, "sqlite", "db_file"))
     db.initialize()
     return db
 
@@ -109,22 +117,22 @@ def create_dummy_episodes():
 # Edge & Defensive Tests
 # -------------------------------
 
-def test_update_show_not_found(test_config, test_db, cli_runner, mock_tmdb_service, mock_sftp_service):
+def test_update_show_not_found(test_config, test_db, cli_runner, mock_tmdb_service, mock_sftp_service, mock_llm_service_patch):
     config, config_path = test_config
-    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "update-episodes", "Missing Show"], obj={
+    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "--skip-validation", "update-episodes", "Missing Show"], obj={
         "config": config,
         "db": test_db,
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
-        "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config),
+        "llm_service": None,
+        "anime_tv_path": get_config_value(config, "routing", "anime_tv_path"),
+        "incoming_path": get_config_value(config, "transfers", "incoming"),
         "dry_run": False
     })
     assert result.exit_code == 0  # CLI returns 0 even on errors
     assert "No show found in DB for show name" in result.output
 
-def test_tmdb_failure(monkeypatch, test_config, test_db, cli_runner, dummy_show, mock_tmdb_service, mock_sftp_service):
+def test_tmdb_failure(monkeypatch, test_config, test_db, cli_runner, dummy_show, mock_tmdb_service, mock_sftp_service, mock_llm_service_patch):
     config, config_path = test_config
     test_db.add_show(dummy_show)
 
@@ -133,42 +141,42 @@ def test_tmdb_failure(monkeypatch, test_config, test_db, cli_runner, dummy_show,
 
     monkeypatch.setattr(mock_tmdb_service, "get_show_details", fail)
 
-    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "update-episodes", "Bleach"], obj={
+    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "--skip-validation", "update-episodes", "Bleach"], obj={
         "config": config,
         "db": test_db,
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
-        "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config),
+        "llm_service": None,
+        "anime_tv_path": get_config_value(config, "routing", "anime_tv_path"),
+        "incoming_path": get_config_value(config, "transfers", "incoming"),
         "dry_run": False
     })
     assert result.exit_code == 1  # CLI returns 1 on errors
     # The error is in the exception, not the output
     assert "TMDB error" in str(result.exception)
 
-def test_no_episodes(monkeypatch, test_config, test_db, cli_runner, dummy_show, mock_tmdb_service, mock_sftp_service):
+def test_no_episodes(monkeypatch, test_config, test_db, cli_runner, dummy_show, mock_tmdb_service, mock_sftp_service, mock_llm_service_patch):
     config, config_path = test_config
     test_db.add_show(dummy_show)
 
     mock_tmdb_service.get_show_details.return_value = {"info": {"number_of_seasons": 2}, "episode_groups": {"results": []}}
     monkeypatch.setattr("models.episode.Episode.parse_from_tmdb", lambda *a, **k: [])
 
-    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "update-episodes", "Bleach"], obj={
+    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "--skip-validation", "update-episodes", "Bleach"], obj={
         "config": config,
         "db": test_db,
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
-        "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config),
+        "llm_service": None,
+        "anime_tv_path": get_config_value(config, "routing", "anime_tv_path"),
+        "incoming_path": get_config_value(config, "transfers", "incoming"),
         "dry_run": False
     })
 
     assert result.exit_code == 0  # CLI returns 0 even on errors
     assert "Failed to fetch or update episodes for Bleach" in result.output
 
-def test_dry_run(monkeypatch, test_config, test_db, cli_runner, dummy_show, mock_tmdb_service, mock_sftp_service):
+def test_dry_run(monkeypatch, test_config, test_db, cli_runner, dummy_show, mock_tmdb_service, mock_sftp_service, mock_llm_service_patch):
     config, config_path = test_config
     test_db.add_show(dummy_show)
 
@@ -185,14 +193,14 @@ def test_dry_run(monkeypatch, test_config, test_db, cli_runner, dummy_show, mock
     
     monkeypatch.setattr(test_db, "add_episodes", mock_add_episodes)
 
-    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "update-episodes", "Bleach"], obj={
+    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "--skip-validation", "update-episodes", "Bleach"], obj={
         "config": config,
         "db": test_db,
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
-        "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config),
+        "llm_service": None,
+        "anime_tv_path": get_config_value(config, "routing", "anime_tv_path"),
+        "incoming_path": get_config_value(config, "transfers", "incoming"),
         "dry_run": True
     })
 
@@ -201,27 +209,27 @@ def test_dry_run(monkeypatch, test_config, test_db, cli_runner, dummy_show, mock
     # In dry run mode, add_episodes should not be called
     assert not add_episodes_called
 
-def test_db_failure(monkeypatch, test_config, cli_runner, mock_tmdb_service, mock_sftp_service):
+def test_db_failure(monkeypatch, test_config, cli_runner, mock_tmdb_service, mock_sftp_service, mock_llm_service_patch):
     config, config_path = test_config
-    broken_db = SQLiteDBService(config["SQLite"]["db_file"])
+    broken_db = SQLiteDBService(get_config_value(config, "sqlite", "db_file"))
     broken_db.initialize()
     monkeypatch.setattr(broken_db, "get_show_by_name_or_alias", lambda *a, **k: (_ for _ in ()).throw(sqlite3.OperationalError("Mock DB error")))
 
-    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "update-episodes", "Bleach"], obj={
+    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "--skip-validation", "update-episodes", "Bleach"], obj={
         "config": config,
         "db": broken_db,
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
-        "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config),
+        "llm_service": None,
+        "anime_tv_path": get_config_value(config, "routing", "anime_tv_path"),
+        "incoming_path": get_config_value(config, "transfers", "incoming"),
         "dry_run": False
     })
     assert result.exit_code == 1  # CLI returns 1 on errors
     # The error is in the exception, not the output
     assert "Mock DB error" in str(result.exception)
 
-def test_unicode_show_name(test_config, test_db, cli_runner, mock_tmdb_service, mock_sftp_service):
+def test_unicode_show_name(test_config, test_db, cli_runner, mock_tmdb_service, mock_sftp_service, mock_llm_service_patch):
     config, config_path = test_config
     unicode_show = Show(
         sys_name="名探偵コナン",
@@ -243,32 +251,32 @@ def test_unicode_show_name(test_config, test_db, cli_runner, mock_tmdb_service, 
     )
     test_db.add_show(unicode_show)
 
-    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "update-episodes", "名探偵コナン"], obj={
+    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "--skip-validation", "update-episodes", "名探偵コナン"], obj={
         "config": config,
         "db": test_db,
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
-        "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config),
+        "llm_service": None,
+        "anime_tv_path": get_config_value(config, "routing", "anime_tv_path"),
+        "incoming_path": get_config_value(config, "transfers", "incoming"),
         "dry_run": False
     })
 
     assert result.exit_code == 0
     assert "名探偵コナン" in result.output
 
-def test_invalid_tmdb_id(test_config, cli_runner):
+def test_invalid_tmdb_id(test_config, cli_runner, mock_llm_service_patch):
     config, config_path = test_config
     result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "update-episodes", "--tmdb-id", "abc"])
     assert result.exit_code != 0  # This should fail due to invalid argument
 
 
-def test_update_by_show_name(test_config, cli_runner, cli, mock_tmdb_service, mock_sftp_service, monkeypatch, dummy_show):
+def test_update_by_show_name(test_config, cli_runner, cli, mock_tmdb_service, mock_sftp_service, monkeypatch, dummy_show, mock_llm_service_patch):
     """
     Validate update-episodes works when providing show_name.
     """
     config, config_path = test_config
-    db = SQLiteDBService(config["SQLite"]["db_file"])
+    db = SQLiteDBService(get_config_value(config, "sqlite", "db_file"))
     db.initialize()
 
     # Add test show
@@ -286,14 +294,14 @@ def test_update_by_show_name(test_config, cli_runner, cli, mock_tmdb_service, mo
         lambda tmdb_id, tmdb, groups, season_count: create_dummy_episodes()
     )
 
-    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "update-episodes", "Bleach"], obj={
+    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "--skip-validation", "update-episodes", "Bleach"], obj={
         "config": config,
         "db": db,
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
-        "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config),
+        "llm_service": None,  # Not needed for this test
+        "anime_tv_path": get_config_value(config, "routing", "anime_tv_path"),
+        "incoming_path": get_config_value(config, "transfers", "incoming"),
         "dry_run": False
     })
 
@@ -302,12 +310,12 @@ def test_update_by_show_name(test_config, cli_runner, cli, mock_tmdb_service, mo
     assert "✅ 2 episodes added/updated for Bleach" in result.output
 
 
-def test_update_by_tmdb_id(test_config, cli_runner, cli, mock_tmdb_service, mock_sftp_service, monkeypatch, dummy_show):
+def test_update_by_tmdb_id(test_config, cli_runner, cli, mock_tmdb_service, mock_sftp_service, monkeypatch, dummy_show, mock_llm_service_patch):
     """
     Validate update-episodes works when providing tmdb_id.
     """
     config, config_path = test_config
-    db = SQLiteDBService(config["SQLite"]["db_file"])
+    db = SQLiteDBService(get_config_value(config, "sqlite", "db_file"))
     db.initialize()
 
     # Add test show
@@ -325,14 +333,14 @@ def test_update_by_tmdb_id(test_config, cli_runner, cli, mock_tmdb_service, mock
         lambda tmdb_id, tmdb, groups, season_count: create_dummy_episodes()
     )
 
-    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "update-episodes", "--tmdb-id", "30985"], obj={
+    result = cli_runner.invoke(sync2nas_cli, ["-c", config_path, "--skip-validation", "update-episodes", "--tmdb-id", "30985"], obj={
         "config": config,
         "db": db,
         "tmdb": mock_tmdb_service,
         "sftp": mock_sftp_service,
-        "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config),
+        "llm_service": None,  # Not needed for this test
+        "anime_tv_path": get_config_value(config, "routing", "anime_tv_path"),
+        "incoming_path": get_config_value(config, "transfers", "incoming"),
         "dry_run": False
     })
 

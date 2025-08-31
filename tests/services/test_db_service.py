@@ -216,7 +216,7 @@ def test_sqlite_adapter_registration_error(tmp_path, monkeypatch):
         "Database": {"type": "sqlite"},
         "SQLite": {"db_file": os.path.join(tmp_path, "test.db")},
         "llm": {"service": "ollama"},
-        "ollama": {"model": "ollama3.2"},
+        "ollama": {"model": "gemma3:12b"},
     }
     db_service = create_db_service(config)
     # Should not raise anything, just log error
@@ -229,7 +229,7 @@ def test_connection_error_handling(tmp_path, monkeypatch):
         "Database": {"type": "sqlite"},
         "SQLite": {"db_file": os.path.join(tmp_path, "test.db")},
         "llm": {"service": "ollama"},
-        "ollama": {"model": "ollama3.2"},
+        "ollama": {"model": "gemma3:12b"},
     }
     db_service = create_db_service(config)
     monkeypatch.setattr(sqlite3, "connect", mock_connect)

@@ -7,7 +7,8 @@ from cli.main import sync2nas_cli
 from models.show import Show
 from models.episode import Episode
 from services.db_implementations.sqlite_implementation import SQLiteDBService
-from utils.sync2nas_config import load_configuration, write_temp_config
+from utils.sync2nas_config import load_configuration, write_temp_config, get_config_value
+from tests.utils.mock_service_factory import TestConfigurationHelper
 from services.llm_factory import create_llm_service
 
 
@@ -32,19 +33,25 @@ def create_temp_config(tmp_path) -> str:
         "ssh_key_path": str(tmp_path / "dummy_key"),
     }
     parser["TMDB"] = {"api_key": "dummy"}
+    parser["llm"] = {"service": "ollama"}
+    parser["ollama"] = {
+        "base_url": "http://localhost:11434",
+        "model": "llama3.2:1b",
+        "timeout": "30"
+    }
 
     return str(write_temp_config(parser, tmp_path))
 
 
-def test_bootstrap_episodes_adds_records(tmp_path, mock_tmdb_service, mock_sftp_service, cli_runner, cli):
+def test_bootstrap_episodes_adds_records(tmp_path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, mock_llm_service_patch):
     config_path = create_temp_config(tmp_path)
     config = load_configuration(config_path)
 
-    db_path = config["SQLite"]["db_file"]
+    db_path = get_config_value(config, "sqlite", "db_file")
     db = SQLiteDBService(db_path)
     db.initialize()
 
-    anime_tv_path = config["Routing"]["anime_tv_path"]
+    anime_tv_path = get_config_value(config, "routing", "anime_tv_path")
     show_name = "Mock_Show"
     sys_path = os.path.join(anime_tv_path, show_name)
     os.makedirs(sys_path, exist_ok=True)
@@ -53,16 +60,14 @@ def test_bootstrap_episodes_adds_records(tmp_path, mock_tmdb_service, mock_sftp_
     show = Show.from_tmdb(details, sys_name=show_name, sys_path=sys_path)
     db.add_show(show)
 
-    obj = {
-        "config": config,
-        "db": db,
-        "tmdb": mock_tmdb_service,
-        "sftp": mock_sftp_service,
-        "anime_tv_path": anime_tv_path,
-        "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config),
-        "dry_run": False
-    }
+    obj = TestConfigurationHelper.create_cli_context_from_config(
+        config, 
+        tmp_path, 
+        dry_run=False,
+        db=db,
+        tmdb=mock_tmdb_service,
+        sftp=mock_sftp_service
+    )
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-episodes"], obj=obj)
 
@@ -74,15 +79,15 @@ def test_bootstrap_episodes_adds_records(tmp_path, mock_tmdb_service, mock_sftp_
 
 
 
-def test_bootstrap_episodes_skips_existing(tmp_path, mock_tmdb_service, mock_sftp_service, cli_runner, cli):
+def test_bootstrap_episodes_skips_existing(tmp_path, mock_tmdb_service, mock_sftp_service, cli_runner, cli, mock_llm_service_patch):
     config_path = create_temp_config(tmp_path)
     config = load_configuration(config_path)
 
-    db_path = config["SQLite"]["db_file"]
+    db_path = get_config_value(config, "sqlite", "db_file")
     db = SQLiteDBService(db_path)
     db.initialize()
 
-    anime_tv_path = config["Routing"]["anime_tv_path"]
+    anime_tv_path = get_config_value(config, "routing", "anime_tv_path")
     show_name = "Mock_Show"
     sys_path = os.path.join(anime_tv_path, show_name)
     os.makedirs(sys_path, exist_ok=True)
@@ -105,16 +110,14 @@ def test_bootstrap_episodes_skips_existing(tmp_path, mock_tmdb_service, mock_sft
     )
     db.add_episode(episode)
 
-    obj = {
-        "config": config,
-        "db": db,
-        "tmdb": mock_tmdb_service,
-        "sftp": mock_sftp_service,
-        "anime_tv_path": anime_tv_path,
-        "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config),
-        "dry_run": False
-    }
+    obj = TestConfigurationHelper.create_cli_context_from_config(
+        config, 
+        tmp_path, 
+        dry_run=False,
+        db=db,
+        tmdb=mock_tmdb_service,
+        sftp=mock_sftp_service
+    )
 
     result = cli_runner.invoke(cli, ["-c", config_path, "bootstrap-episodes"], obj=obj)
 

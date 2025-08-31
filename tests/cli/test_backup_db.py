@@ -17,7 +17,7 @@ def mock_ctx():
     ctx.obj = {'db': db_service, 'config': config, 'dry_run': False}
     return ctx, db_service
 
-def test_backup_db_dry_run(runner, mock_ctx, caplog):
+def test_backup_db_dry_run(runner, mock_ctx, caplog, mock_llm_service_patch):
     """Test that backup_db logs dry run messages and does not call backup_database when dry_run is True in ctx.obj."""
     ctx, db_service = mock_ctx
     ctx.obj['dry_run'] = True
@@ -27,7 +27,7 @@ def test_backup_db_dry_run(runner, mock_ctx, caplog):
     assert "[DRY RUN] Simulating database backup." in caplog.text
     assert not db_service.backup_database.called
 
-def test_backup_db_success(runner, mock_ctx, caplog):
+def test_backup_db_success(runner, mock_ctx, caplog, mock_llm_service_patch):
     """Test that backup_db calls backup_database and logs success when not a dry run."""
     ctx, db_service = mock_ctx
     ctx.obj['dry_run'] = False
@@ -38,7 +38,7 @@ def test_backup_db_success(runner, mock_ctx, caplog):
     assert db_service.backup_database.called
     assert "Database backup created successfully: /tmp/backup.sqlite" in caplog.text
 
-def test_backup_db_failure(runner, mock_ctx, caplog):
+def test_backup_db_failure(runner, mock_ctx, caplog, mock_llm_service_patch):
     """Test that backup_db logs an error if backup_database raises an exception."""
     ctx, db_service = mock_ctx
     ctx.obj['dry_run'] = False

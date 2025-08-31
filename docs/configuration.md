@@ -1,47 +1,53 @@
+# Configuration Guide
+
+Sync2NAS uses an INI-style configuration file to manage all settings. The default configuration file is `config/sync2nas_config.ini`.
+
 You can specify a different config file using the `--config` CLI option or the `SYNC2NAS_CONFIG` environment variable.
+
+**Important:** Use lowercase section names for consistency. While the system accepts mixed case, lowercase is preferred and recommended.
 
 ---
 
 ## Configuration Sections
 
-### [SFTP]
+### [sftp] - SFTP Server Configuration
 
 Configure your SFTP server connection and remote paths.
 
 ```ini
-[SFTP]
+[sftp]
 host = your.sftpserver.com
 port = 22
 username = your_username
 ssh_key_path = ./ssh/your_sftpserver_rsa
 paths = /path/to/remote/files/,/another/remote/path/
 ```
-- `host`: SFTP server hostname or IP address.
-- `port`: SFTP server port (default: 22).
-- `username`: SFTP username.
-- `ssh_key_path`: Path to your SSH private key file.
-- `paths`: Comma-separated list of remote directories to sync.
+- `host`: SFTP server hostname or IP address
+- `port`: SFTP server port (default: 22)
+- `username`: SFTP username
+- `ssh_key_path`: Path to your SSH private key file
+- `paths`: Comma-separated list of remote directories to sync
 
 ---
 
-### [Database]
+### [database] - Database Backend Selection
 
 Select and configure your database backend.
 
 ```ini
-[Database]
-type = sqlite  # Options: sqlite, postgres, milvus
+[database]
+type = sqlite  # Options: sqlite, postgresql, milvus
 ```
 
 #### SQLite (default, recommended for most users)
 ```ini
-[SQLite]
+[sqlite]
 db_file = ./database/sync2nas.db
 ```
 
 #### PostgreSQL
 ```ini
-[PostgreSQL]
+[postgresql]
 host = localhost
 port = 5432
 database = sync2nas
@@ -51,231 +57,324 @@ password = your_password
 
 #### Milvus (experimental, for vector search)
 ```ini
-[Milvus]
+[milvus]
 host = localhost
 port = 19530
 ```
 
 ---
 
-### [Transfers]
+### [transfers] - File Transfer Settings
 
 Configure the local directory where files are downloaded before routing.
 
 ```ini
-[Transfers]
+[transfers]
 incoming = ./incoming
 ```
-- `incoming`: Path to the local "incoming" directory.
+- `incoming`: Path to the local "incoming" directory
 
 ---
 
-### [Routing]
+### [routing] - Media Library Paths
 
 Configure where routed files should be placed.
 
 ```ini
-[Routing]
+[routing]
 anime_tv_path = d:/anime_tv/
 movie_path = d:/movies/
 ```
-- `anime_tv_path`: Path to your TV show library.
-- `movie_path`: Path to your movie library (optional/future use).
+- `anime_tv_path`: Path to your TV show library
+- `movie_path`: Path to your movie library (optional/future use)
 
 ---
 
-### [TMDB]
+### [tmdb] - TMDB API Configuration
 
 Configure your TMDB API key for metadata enrichment.
 
 ```ini
-[TMDB]
+[tmdb]
 api_key = your_tmdb_api_key_here
 ```
-- `api_key`: Get this from [The Movie Database](https://www.themoviedb.org/).
+- `api_key`: Get this from [The Movie Database](https://www.themoviedb.org/)
 
 ---
 
-### [OpenAI] (Optional, for AI-powered filename parsing)
+## LLM Configuration
 
-Configure OpenAI GPT integration for filename parsing.
+### [llm] - LLM Service Selection (Required)
+
+Specifies which LLM backend to use for AI-powered filename parsing.
 
 ```ini
-[OpenAI]
-api_key = your_openai_api_key
-model = gpt-3.5-turbo
-max_tokens = 150
+[llm]
+service = ollama  # Options: ollama, openai, anthropic
+```
+- `service`: Which LLM backend to use. Options: `ollama`, `openai`, `anthropic`
+
+### [ollama] - Ollama Configuration (Default)
+
+Configuration for the Ollama local LLM backend. **Recommended for most users** as it's free and runs locally.
+
+```ini
+[ollama]
+model = gemma3:12b
+host = http://localhost:11434
+timeout = 30
+```
+- `model`: The Ollama model to use (must be installed locally)
+- `host`: Ollama server URL (default: http://localhost:11434)
+- `timeout`: Request timeout in seconds (default: 30)
+
+**Setup Ollama:**
+1. Install from [ollama.ai](https://ollama.ai/)
+2. Pull a model: `ollama pull gemma3:12b`
+3. Verify: `ollama list`
+
+### [openai] - OpenAI Configuration (Optional)
+
+Configuration for the OpenAI LLM backend. Requires API key and credits.
+
+```ini
+[openai]
+api_key = your_openai_api_key_here
+model = gpt-4
+max_tokens = 4000
 temperature = 0.1
 ```
-- `api_key`: Get this from [OpenAI](https://platform.openai.com/).
-- `model`: OpenAI model to use (default: gpt-3.5-turbo).
-- `max_tokens`: Maximum tokens for LLM responses (default: 150).
-- `temperature`: Response randomness (default: 0.1 for consistent parsing).
+- `api_key`: Your OpenAI API key from [platform.openai.com](https://platform.openai.com/api-keys)
+- `model`: OpenAI model to use (recommended: gpt-4)
+- `max_tokens`: Maximum tokens for LLM responses (default: 4000)
+- `temperature`: Response randomness (default: 0.1 for consistent parsing)
+
+### [anthropic] - Anthropic Configuration (Optional)
+
+Configuration for the Anthropic Claude LLM backend. Requires API key.
+
+```ini
+[anthropic]
+api_key = your_anthropic_api_key_here
+model = claude-3-sonnet-20240229
+max_tokens = 4000
+temperature = 0.1
+```
+- `api_key`: Your Anthropic API key from [console.anthropic.com](https://console.anthropic.com/)
+- `model`: Anthropic model to use (recommended: claude-3-sonnet-20240229)
+- `max_tokens`: Maximum tokens for LLM responses (default: 4000)
+- `temperature`: Response randomness (default: 0.1 for consistent parsing)
 
 ---
 
-### [API] (Optional, for REST API server)
+## Optional Configuration Sections
+
+### [api] - REST API Server (Optional)
 
 Configure the API server.
 
 ```ini
-[API]
+[api]
 host = 127.0.0.1
 port = 8000
 ```
-- `host`: Hostname to bind the API server (default: 127.0.0.1).
-- `port`: Port for the API server (default: 8000).
+- `host`: Hostname to bind the API server (default: 127.0.0.1)
+- `port`: Port for the API server (default: 8000)
 
 ---
 
-### [Hashing] (Optional)
+### [hashing] - File Hashing (Optional)
 
 Configure hashing behavior for large files.
 
 ```ini
-[Hashing]
-; Either set chunk_size_bytes directly, or chunk_size_mib (MiB)
-; chunk_size_bytes = 1048576
+[hashing]
+# Either set chunk_size_bytes directly, or chunk_size_mib (MiB)
+# chunk_size_bytes = 1048576
 chunk_size_mib = 1
 ```
-- `chunk_size_bytes`: Read chunk size in bytes used when hashing large files.
-- `chunk_size_mib`: Convenience option; multiplied by 1,048,576 to derive bytes.
+- `chunk_size_bytes`: Read chunk size in bytes used when hashing large files
+- `chunk_size_mib`: Convenience option; multiplied by 1,048,576 to derive bytes
 
 Defaults to 1 MiB if not specified.
 
 ---
 
-### [llm] Section
-Specifies which LLM backend to use for filename parsing.
-
-```
-[llm]
-service = ollama  # or openai
-```
-- `service`: Which LLM backend to use. Options: `ollama`, `openai`.
-
-### [ollama] Section
-Configuration for the Ollama local LLM backend.
-
-```
-[ollama]
-model = llama3.2
-llm_confidence_threshold = 0.7
-```
-- `model`: The Ollama model to use (must be available locally).
-- `llm_confidence_threshold`: Minimum confidence required to accept LLM results (float, 0.0-1.0).
-
-### [openai] Section
-Configuration for the OpenAI LLM backend.
-
-```
-[openai]
-model = gpt-3.5-turbo
-api_key = your_openai_api_key
-max_tokens = 250
-temperature = 0.1
-```
-- `model`: The OpenAI model to use.
-- `api_key`: Your OpenAI API key.
-- `max_tokens`: Maximum tokens for LLM responses.
-- `temperature`: Sampling temperature for LLM responses.
-
----
-
-## Complete Example
+## Complete Configuration Example
 
 ```ini
-[SFTP]
+# Core Services Configuration (lowercase section names preferred)
+[sftp]
 host = your.sftpserver.com
 port = 22
 username = your_username
 ssh_key_path = ./ssh/your_sftpserver_rsa
 paths = /path/to/remote/files/,/another/remote/path/
 
-[Database]
+[database]
 type = sqlite
 
-[SQLite]
+[sqlite]
 db_file = ./database/sync2nas.db
 
-[Transfers]
+[transfers]
 incoming = ./incoming
 
-[TMDB]
-api_key = a1234567-b123-c123-d123-e12345678901
+[tmdb]
+api_key = your_tmdb_api_key_here
 
-[OpenAI]
-api_key = sk-your-openai-api-key
-model = gpt-3.5-turbo
-max_tokens = 150
+[routing]
+anime_tv_path = d:/anime_tv/
+
+# LLM Configuration - Choose one service
+[llm]
+service = ollama  # Options: ollama, openai, anthropic
+
+# Ollama Configuration (Default - Free local LLM)
+[ollama]
+model = gemma3:12b
+host = http://localhost:11434
+timeout = 30
+
+# OpenAI Configuration (Optional - Requires API key)
+[openai]
+api_key = your_openai_api_key_here
+model = gpt-4
+max_tokens = 4000
 temperature = 0.1
 
-[Routing]
-anime_tv_path = d:/anime_tv/
-movie_path = d:/movies/
+# Anthropic Configuration (Optional - Requires API key)
+[anthropic]
+api_key = your_anthropic_api_key_here
+model = claude-3-sonnet-20240229
+max_tokens = 4000
+temperature = 0.1
 
-[API]
+# Optional API Server
+[api]
 host = 127.0.0.1
 port = 8000
-
-[llm]
-service = ollama
-
-[ollama]
-model = llama3.2
-llm_confidence_threshold = 0.7
-
-[openai]
-model = gpt-3.5-turbo
-api_key = your_openai_api_key
-max_tokens = 250
-temperature = 0.1
 ```
 
 ---
 
 ## Environment Variables
 
-You can override some settings with environment variables:
+You can override any configuration value using environment variables. This is especially useful for sensitive data like API keys.
 
-- `SYNC2NAS_CONFIG`: Path to configuration file
-- `SYNC2NAS_SFTP_HOST`: SFTP server hostname
-- `SYNC2NAS_TMDB_API_KEY`: TMDB API key
-- `SYNC2NAS_OPENAI_API_KEY`: OpenAI API key
+### Environment Variable Format
+Environment variables follow the pattern: `SYNC2NAS_<SECTION>_<KEY>`
+
+### Common Environment Variables
+```bash
+# LLM Service Selection
+export SYNC2NAS_LLM_SERVICE=openai
+
+# API Keys (recommended for production)
+export SYNC2NAS_OPENAI_API_KEY=your_openai_key
+export SYNC2NAS_ANTHROPIC_API_KEY=your_anthropic_key
+export SYNC2NAS_TMDB_API_KEY=your_tmdb_key
+
+# Ollama Configuration
+export SYNC2NAS_OLLAMA_HOST=http://localhost:11434
+export SYNC2NAS_OLLAMA_MODEL=gemma3:12b
+
+# Database Configuration
+export SYNC2NAS_DATABASE_TYPE=sqlite
+export SYNC2NAS_SQLITE_DB_FILE=./database/sync2nas.db
+```
+
+**For complete environment variable documentation, see:** [Environment Variables Guide](environment_variables.md)
+
+---
+
+## Configuration Validation
+
+Sync2NAS includes built-in configuration validation with intelligent error suggestions:
+
+```bash
+# Validate your entire configuration
+python sync2nas.py config-check
+
+# Check specific LLM service
+python sync2nas.py config-check --service openai
+
+# Get detailed suggestions
+python sync2nas.py config-check --verbose
+```
+
+The validator provides:
+- **Typo detection**: Suggests corrections for common misspellings
+- **Missing configuration**: Lists exactly what needs to be added
+- **Format validation**: Checks API key formats, URLs, etc.
+- **Intelligent suggestions**: Context-aware recommendations
+
+**Example validation output:**
+```
+❌ Configuration Issues Found:
+  • [openai] api_key: Required key missing
+  • Suggestion: Get your API key from https://platform.openai.com/api-keys
+
+💡 Intelligent Suggestions:
+  • Section '[OpenAI]' should be '[openai]' (lowercase preferred)
+  • Use environment variable: SYNC2NAS_OPENAI_API_KEY=your_key
+```
 
 ---
 
 ## Security Best Practices
 
-- **SSH keys:** Use SSH keys for SFTP, not passwords. Set permissions to 600.
-- **API keys:** Never commit API keys to version control. Use environment variables for sensitive data.
-- **Database:** Use strong passwords for PostgreSQL. Restrict access to the database file for SQLite.
+- **SSH keys:** Use SSH keys for SFTP, not passwords. Set permissions to 600
+- **API keys:** Never commit API keys to version control. Use environment variables for sensitive data
+- **Database:** Use strong passwords for PostgreSQL. Restrict access to the database file for SQLite
+- **Environment variables:** Use `SYNC2NAS_*` environment variables for production deployments
 
 ---
 
 ## Troubleshooting
 
-- **Missing config section:** Ensure all required sections are present in your config file.
-- **SFTP errors:** Check SSH key permissions and server connectivity.
-- **Database errors:** Verify backend type and connection details.
-- **API key errors:** Make sure your TMDB/OpenAI keys are valid and not expired.
-- **File permissions:** Ensure the app has read/write access to all configured paths.
+### Quick Diagnosis
+```bash
+# Check configuration health
+python sync2nas.py config-check
+
+# Test specific service
+python sync2nas.py config-check --service ollama
+```
+
+### Common Issues
+- **Case sensitivity:** Use lowercase section names (`[openai]` not `[OpenAI]`)
+- **Missing sections:** Each selected LLM service needs its configuration section
+- **Invalid API keys:** Check format and validity
+- **Ollama not running:** Ensure Ollama service is started and models are installed
+
+**For detailed troubleshooting, see:** [Configuration Troubleshooting Guide](configuration_troubleshooting.md)
+
+---
+
+## Migration Notes
+
+**From older versions:**
+- Use lowercase section names for consistency
+- The `[llm]` section is now required to select LLM backend
+- Old `[OpenAI]` sections should be renamed to `[openai]`
+- Environment variables now use `SYNC2NAS_` prefix
+
+---
+
+## Additional Resources
+
+- **[Environment Variables Guide](environment_variables.md)**: Complete environment variable reference
+- **[Configuration Troubleshooting](configuration_troubleshooting.md)**: Detailed troubleshooting guide
+- **[Database Backends Guide](database_backends.md)**: Database setup and configuration
+- **[Main README](../README.md)**: General usage and setup information
 
 ---
 
 ## Tips
 
-- Use `--config` to specify a custom config file.
-- Use `-v` or `-vv` for more verbose logging.
-- Use `--dry-run` to preview actions without making changes.
-- Always backup your database before making major changes.
-
----
-
-For more details on configuration options, see the main [README.md](../README.md) and the [Database Backends Guide](database_backends.md).
-
----
-
-**Migration Note:**
-- The old `LLMService` config options are no longer supported.
-- You must migrate to the new `[llm]`, `[ollama]`, and `[openai]` sections as described above.
+- Use `--config` to specify a custom config file
+- Use `-v` or `-vv` for more verbose logging
+- Use `--dry-run` to preview actions without making changes
+- Always backup your database before making major changes
+- Test configuration with `config-check` after making changes

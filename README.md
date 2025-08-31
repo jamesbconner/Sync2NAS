@@ -176,6 +176,8 @@ See the [GUI Documentation](gui/README.md) for detailed usage instructions and f
 - **[CLI Commands](docs/cli_commands.md)**: Complete guide to all CLI commands
 - **[GUI Interface](gui/README.md)**: Information about the GUI abilities
 - **[Configuration Guide](docs/configuration.md)**: Detailed configuration options
+- **[Environment Variables](docs/environment_variables.md)**: Complete environment variable reference
+- **[Configuration Troubleshooting](docs/configuration_troubleshooting.md)**: Troubleshooting guide for configuration issues
 - **[File Routing](docs/file_routing.md)**: Understanding file routing and AI parsing
 - **[Database Backends](docs/database_backends.md)**: Database setup and management
 
@@ -235,69 +237,138 @@ api_key = your_tmdb_api_key_here
 #### LLM Backend Selection
 ```ini
 [llm]
-service = ollama  # or openai, anthropic
+service = ollama  # Options: ollama, openai, anthropic
 ```
 
-#### Ollama LLM Backend
+#### Ollama LLM Backend (Default)
 ```ini
 [ollama]
 model = gemma3:12b
-llm_confidence_threshold = 0.7
+host = http://localhost:11434
+timeout = 30
 ```
 
-#### OpenAI LLM Backend
+#### OpenAI LLM Backend (Optional)
 ```ini
 [openai]
 api_key = your_openai_api_key_here
-model = gpt-3.5-turbo
-max_tokens = 150
+model = gpt-4
+max_tokens = 4000
 temperature = 0.1
-llm_confidence_threshold = 0.7
+```
+
+#### Anthropic LLM Backend (Optional)
+```ini
+[anthropic]
+api_key = your_anthropic_api_key_here
+model = claude-3-sonnet-20240229
+max_tokens = 4000
+temperature = 0.1
+```
+
+### Environment Variable Configuration
+
+You can override any configuration value using environment variables. This is especially useful for sensitive data like API keys or deployment-specific settings.
+
+#### Environment Variable Format
+Environment variables follow the pattern: `SYNC2NAS_<SECTION>_<KEY>`
+
+#### Supported Environment Variables
+
+**LLM Service Selection:**
+```bash
+export SYNC2NAS_LLM_SERVICE=openai  # Override [llm] service
+```
+
+**OpenAI Configuration:**
+```bash
+export SYNC2NAS_OPENAI_API_KEY=your_openai_api_key_here
+export SYNC2NAS_OPENAI_MODEL=gpt-4
+export SYNC2NAS_OPENAI_MAX_TOKENS=4000
+export SYNC2NAS_OPENAI_TEMPERATURE=0.1
+```
+
+**Anthropic Configuration:**
+```bash
+export SYNC2NAS_ANTHROPIC_API_KEY=your_anthropic_api_key_here
+export SYNC2NAS_ANTHROPIC_MODEL=claude-3-sonnet-20240229
+export SYNC2NAS_ANTHROPIC_MAX_TOKENS=4000
+export SYNC2NAS_ANTHROPIC_TEMPERATURE=0.1
+```
+
+**Ollama Configuration:**
+```bash
+export SYNC2NAS_OLLAMA_HOST=http://localhost:11434
+export SYNC2NAS_OLLAMA_MODEL=gemma3:12b
+export SYNC2NAS_OLLAMA_NUM_CTX=4096
+```
+
+#### Environment Variable Precedence
+- Environment variables **always override** config file values
+- This allows secure deployment without modifying config files
+- Useful for containerized deployments and CI/CD pipelines
+
+#### Example: Secure API Key Management
+```bash
+# Set API key via environment variable (recommended for production)
+export SYNC2NAS_OPENAI_API_KEY=sk-your-secret-key-here
+
+# Config file can omit the API key
+[openai]
+model = gpt-4
+max_tokens = 4000
+temperature = 0.1
+# api_key is provided via environment variable
 ```
 
 ### Complete Configuration Example
 ```ini
-[SFTP]
+# Core Services Configuration
+[sftp]
 host = your.sftpserver.com
 port = 22
 username = your_username
 ssh_key_path = ./ssh/your_sftpserver_rsa
 paths = /path/to/remote/files/,/another/remote/path/
 
-[Database]
+[database]
 type = sqlite
 
-[SQLite]
+[sqlite]
 db_file = ./database/sync2nas.db
 
-[Transfers]
+[transfers]
 incoming = ./incoming
 
-[TMDB]
+[tmdb]
 api_key = your_tmdb_api_key_here
 
-[llm]
-service = ollama  # or openai, anthropic
+[routing]
+anime_tv_path = d:/anime_tv/
 
+# LLM Configuration (Choose one service)
+[llm]
+service = ollama  # Options: ollama, openai, anthropic
+
+# Ollama Configuration (Default - Free local LLM)
 [ollama]
 model = gemma3:12b
-llm_confidence_threshold = 0.7
+host = http://localhost:11434
+timeout = 30
 
+# OpenAI Configuration (Optional - Requires API key)
 [openai]
 api_key = your_openai_api_key_here
-model = gpt-3.5-turbo
-max_tokens = 150
+model = gpt-4
+max_tokens = 4000
 temperature = 0.1
-llm_confidence_threshold = 0.7
 
+# Anthropic Configuration (Optional - Requires API key)
 [anthropic]
-model = claude-3-5-sonnet-20240620
-api_key = your_anthropic_api_key
-max_tokens = 250
+api_key = your_anthropic_api_key_here
+model = claude-3-sonnet-20240229
+max_tokens = 4000
 temperature = 0.1
-
-[Routing]
-anime_tv_path = d:/anime_tv/
 ```
 
 ## API Documentation
@@ -532,6 +603,103 @@ pip install -r requirements-dev.txt
 flake8 sync2nas/
 black sync2nas/
 ```
+
+## Troubleshooting
+
+### Configuration Issues
+
+#### LLM Service Configuration Problems
+
+**Problem: "LLM service initialization failed"**
+```bash
+# Check your configuration with the built-in validator
+python sync2nas.py config-check
+
+# Test specific service connectivity
+python sync2nas.py config-check --service openai
+python sync2nas.py config-check --service ollama
+```
+
+**Problem: Case sensitivity errors**
+- Use lowercase section names: `[openai]` not `[OpenAI]`
+- The system accepts both but prefers lowercase
+- Check for typos: `[olama]` should be `[ollama]`
+
+**Problem: Missing API keys**
+```bash
+# Use environment variables for secure key management
+export SYNC2NAS_OPENAI_API_KEY=your_key_here
+
+# Or add to config file
+[openai]
+api_key = your_key_here
+```
+
+**Problem: Ollama connection issues**
+```bash
+# Verify Ollama is running
+curl http://localhost:11434/api/version
+
+# Check if your model is installed
+ollama list
+
+# Pull the required model
+ollama pull gemma3:12b
+```
+
+#### Common Configuration Mistakes
+
+1. **Wrong section names**: Use `[ollama]` not `[Ollama]`
+2. **Missing required keys**: Each service needs specific configuration
+3. **Invalid model names**: Use exact model names (e.g., `gpt-4` not `gpt4`)
+4. **Incorrect URLs**: Ollama host should include protocol: `http://localhost:11434`
+
+#### Configuration Validation
+
+The system provides intelligent suggestions for common mistakes:
+
+```bash
+# Validate your entire configuration
+python sync2nas.py config-check
+
+# Get detailed suggestions for configuration issues
+python sync2nas.py config-check --verbose
+```
+
+**Example validation output:**
+```
+❌ Configuration Issues Found:
+  • [openai] api_key: Required key missing
+  • Suggestion: Get your API key from https://platform.openai.com/api-keys
+
+💡 Intelligent Suggestions:
+  • Section '[OpenAI]' should be '[openai]' (lowercase preferred)
+  • Key 'api_ky' might be 'api_key'
+  • Consider using environment variable: SYNC2NAS_OPENAI_API_KEY
+```
+
+### Performance Issues
+
+#### Slow LLM Responses
+- **Ollama**: Use smaller models like `gemma3:7b` for faster responses
+- **OpenAI**: Reduce `max_tokens` or use `gpt-3.5-turbo` instead of `gpt-4`
+- **Network**: Check internet connectivity for cloud-based LLMs
+
+#### File Processing Issues
+```bash
+# Use dry-run mode to test without making changes
+python sync2nas.py route-files --dry-run
+
+# Enable verbose logging for debugging
+python sync2nas.py -vv route-files
+```
+
+### Getting Help
+
+1. **Check Configuration**: Run `python sync2nas.py config-check`
+2. **Review Logs**: Use `-v` or `-vv` flags for detailed logging
+3. **Test Components**: Use individual commands to isolate issues
+4. **Environment Variables**: Use `SYNC2NAS_*` variables for overrides
 
 ## Contributing
 

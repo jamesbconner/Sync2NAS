@@ -2,6 +2,7 @@ import logging
 import re
 import json
 from typing import Dict, Any, List, Optional
+from abc import abstractmethod
 from services.llm_implementations.llm_interface import LLMInterface
 import os
 
@@ -86,11 +87,9 @@ class BaseLLMService(LLMInterface):
             "season": result.get("season"),
             "episode": result.get("episode"),
             "confidence": result.get("confidence", 0.0),
-            "reasoning": result.get("reasoning", "No reasoning provided")
+            "reasoning": result.get("reasoning", "No reasoning provided"),
+            "hash": result.get("hash", None)
         }
-        # Preserve optional hash if present from LLM output
-        if "hash" in result and isinstance(result.get("hash"), str):
-            validated["hash"] = result.get("hash")
         try:
             if validated["season"] is not None:
                 validated["season"] = int(validated["season"])
@@ -180,9 +179,16 @@ class BaseLLMService(LLMInterface):
             })
         return results
 
+    @abstractmethod
     def suggest_show_name(self, show_name: str, detailed_results: list) -> dict:
         """
         Suggest the best show match and English name from TMDB results using the LLM.
-        Should return a dict with keys: tmdb_id, show_name
+        
+        Args:
+            show_name: The original show name to match
+            detailed_results: List of detailed TMDB results to choose from
+            
+        Returns:
+            dict: Dictionary with keys 'tmdb_id', 'show_name', and optionally 'confidence', 'reasoning'
         """
-        raise NotImplementedError("LLM implementation must override suggest_show_name") 
+        pass 

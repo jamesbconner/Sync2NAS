@@ -5,16 +5,17 @@ from click.testing import CliRunner
 from cli.main import sync2nas_cli
 import time
 
-def test_init_db_creates_tables(test_config_path):
+def test_init_db_creates_tables(test_config_path, mock_llm_service_patch):
     runner = CliRunner()
     result = runner.invoke(sync2nas_cli, ["-c", str(test_config_path), "init-db"])
 
     assert result.exit_code == 0
 
     # Load config to find db path
-    from utils.sync2nas_config import load_configuration
+    from utils.sync2nas_config import load_configuration, get_config_value
+    from tests.utils.mock_service_factory import TestConfigurationHelper
     config = load_configuration(str(test_config_path))
-    db_path = config["SQLite"]["db_file"]
+    db_path = get_config_value(config, "sqlite", "db_file")
 
     # Verify expected tables exist
     # Don't use with statement for sqlite3 because we need to close the connection manually

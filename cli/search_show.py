@@ -11,6 +11,7 @@ from rich.console import Console
 from rich.table import Table
 from services.db_implementations.db_interface import DatabaseInterface
 from services.tmdb_service import TMDBService
+from cli.main import validate_context_for_command, get_service_from_context
 
 logger = logging.getLogger(__name__)
 
@@ -74,15 +75,15 @@ def search_show(ctx: click.Context, show_name: str, tmdb_id: int, verbose: bool,
     Returns:
         None. Prints results to the console and exits on error.
     """
-    if not ctx.obj:
-        click.secho("❌ Error: No context object found", fg="red", bold=True)
+    # Validate context and get required services
+    if not validate_context_for_command(ctx, ['db', 'tmdb']):
         ctx.exit(1)
 
-    db: DatabaseInterface = ctx.obj["db"]
-    tmdb: TMDBService = ctx.obj["tmdb"]
+    db: DatabaseInterface = get_service_from_context(ctx, 'db')
+    tmdb: TMDBService = get_service_from_context(ctx, 'tmdb')
     console = Console()
 
-    dry_run = ctx.obj["dry_run"]
+    dry_run = ctx.obj.get("dry_run", False)
     logger.info(f"Starting show search: show_name={show_name}, tmdb_id={tmdb_id}, dry_run={dry_run}, partial={partial}, exact={exact}")
 
     try:

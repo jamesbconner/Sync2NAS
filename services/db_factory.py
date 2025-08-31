@@ -21,23 +21,31 @@ def create_db_service(config: Dict[str, Any], read_only: bool = False) -> Databa
     Raises:
         ValueError: If the database type is not supported.
     """
-    db_type = config["Database"]["type"].lower()
+    # Handle both normalized (lowercase) and raw (uppercase) section names
+    database_section = config.get("database") or config.get("Database")
+    if not database_section:
+        raise ValueError("Database configuration section not found")
+    
+    db_type = database_section["type"].lower()
     
     if db_type == "sqlite":
-        return SQLiteDBService(config["SQLite"]["db_file"], read_only=read_only)
+        sqlite_section = config.get("sqlite") or config.get("SQLite")
+        return SQLiteDBService(sqlite_section["db_file"], read_only=read_only)
     
     elif db_type == "postgres":
+        postgres_section = config.get("postgresql") or config.get("PostgreSQL")
         return PostgresDBService(
-            f"postgresql://{config['PostgreSQL']['user']}:{config['PostgreSQL']['password']}"
-            f"@{config['PostgreSQL']['host']}:{config['PostgreSQL']['port']}"
-            f"/{config['PostgreSQL']['database']}",
+            f"postgresql://{postgres_section['user']}:{postgres_section['password']}"
+            f"@{postgres_section['host']}:{postgres_section['port']}"
+            f"/{postgres_section['database']}",
             read_only=read_only
         )
     
     elif db_type == "milvus":
+        milvus_section = config.get("milvus") or config.get("Milvus")
         return MilvusDBService(
-            host=config["Milvus"]["host"],
-            port=config["Milvus"]["port"],
+            host=milvus_section["host"],
+            port=milvus_section["port"],
             read_only=read_only
         )
     

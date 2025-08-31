@@ -5,7 +5,8 @@ from click import Context
 from cli.main import sync2nas_cli
 from models.show import Show
 from models.episode import Episode
-from utils.sync2nas_config import load_configuration, write_temp_config
+from utils.sync2nas_config import load_configuration, write_temp_config, get_config_value
+from tests.utils.mock_service_factory import TestConfigurationHelper
 from services.db_implementations.sqlite_implementation import SQLiteDBService
 from services.tmdb_service import TMDBService
 from cli.fix_show import fix_show
@@ -16,28 +17,28 @@ import configparser
 
 
 def create_temp_config(tmp_path):
+    config = configparser.ConfigParser()
     db_path = tmp_path / "test.db"
-    anime_tv_path = tmp_path / "anime_tv_path"
-    incoming_path = tmp_path / "incoming"
-
-    anime_tv_path.mkdir(parents=True, exist_ok=True)
-    incoming_path.mkdir(parents=True, exist_ok=True)
-
-    parser = configparser.ConfigParser()
-    parser["Database"] = {"type": "sqlite"}
-    parser["SQLite"] = {"db_file": str(db_path)}
-    parser["Routing"] = {"anime_tv_path": str(anime_tv_path)}
-    parser["Transfers"] = {"incoming": str(incoming_path)}
-    parser["SFTP"] = {
+    
+    config["Database"] = {"type": "sqlite"}
+    config["SQLite"] = {"db_file": str(db_path)}
+    config["Routing"] = {"anime_tv_path": str(tmp_path / "anime_tv")}
+    config["Transfers"] = {"incoming": str(tmp_path / "incoming")}
+    config["SFTP"] = {
         "host": "localhost",
         "port": "22",
         "username": "testuser",
         "ssh_key_path": str(tmp_path / "test_key"),
+        "paths": "/remote"
     }
-    parser["TMDB"] = {"api_key": "test_api_key"}
-    parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "ollama3.2"}
-    config_path = write_temp_config(parser, tmp_path)
+    config["TMDB"] = {"api_key": "test_api_key"}
+    config["llm"] = {"service": "ollama"}
+    config["ollama"] = {"model": "gemma3:12b"}
+    
+    config_path = tmp_path / "test_config.ini"
+    with config_path.open("w") as config_file:
+        config.write(config_file)
+    
     return config_path
 
 
@@ -193,7 +194,7 @@ def create_click_context(mock_db, mock_tmdb, tmp_path):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "ollama3.2"}
+    parser["ollama"] = {"model": "gemma3:12b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     ctx.obj = {
@@ -202,13 +203,12 @@ def create_click_context(mock_db, mock_tmdb, tmp_path):
         "tmdb": mock_tmdb,
         "anime_tv_path": str(tmp_path / "anime_tv_path"),
         "incoming_path": str(tmp_path / "incoming"),
-        "llm_service": create_llm_service(config),
         "dry_run": False  # Add dry_run key
     }
     return ctx
 
 
-def test_fix_show_with_tmdb_id(tmp_path, mock_db, mock_tmdb, mock_show_details, mock_episodes):
+def test_fix_show_with_tmdb_id(tmp_path, mock_db, mock_tmdb, mock_show_details, mock_episodes, mock_llm_service_patch):
     """Test fixing a show using a TMDB ID override"""
     # Setup mock database
     mock_db.get_all_shows.return_value = [
@@ -230,7 +230,7 @@ def test_fix_show_with_tmdb_id(tmp_path, mock_db, mock_tmdb, mock_show_details, 
         mock_db.add_episodes.assert_called_once_with(mock_episodes)
 
 
-def test_fix_show_interactive(tmp_path, mock_db, mock_tmdb, mock_show_details, mock_search_results, mock_episodes):
+def test_fix_show_interactive(tmp_path, mock_db, mock_tmdb, mock_show_details, mock_search_results, mock_episodes, mock_llm_service_patch):
     """Test fixing a show with interactive TMDB search"""
     # Setup mock database
     mock_db.get_all_shows.return_value = [
@@ -253,7 +253,7 @@ def test_fix_show_interactive(tmp_path, mock_db, mock_tmdb, mock_show_details, m
         mock_db.add_episodes.assert_called_once_with(mock_episodes)
 
 
-def test_fix_show_dry_run(tmp_path, mock_db, mock_tmdb, mock_show_details, mock_episodes):
+def test_fix_show_dry_run(tmp_path, mock_db, mock_tmdb, mock_show_details, mock_episodes, mock_llm_service_patch):
     """Test dry run mode"""
     # Setup mock database
     mock_db.get_all_shows.return_value = [
@@ -277,7 +277,7 @@ def test_fix_show_dry_run(tmp_path, mock_db, mock_tmdb, mock_show_details, mock_
         assert "DRY RUN" in result.output
 
 
-def test_fix_show_not_found(tmp_path, mock_db):
+def test_fix_show_not_found(tmp_path, mock_db, mock_llm_service_patch):
     """Test when show is not found in database"""
     # Setup mock database
     mock_db.get_all_shows.return_value = []
@@ -295,7 +295,7 @@ def test_fix_show_not_found(tmp_path, mock_db):
     mock_db.delete_show_and_episodes.assert_not_called()
 
 
-def test_fix_show_no_tmdb_results(tmp_path, mock_db, mock_tmdb):
+def test_fix_show_no_tmdb_results(tmp_path, mock_db, mock_tmdb, mock_llm_service_patch):
     """Test when no TMDB results are found"""
     # Setup mock database
     mock_db.get_all_shows.return_value = [
@@ -316,7 +316,7 @@ def test_fix_show_no_tmdb_results(tmp_path, mock_db, mock_tmdb):
     mock_db.delete_show_and_episodes.assert_not_called()
 
 
-def test_fix_show_invalid_index(tmp_path, mock_db, mock_tmdb, mock_search_results):
+def test_fix_show_invalid_index(tmp_path, mock_db, mock_tmdb, mock_search_results, mock_llm_service_patch):
     """Test when invalid index is selected"""
     # Setup mock database
     mock_db.get_all_shows.return_value = [
@@ -337,7 +337,7 @@ def test_fix_show_invalid_index(tmp_path, mock_db, mock_tmdb, mock_search_result
     mock_db.delete_show_and_episodes.assert_not_called()
 
 
-def test_fix_show_tmdb_error(tmp_path, mock_db, mock_tmdb, mock_show_details):
+def test_fix_show_tmdb_error(tmp_path, mock_db, mock_tmdb, mock_show_details, mock_llm_service_patch):
     """Test when TMDB service returns an error"""
     # Setup mock database
     mock_db.get_all_shows.return_value = [
@@ -358,7 +358,7 @@ def test_fix_show_tmdb_error(tmp_path, mock_db, mock_tmdb, mock_show_details):
     mock_db.delete_show_and_episodes.assert_not_called()
 
 
-def test_fix_show_database_error(tmp_path, mock_db, mock_tmdb, mock_show_details, mock_episodes):
+def test_fix_show_database_error(tmp_path, mock_db, mock_tmdb, mock_show_details, mock_episodes, mock_llm_service_patch):
     """Test when database operations fail"""
     # Setup mock database
     mock_db.get_all_shows.return_value = [

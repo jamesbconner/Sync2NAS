@@ -1,0 +1,1 @@
+"""Integration tests for Sync2NAS configuration system."""

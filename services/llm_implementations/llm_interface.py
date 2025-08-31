@@ -64,3 +64,17 @@ class LLMInterface(ABC):
             str: Suggested short filename
         """
         pass
+
+    @abstractmethod
+    def suggest_show_name(self, show_name: str, detailed_results: list) -> dict:
+        """
+        Suggest the best show match and English name from TMDB results using the LLM.
+        
+        Args:
+            show_name: The original show name to match
+            detailed_results: List of detailed TMDB results to choose from
+            
+        Returns:
+            dict: Dictionary with keys 'tmdb_id', 'show_name', and optionally 'confidence', 'reasoning'
+        """
+        pass

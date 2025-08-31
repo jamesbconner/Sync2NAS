@@ -6,7 +6,8 @@ from pathlib import Path
 from click.testing import CliRunner
 from cli.main import sync2nas_cli
 from services.db_implementations.sqlite_implementation import SQLiteDBService
-from utils.sync2nas_config import load_configuration, write_temp_config
+from utils.sync2nas_config import load_configuration, write_temp_config, get_config_value
+from tests.utils.mock_service_factory import TestConfigurationHelper
 from utils.filename_parser import parse_filename
 from services.llm_factory import create_llm_service
 
@@ -19,7 +20,7 @@ def temp_show_file(tmp_path):
     return file
 
 @pytest.fixture
-def test_config(tmp_path):
+def test_config(tmp_path, mock_llm_service_patch):
     config = configparser.ConfigParser()
     db_path = tmp_path / "test.db"
     anime_tv_path = tmp_path / "anime"
@@ -28,6 +29,7 @@ def test_config(tmp_path):
     anime_tv_path.mkdir()
     incoming_path.mkdir()
 
+    config["Database"] = {"type": "sqlite"}
     config["SQLite"] = {"db_file": str(db_path)}
     config["Routing"] = {"anime_tv_path": str(anime_tv_path)}
     config["Transfers"] = {"incoming": str(incoming_path)}
@@ -36,11 +38,15 @@ def test_config(tmp_path):
         "port": "22",
         "username": "user",
         "ssh_key_path": str(tmp_path / "dummy.key"),
-        "path": "/remote/path"
+        "paths": "/remote/path"
     }
     config["TMDB"] = {"api_key": "dummy"}
     config["llm"] = {"service": "ollama"}
-    config["ollama"] = {"model": "ollama3.2"}
+    config["ollama"] = {
+        "base_url": "http://localhost:11434",
+        "model": "llama3.2:1b",
+        "timeout": "30"
+    }
 
     config_path = write_temp_config(config, tmp_path)
     return config, config_path
@@ -86,7 +92,7 @@ def patch_add_show(monkeypatch):
     monkeypatch.setattr("cli.add_show.add_show_interactively", mock_add_show_interactively)
 
 
-def test_route_files_basic(tmp_path, test_config_path, cli_runner, cli, mock_routing, mock_tmdb_service, mock_sftp_service):
+def test_route_files_basic(tmp_path, test_config_path, cli_runner, cli, mock_routing, mock_tmdb_service, mock_sftp_service, mock_llm_service_patch):
     
     # Instantiate the CLI runner
     runner = cli_runner
@@ -99,23 +105,22 @@ def test_route_files_basic(tmp_path, test_config_path, cli_runner, cli, mock_rou
     config = load_configuration(config_path)
     
     # Create all the necessary paths and directories
-    os.makedirs(config["Routing"]["anime_tv_path"], exist_ok=True)
-    os.makedirs(config["Transfers"]["incoming"], exist_ok=True)
+    os.makedirs(get_config_value(config, "routing", "anime_tv_path"), exist_ok=True)
+    os.makedirs(get_config_value(config, "transfers", "incoming"), exist_ok=True)
     
     # Create the DB object
-    db = SQLiteDBService(config["SQLite"]["db_file"])
+    db = SQLiteDBService(get_config_value(config, "sqlite", "db_file"))
     db.initialize()
     
     # Create the context object
-    ctx = {
-        "config": config,
-        "db": db,
-        "sftp": mock_sftp_service,
-        "tmdb": mock_tmdb_service,
-        "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config),
-    }
+    ctx = TestConfigurationHelper.create_cli_context_from_config(
+        config, 
+        tmp_path, 
+        dry_run=False,
+        db=db,
+        tmdb=mock_tmdb_service,
+        sftp=mock_sftp_service
+    )
     
     # Run the route-files command
     result = runner.invoke(cli, ["route-files"], obj=ctx)
@@ -131,7 +136,7 @@ def test_route_files_basic(tmp_path, test_config_path, cli_runner, cli, mock_rou
     assert "file2.mkv" in result.output
 
 
-def test_route_files_dry_run(tmp_path, test_config_path, cli_runner, cli, mock_tmdb_service, mock_sftp_service, mock_routing):
+def test_route_files_dry_run(tmp_path, test_config_path, cli_runner, cli, mock_tmdb_service, mock_sftp_service, mock_routing, mock_llm_service_patch):
         
     # Instantiate the CLI runner
     runner = cli_runner
@@ -144,20 +149,18 @@ def test_route_files_dry_run(tmp_path, test_config_path, cli_runner, cli, mock_t
     config = load_configuration(config_path)
 
     # Create the DB object
-    db = SQLiteDBService(config["SQLite"]["db_file"])
+    db = SQLiteDBService(get_config_value(config, "sqlite", "db_file"))
     db.initialize()
     
     # Create the context object
-    ctx = {
-        "config": config,
-        "db": db,
-        "sftp": mock_sftp_service,
-        "tmdb": mock_tmdb_service,
-        "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config),
-        "dry_run": True  # Set dry_run to True
-    }
+    ctx = TestConfigurationHelper.create_cli_context_from_config(
+        config, 
+        tmp_path, 
+        dry_run=True,
+        db=db,
+        tmdb=mock_tmdb_service,
+        sftp=mock_sftp_service
+    )
 
     # Run the route-files command without the --dry-run flag since it's already set in obj
     result = runner.invoke(cli, ["route-files"], obj=ctx)
@@ -168,16 +171,16 @@ def test_route_files_dry_run(tmp_path, test_config_path, cli_runner, cli, mock_t
     assert "file1.mkv" in result.output
     assert "file2.mkv" in result.output
 
-def test_route_files_auto_add(tmp_path, test_config, mock_tmdb_service, cli_runner, cli, patch_add_show, monkeypatch, mock_sftp_service):
+def test_route_files_auto_add(tmp_path, test_config, mock_tmdb_service, cli_runner, cli, patch_add_show, monkeypatch, mock_sftp_service, mock_llm_service_patch):
     config, config_path = test_config
 
     # Write mock file into the correct path
-    incoming_path = Path(config["Transfers"]["incoming"])
+    incoming_path = Path(get_config_value(config, "transfers", "incoming"))
     incoming_file = incoming_path / "Mock Show S01E03.mkv"
     incoming_file.write_text("dummy content")
     assert incoming_file.exists()
 
-    db = SQLiteDBService(config["SQLite"]["db_file"])
+    db = SQLiteDBService(get_config_value(config, "sqlite", "db_file"))
     db.initialize()
 
     # Patch db.show_exists to always return False
@@ -188,13 +191,13 @@ def test_route_files_auto_add(tmp_path, test_config, mock_tmdb_service, cli_runn
         "db": db,
         "sftp": mock_sftp_service,
         "tmdb": mock_tmdb_service,
-        "anime_tv_path": config["Routing"]["anime_tv_path"],
-        "incoming_path": config["Transfers"]["incoming"],
-        "llm_service": create_llm_service(config),
+        "llm_service": None,  # Not needed for this test
+        "anime_tv_path": get_config_value(config, "routing", "anime_tv_path"),
+        "incoming_path": get_config_value(config, "transfers", "incoming"),
         "dry_run": False
     }
 
-    result = cli_runner.invoke(cli, ["-c", config_path, "route-files", "--auto-add"], obj=ctx)
+    result = cli_runner.invoke(cli, ["-c", config_path, "--skip-validation", "route-files", "--auto-add"], obj=ctx)
 
     assert result.exit_code == 0, result.output
     assert "✅ Auto-added" in result.output
@@ -270,5 +273,5 @@ test_cases = [
 
 # Create a test function for each case
 @pytest.mark.parametrize("filename, expected", test_cases)
-def test_parse_filename(filename, expected):
+def test_parse_filename(filename, expected, mock_llm_service_patch):
     assert parse_filename(filename) == expected
