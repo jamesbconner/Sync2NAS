@@ -1,9 +1,43 @@
 # Sync2NAS - TV Show Management and File Synchronization Tool
+
 ![Service Test Coverage](https://img.shields.io/badge/Service%20Test%20Coverage-86%25-success?style=flat-square&logo=pytest&logoColor=white)
 
 ## What's New (August 2025)
 
+**Major Configuration System Overhaul**
+
+- **Enhanced Configuration Validation**: New `config-monitor` command suite provides comprehensive configuration validation, health checking, and monitoring
+- **Intelligent Error Reporting**: Improved error messages with specific suggestions and troubleshooting guidance
+- **Configuration Monitoring**: Real-time metrics, event tracking, and alert system for configuration issues
+- **Rich Markup Support**: Fixed display issues with configuration suggestions and error messages
+- **Service Health Checks**: Built-in connectivity testing for all external services (LLM, TMDB, SFTP)
+
+**Robust CLI Service Initialization**
+
+- **Fixed Service Initialization**: Resolved critical issues with SFTP, TMDB, and database service initialization
+- **Normalized Configuration Access**: Consistent configuration handling across all services
+- **Context Validation**: Comprehensive validation of CLI context and service availability
+- **Graceful Error Handling**: Better error messages when services fail to initialize
+- **Service Dependencies**: Proper handling of service interdependencies and fallbacks
+
+**Improved Developer Experience**
+
+- **CLI Helper Utilities**: New standardized error handling and service validation utilities
+- **Enhanced Test Coverage**: 170+ CLI tests with comprehensive integration testing
+- **Configuration Troubleshooting**: Built-in diagnostic tools for configuration issues
+- **Service Status Monitoring**: Real-time monitoring of service health and performance
+- **Consistent Error Messages**: Standardized error reporting across all CLI commands
+
+**Configuration Monitoring & Health Checks**
+
+- **New Commands**: `config-monitor health`, `config-monitor validate`, `config-monitor metrics`
+- **Service Diagnostics**: Test connectivity to LLM services, TMDB API, and SFTP servers
+- **Configuration Suggestions**: Intelligent suggestions for fixing common configuration issues
+- **JSON Output Support**: Machine-readable output for automation and monitoring
+- **Alert System**: Configurable alerts for configuration and service issues
+
 **Comprehensive Windows GUI Interface**
+
 - Sync2NAS now includes a full-featured Windows desktop GUI built with tkinter and ttkbootstrap
 - Provides access to all CLI functionality through an intuitive graphical interface
 - Features real-time logging, configuration management, and threaded operations
@@ -11,12 +45,14 @@
 - Supports temporary configuration overrides without modifying original config files
 
 **Enhanced Testing and Stability**
+
 - Comprehensive GUI test suite with proper Tkinter isolation
 - Fixed threading issues and background thread management
 - Improved error handling and test coverage
 - Robust test fixtures for consistent GUI testing
 
 **Improved User Experience**
+
 - Modern ttkbootstrap styling for a professional appearance
 - Tabbed interface organized by functionality (Frequently Executed Operations, Search, Show Management, Database Operations, Configuration, Logs)
 - Real-time status updates and operation monitoring
@@ -25,21 +61,27 @@
 ## What's New (July 2025)
 
 **LLM-Powered Show Name Selection**
+
 - When adding a show (via `add-show` or `route-files --auto-add`), Sync2NAS now uses an LLM to automatically select the best TMDB match and English show name—even if your search is in Japanese, Chinese, or another language. No more manual picking or mismatched names!
 
 **Editable LLM Prompts**
+
 - All LLM prompts (for filename parsing, show selection, directory/filename suggestion, etc.) are now stored as plain text files in `services/llm_implementations/prompts/`. You can easily tune or localize LLM behavior by editing these files—no code changes required.
 
 **Windows Path Length Handling**
+
 - Sync2NAS now automatically shortens directory and file names (using LLM or regex fallback) to avoid Windows path length errors. This applies to SFTP downloads and file routing.
 
 **Anthropic LLM Support**
+
 - You can now use Anthropic models (Claude) as your LLM backend, in addition to OpenAI and Ollama. Configure your preferred LLM in the config file.
 
 **Improved Logging and Error Messages**
+
 - All CLI commands and core utilities now include more detailed logging (with file/function context) and clearer error messages for easier troubleshooting.
 
 **Configuration and Breaking Changes**
+
 - If you have custom LLM prompts, move them to the new `services/llm_implementations/prompts/` directory and escape curly braces in JSON examples (use `{{` and `}}`).
 - Review your config file for new LLM and path handling options.
 
@@ -73,6 +115,7 @@ Sync2NAS is a comprehensive Python tool for managing TV shows, synchronizing fil
 ## Features
 
 ### Core Functionality
+
 - **SFTP Integration**: Secure file transfer with SSH key authentication
 - **Database Factory**: Easily switch between SQLite, PostgreSQL, and Milvus backends
 - **TMDB Integration**: Automatic show and episode metadata enrichment
@@ -80,6 +123,7 @@ Sync2NAS is a comprehensive Python tool for managing TV shows, synchronizing fil
 - **Bootstrap Operations**: Easy migration of existing media libraries
 
 ### Advanced Features
+
 - **AI-Powered Filename Parsing**: Uses modular LLM backends (Ollama or OpenAI) for accurate show name extraction, configurable via the config file
 - **Confidence Scoring**: LLM provides confidence levels for parsing decisions
 - **Fallback Support**: Automatic fallback to regex if LLM fails at show name parsing
@@ -87,6 +131,7 @@ Sync2NAS is a comprehensive Python tool for managing TV shows, synchronizing fil
 - **Show Management**: Add, fix, and manage show metadata
 
 ### Technical Features
+
 - **REST API**: Full API for programmatic access to all functionality
 - **Configurable Logging**: Verbose logging with file output support
 - **Dry Run Mode**: Test operations without making changes
@@ -96,25 +141,28 @@ Sync2NAS is a comprehensive Python tool for managing TV shows, synchronizing fil
 ## Quick Start
 
 ### Prerequisites
+
 - Python 3.12 or higher
 - SFTP server access
-- TMDB API key (Required, but free.  Read the [TMDB FAQ](https://developer.themoviedb.org/docs/faq#how-do-i-apply-for-an-api-key) to learn how to get one.)
+- TMDB API key (Required, but free. Read the [TMDB FAQ](https://developer.themoviedb.org/docs/faq#how-do-i-apply-for-an-api-key) to learn how to get one.)
 - [OpenAI](https://openai.com/api/) API key (Optional, for AI-powered actions like filename parsing and automatic show matching)
 - [Anthropic](https://www.anthropic.com/api) API key (Optional, for AI-powered actions like filename parsing and automatic show matching)
 - [Ollama](https://ollama.com/) local LLM service running your preferred model (Default [gemma3:12b](https://ollama.com/library/gemma3). It's the best tradeoff between accuracy, compute resource and speed as of July 2025.)
-**Note:** Sync2NAS does not manage Ollama models. You must ensure that any model specified here (e.g., `gemma3:12b`) is already installed and available in your local Ollama instance. Use `ollama pull gemma3:12b` to install models as needed.
+  **Note:** Sync2NAS does not manage Ollama models. You must ensure that any model specified here (e.g., `gemma3:12b`) is already installed and available in your local Ollama instance. Use `ollama pull gemma3:12b` to install models as needed.
 
 ### GUI Interface
 
 Sync2NAS includes a comprehensive Windows desktop GUI for easy operation:
 
 **Sync2NAS GUI:**
+
 ```bash
 python sync2nas_gui.py
 # or double-click run_gui.bat
 ```
 
 The GUI provides:
+
 - **Frequently Executed Operations**: Quick access to download and file routing with global configuration
 - **Search & Show Management**: Search local database and TMDB API, add and fix shows
 - **Database Operations**: Initialize, backup, update episodes, and bootstrap database
@@ -123,6 +171,7 @@ The GUI provides:
 - **Modern Styling**: ttkbootstrap integration for a modern look and feel
 
 The GUI features:
+
 - **Tabbed Interface**: Organized functionality across multiple tabs
 - **Configuration Overrides**: Temporary config files for GUI settings
 - **Threaded Operations**: Non-blocking CLI command execution
@@ -131,21 +180,23 @@ The GUI features:
 
 See the [GUI Documentation](gui/README.md) for detailed usage instructions and feature descriptions.
 
-
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/jamesbconner/sync2nas.git
    cd sync2nas
    ```
 
 2. **Install dependencies**
+
    ```bash
    pip install -r requirements.txt
    ```
 
 3. **Create configuration file**
+
    ```bash
    cp config/sync2nas_config.ini.example config/sync2nas_config.ini
    # Edit config/sync2nas_config.ini with your settings
@@ -159,12 +210,17 @@ See the [GUI Documentation](gui/README.md) for detailed usage instructions and f
 ### Basic Setup
 
 1. **Configure your settings** in `config/sync2nas_config.ini`
-2. **Bootstrap existing media** (if any):
+2. **Validate your configuration**:
+   ```bash
+   python sync2nas.py config-monitor validate
+   python sync2nas.py config-monitor health-check
+   ```
+3. **Bootstrap existing media** (if any):
    ```bash
    python sync2nas.py bootstrap-tv-shows
    python sync2nas.py bootstrap-episodes
    ```
-3. **Download and route files**:
+4. **Download and route files**:
    ```bash
    python sync2nas.py download-from-remote
    python sync2nas.py route-files --auto-add
@@ -173,6 +229,7 @@ See the [GUI Documentation](gui/README.md) for detailed usage instructions and f
 ## Documentation
 
 ### User Documentation
+
 - **[CLI Commands](docs/cli_commands.md)**: Complete guide to all CLI commands
 - **[GUI Interface](gui/README.md)**: Information about the GUI abilities
 - **[Configuration Guide](docs/configuration.md)**: Detailed configuration options
@@ -182,12 +239,14 @@ See the [GUI Documentation](gui/README.md) for detailed usage instructions and f
 - **[Database Backends](docs/database_backends.md)**: Database setup and management
 
 ### Developer Documentation
+
 - **[API Documentation](#api-documentation)**: REST API reference and examples
 - **[Architecture](docs/architecture.md)**: System design and component overview
 - **[Testing](docs/testing.md)**: Testing philosophy and coverage matrix
 - **[Contributing](docs/contributing.md)**: Development setup and guidelines
 
 ### Service Testing Documentation
+
 - **[SFTP Service](docs/SFTP_Test_Philosophy.md)**: SFTP integration details
 - **[Database Service](docs/Database_Test_Philosophy.md)**: Database backend details
 - **[TMDB Service](docs/TMDB_Test_Philosophy.md)**: TMDB API integration
@@ -200,6 +259,7 @@ See the [GUI Documentation](gui/README.md) for detailed usage instructions and f
 Create `config/sync2nas_config.ini` with the following sections:
 
 #### SFTP Settings
+
 ```ini
 [SFTP]
 host = your.sftpserver.com
@@ -210,6 +270,7 @@ paths = /path/to/remote/files/
 ```
 
 #### Database Settings
+
 ```ini
 [Database]
 type = sqlite  # sqlite, postgres, or milvus
@@ -219,6 +280,7 @@ db_file = ./database/sync2nas.db
 ```
 
 #### Transfer Settings
+
 ```ini
 [Transfers]
 incoming = ./incoming
@@ -228,19 +290,23 @@ anime_tv_path = d:/anime_tv/
 ```
 
 #### TMDB Integration
+
 ```ini
 [TMDB]
 api_key = your_tmdb_api_key_here
 ```
 
 ### Optional Configuration
+
 #### LLM Backend Selection
+
 ```ini
 [llm]
 service = ollama  # Options: ollama, openai, anthropic
 ```
 
 #### Ollama LLM Backend (Default)
+
 ```ini
 [ollama]
 model = gemma3:12b
@@ -249,6 +315,7 @@ timeout = 30
 ```
 
 #### OpenAI LLM Backend (Optional)
+
 ```ini
 [openai]
 api_key = your_openai_api_key_here
@@ -258,6 +325,7 @@ temperature = 0.1
 ```
 
 #### Anthropic LLM Backend (Optional)
+
 ```ini
 [anthropic]
 api_key = your_anthropic_api_key_here
@@ -271,16 +339,19 @@ temperature = 0.1
 You can override any configuration value using environment variables. This is especially useful for sensitive data like API keys or deployment-specific settings.
 
 #### Environment Variable Format
+
 Environment variables follow the pattern: `SYNC2NAS_<SECTION>_<KEY>`
 
 #### Supported Environment Variables
 
 **LLM Service Selection:**
+
 ```bash
 export SYNC2NAS_LLM_SERVICE=openai  # Override [llm] service
 ```
 
 **OpenAI Configuration:**
+
 ```bash
 export SYNC2NAS_OPENAI_API_KEY=your_openai_api_key_here
 export SYNC2NAS_OPENAI_MODEL=gpt-4
@@ -289,6 +360,7 @@ export SYNC2NAS_OPENAI_TEMPERATURE=0.1
 ```
 
 **Anthropic Configuration:**
+
 ```bash
 export SYNC2NAS_ANTHROPIC_API_KEY=your_anthropic_api_key_here
 export SYNC2NAS_ANTHROPIC_MODEL=claude-3-sonnet-20240229
@@ -297,6 +369,7 @@ export SYNC2NAS_ANTHROPIC_TEMPERATURE=0.1
 ```
 
 **Ollama Configuration:**
+
 ```bash
 export SYNC2NAS_OLLAMA_HOST=http://localhost:11434
 export SYNC2NAS_OLLAMA_MODEL=gemma3:12b
@@ -304,11 +377,13 @@ export SYNC2NAS_OLLAMA_NUM_CTX=4096
 ```
 
 #### Environment Variable Precedence
+
 - Environment variables **always override** config file values
 - This allows secure deployment without modifying config files
 - Useful for containerized deployments and CI/CD pipelines
 
 #### Example: Secure API Key Management
+
 ```bash
 # Set API key via environment variable (recommended for production)
 export SYNC2NAS_OPENAI_API_KEY=sk-your-secret-key-here
@@ -322,6 +397,7 @@ temperature = 0.1
 ```
 
 ### Complete Configuration Example
+
 ```ini
 # Core Services Configuration
 [sftp]
@@ -376,24 +452,29 @@ temperature = 0.1
 Sync2NAS provides a comprehensive REST API for programmatic access to all functionality.
 
 ### API Overview
+
 - **Base URL**: `http://localhost:8000`
 - **Documentation**: Interactive API docs at `http://localhost:8000/docs`
 - **Alternative Docs**: ReDoc at `http://localhost:8000/redoc`
 
 ### Quick API Start
+
 ```bash
 # Start the API server
 python sync2nas_api.py
 ```
 
 ### API Features
+
 - **Show Management**: Add, search, update, and delete shows
 - **File Operations**: Route files, list remote files, download from SFTP
 - **Episode Management**: Update episode information from TMDB
 - **Admin Operations**: Database backup, initialization, bootstrap operations
 
 ### Detailed API Documentation
+
 For complete API documentation, including:
+
 - All available endpoints
 - Request/response schemas
 - Authentication details
@@ -407,6 +488,7 @@ For complete API documentation, including:
 ### File Management
 
 #### Download Files from SFTP
+
 ```bash
 # Download new files with debug logging
 python sync2nas.py -vv download-from-remote
@@ -416,6 +498,7 @@ python sync2nas.py list-remote
 ```
 
 #### Route Files to Media Library
+
 ```bash
 # Standard routing with regex parsing
 python sync2nas.py route-files --auto-add
@@ -431,6 +514,7 @@ python sync2nas.py route-files --dry-run
 ### Show Management
 
 #### Add New Shows
+
 ```bash
 # Add show by name (interactive search)
 python sync2nas.py add-show "Attack on Titan"
@@ -443,6 +527,7 @@ python sync2nas.py add-show "Show Name" --override-dir
 ```
 
 #### Search for Shows
+
 ```bash
 # Search local database
 python sync2nas.py search-show "Attack on Titan"
@@ -454,6 +539,7 @@ python sync2nas.py search-tmdb --tmdb-id 37854
 ```
 
 #### Fix Misclassified Shows
+
 ```bash
 # Interactive fix with TMDB search
 python sync2nas.py fix-show "Show Name"
@@ -465,6 +551,7 @@ python sync2nas.py fix-show "Show Name" --tmdb-id 123456
 ### Database Operations
 
 #### Bootstrap Operations
+
 ```bash
 # Bootstrap existing SFTP downloads
 python sync2nas.py bootstrap-downloads
@@ -477,6 +564,7 @@ python sync2nas.py bootstrap-episodes
 ```
 
 #### Database Maintenance
+
 ```bash
 # Backup database
 python sync2nas.py backup-db
@@ -485,9 +573,53 @@ python sync2nas.py backup-db
 python sync2nas.py init-db
 ```
 
+### Configuration Monitoring & Diagnostics
+
+#### Configuration Validation
+
+```bash
+# Validate entire configuration
+python sync2nas.py config-monitor validate
+
+# Validate specific service
+python sync2nas.py config-monitor validate --service openai
+python sync2nas.py config-monitor validate --service ollama
+
+# JSON output for automation
+python sync2nas.py config-monitor validate --json
+```
+
+#### Service Health Checks
+
+```bash
+# Check all configured services
+python sync2nas.py config-monitor health-check
+
+# Check specific service connectivity
+python sync2nas.py config-monitor health-check --service tmdb
+python sync2nas.py config-monitor health-check --service sftp
+
+# Custom timeout for slow connections
+python sync2nas.py config-monitor health-check --timeout 30
+```
+
+#### Configuration Monitoring
+
+```bash
+# View configuration metrics
+python sync2nas.py config-monitor metrics
+
+# View recent configuration events
+python sync2nas.py config-monitor events
+
+# Setup alert notifications
+python sync2nas.py config-monitor setup-alerts --email
+```
+
 ### Advanced Features
 
 #### AI-Powered Parsing
+
 ```bash
 # The backend (Ollama, Anthropic, or OpenAI) is selected via the [llm] config section
 # Route files with LLM parsing and automatic show creation
@@ -498,6 +630,7 @@ python sync2nas.py route-files --use-llm --llm-confidence 0.8
 ```
 
 #### Verbose Output and Debugging
+
 ```bash
 # INFO level logging
 python sync2nas.py -v route-files
@@ -512,6 +645,7 @@ python sync2nas.py -v --logfile sync2nas.log route-files
 ## Migration Notes
 
 If you are upgrading from a previous version:
+
 - The `[llm]` section is required to select the LLM backend (`ollama` or `openai`).
 - The `[openAI]` section is now optional and only used if `[llm] service = openai`.
 - The `[anthropic]` section is now optional and only used if `[llm] service = anthropic`.
@@ -543,7 +677,7 @@ sync2nas/
                                  │        Sync2NAS App         │
                                  └─────────────┬───────────────┘
                                                │
-                ┌──────────────────────────────┼                                              
+                ┌──────────────────────────────┼
   ┌─────────────▼────────────┐                 │
   │            GUI           │                 │
   │       (gui/main.py)      │                 │
@@ -579,6 +713,7 @@ sync2nas/
 ```
 
 ### Testing
+
 ```bash
 # Run all tests
 pytest
@@ -592,6 +727,7 @@ pytest tests/cli/
 ```
 
 ### Development Setup
+
 ```bash
 # Install in development mode
 pip install -e .
@@ -611,21 +747,27 @@ black sync2nas/
 #### LLM Service Configuration Problems
 
 **Problem: "LLM service initialization failed"**
+
 ```bash
 # Check your configuration with the built-in validator
-python sync2nas.py config-check
+python sync2nas.py config-monitor validate
 
 # Test specific service connectivity
-python sync2nas.py config-check --service openai
-python sync2nas.py config-check --service ollama
+python sync2nas.py config-monitor health-check --service openai
+python sync2nas.py config-monitor health-check --service ollama
+
+# Legacy command (still supported)
+python sync2nas.py config-check
 ```
 
 **Problem: Case sensitivity errors**
+
 - Use lowercase section names: `[openai]` not `[OpenAI]`
 - The system accepts both but prefers lowercase
 - Check for typos: `[olama]` should be `[ollama]`
 
 **Problem: Missing API keys**
+
 ```bash
 # Use environment variables for secure key management
 export SYNC2NAS_OPENAI_API_KEY=your_key_here
@@ -636,6 +778,7 @@ api_key = your_key_here
 ```
 
 **Problem: Ollama connection issues**
+
 ```bash
 # Verify Ollama is running
 curl http://localhost:11434/api/version
@@ -660,13 +803,20 @@ The system provides intelligent suggestions for common mistakes:
 
 ```bash
 # Validate your entire configuration
-python sync2nas.py config-check
+python sync2nas.py config-monitor validate
 
 # Get detailed suggestions for configuration issues
+python sync2nas.py config-monitor validate --json
+
+# Test service connectivity
+python sync2nas.py config-monitor health-check
+
+# Legacy command (still supported)
 python sync2nas.py config-check --verbose
 ```
 
 **Example validation output:**
+
 ```
 ❌ Configuration Issues Found:
   • [openai] api_key: Required key missing
@@ -681,11 +831,13 @@ python sync2nas.py config-check --verbose
 ### Performance Issues
 
 #### Slow LLM Responses
+
 - **Ollama**: Use smaller models like `gemma3:7b` for faster responses
 - **OpenAI**: Reduce `max_tokens` or use `gpt-3.5-turbo` instead of `gpt-4`
 - **Network**: Check internet connectivity for cloud-based LLMs
 
 #### File Processing Issues
+
 ```bash
 # Use dry-run mode to test without making changes
 python sync2nas.py route-files --dry-run
@@ -696,16 +848,19 @@ python sync2nas.py -vv route-files
 
 ### Getting Help
 
-1. **Check Configuration**: Run `python sync2nas.py config-check`
-2. **Review Logs**: Use `-v` or `-vv` flags for detailed logging
-3. **Test Components**: Use individual commands to isolate issues
-4. **Environment Variables**: Use `SYNC2NAS_*` variables for overrides
+1. **Check Configuration**: Run `python sync2nas.py config-monitor validate`
+2. **Test Service Health**: Run `python sync2nas.py config-monitor health-check`
+3. **Review Logs**: Use `-v` or `-vv` flags for detailed logging
+4. **Monitor Configuration**: Use `python sync2nas.py config-monitor metrics` and `events`
+5. **Test Components**: Use individual commands to isolate issues
+6. **Environment Variables**: Use `SYNC2NAS_*` variables for overrides
 
 ## Contributing
 
 We welcome contributions! Please see our [Contributing Guide](docs/contributing.md) for details.
 
 ### Getting Started
+
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
@@ -713,12 +868,14 @@ We welcome contributions! Please see our [Contributing Guide](docs/contributing.
 5. Submit a pull request
 
 ### Development Guidelines
+
 - Follow the existing code style
 - Add comprehensive tests
 - Update documentation
 - Use meaningful commit messages
 
 ### Reporting Issues
+
 - Use the GitHub issue tracker
 - Include detailed reproduction steps
 - Provide relevant configuration and logs
@@ -726,6 +883,7 @@ We welcome contributions! Please see our [Contributing Guide](docs/contributing.
 ---
 
 **Need Help?**
+
 - Check the [documentation](docs/)
 - Review [API documentation](api/README.md)
 - Open an [issue](https://github.com/jamesbconner/sync2nas/issues)
