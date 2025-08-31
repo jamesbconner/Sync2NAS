@@ -38,6 +38,10 @@ class ConfigHealthChecker:
         """
         logger.info("Starting LLM health checks")
         
+        # Import here to avoid circular imports
+        from .config_monitor import get_config_monitor
+        monitor = get_config_monitor()
+        
         # Normalize configuration
         normalized_config = self.normalizer.normalize_and_override(config)
         
@@ -56,6 +60,9 @@ class ConfigHealthChecker:
             ))
             return results
         
+        # Start monitoring for the service
+        operation_id = monitor.log_health_check_start(llm_service)
+        
         # Check the configured service
         if llm_service == 'openai':
             result = await self._check_openai_health(normalized_config.get('openai', {}))
@@ -71,6 +78,9 @@ class ConfigHealthChecker:
                 error_message=f"Unknown LLM service: {llm_service}",
                 details={'error_code': ErrorCode.INVALID_SERVICE.value}
             )
+        
+        # Log completion to monitoring
+        monitor.log_health_check_complete(operation_id, llm_service, result)
         
         results.append(result)
         
@@ -90,24 +100,36 @@ class ConfigHealthChecker:
         """
         logger.info(f"Checking health for {service}")
         
+        # Import here to avoid circular imports
+        from .config_monitor import get_config_monitor
+        monitor = get_config_monitor()
+        
+        # Start monitoring
+        operation_id = monitor.log_health_check_start(service)
+        
         # Normalize configuration
         normalized_config = self.normalizer.normalize_and_override(config)
         service_config = normalized_config.get(service.lower(), {})
         
         if service.lower() == 'openai':
-            return await self._check_openai_health(service_config)
+            result = await self._check_openai_health(service_config)
         elif service.lower() == 'anthropic':
-            return await self._check_anthropic_health(service_config)
+            result = await self._check_anthropic_health(service_config)
         elif service.lower() == 'ollama':
-            return await self._check_ollama_health(service_config)
+            result = await self._check_ollama_health(service_config)
         else:
-            return HealthCheckResult(
+            result = HealthCheckResult(
                 service=service,
                 is_healthy=False,
                 response_time_ms=None,
                 error_message=f"Unknown service: {service}",
                 details={'error_code': ErrorCode.INVALID_SERVICE.value}
             )
+        
+        # Log completion to monitoring
+        monitor.log_health_check_complete(operation_id, service, result)
+        
+        return result
     
     async def _check_openai_health(self, config: Dict[str, Any]) -> HealthCheckResult:
         """Check OpenAI service health."""

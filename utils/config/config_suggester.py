@@ -97,6 +97,10 @@ class ConfigSuggester:
         Returns:
             Suggested correct section name or None if no good match
         """
+        if not invalid_name or not isinstance(invalid_name, str):
+            return None
+            
+        invalid_name = invalid_name.strip()
         if not invalid_name:
             return None
         
@@ -149,6 +153,10 @@ class ConfigSuggester:
         Returns:
             Suggested correct key name or None if no good match
         """
+        if not invalid_key or not isinstance(invalid_key, str):
+            return None
+            
+        invalid_key = invalid_key.strip()
         if not invalid_key:
             return None
         
@@ -448,21 +456,49 @@ class ConfigSuggester:
         """Analyze configuration for potential typos and add suggestions."""
         typo_suggestions = []
         
-        # Check section names - suggest lowercase canonical form
-        for section_name in config.keys():
-            canonical_section = section_name.lower()
-            if canonical_section in self.SECTION_NAMES and section_name != canonical_section:
-                typo_suggestions.append(f"  Section '[{section_name}]' should be '[{canonical_section}]' (lowercase preferred)")
-            elif section_name.lower() not in [s.lower() for s in self.SECTION_NAMES.keys()]:
-                suggested = self.suggest_section_name(section_name)
-                if suggested and suggested != section_name.lower():
-                    typo_suggestions.append(f"  Section '[{section_name}]' might be '[{suggested}]'")
+        import logging
+        logger = logging.getLogger(__name__)
         
-        # Check key names within sections
+        # Check section names - suggest lowercase canonical form (only for LLM-related sections)
+        llm_sections = {'llm', 'openai', 'anthropic', 'ollama'}
+        for section_name in config.keys():
+            # Skip empty or invalid section names
+            if not section_name or not isinstance(section_name, str) or not section_name.strip():
+                continue
+                
+            section_name = section_name.strip()
+            canonical_section = section_name.lower()
+            
+            # Only suggest typos for LLM-related sections or unknown sections that might be LLM-related
+            if canonical_section in llm_sections or canonical_section in self.SECTION_NAMES:
+                if canonical_section in self.SECTION_NAMES and section_name != canonical_section:
+                    typo_suggestions.append(f"  Section '[{section_name}]' should be '[{canonical_section}]' (lowercase preferred)")
+                elif section_name.lower() not in [s.lower() for s in self.SECTION_NAMES.keys()]:
+                    suggested = self.suggest_section_name(section_name)
+                    if suggested and suggested != section_name.lower() and suggested in llm_sections:
+                        typo_suggestions.append(f"  Section '[{section_name}]' might be '[{suggested}]'")
+        
+        # Check key names within sections (only for LLM-related sections)
         for section_name, section_config in config.items():
+            # Skip empty or invalid section names
+            if not section_name or not isinstance(section_name, str) or not section_name.strip():
+                continue
+                
+            section_name = section_name.strip()
+            
+            # Only check keys for LLM-related sections to avoid false positives
+            if section_name.lower() not in llm_sections:
+                continue
+            
             if isinstance(section_config, dict):
                 valid_keys = self._get_valid_keys_for_section(section_name.lower())
                 for key in section_config.keys():
+                    # Skip empty or invalid keys
+                    if not key or not isinstance(key, str) or not key.strip():
+                        continue
+                        
+                    key = key.strip()
+                    
                     if key.lower() not in [k.lower() for k in valid_keys]:
                         suggested = self.suggest_config_key(section_name.lower(), key)
                         if suggested and suggested != key.lower():

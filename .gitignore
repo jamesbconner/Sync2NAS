@@ -25,6 +25,7 @@ share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.venv/
 MANIFEST
 
 # PyInstaller
@@ -99,3 +100,6 @@ next_step.py
 # Packaging code
 cleanup_and_zip.py
 Sync2NAS.zip
+
+# Kiro files
+.kiro/

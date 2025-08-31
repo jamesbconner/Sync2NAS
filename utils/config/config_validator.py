@@ -1,11 +1,15 @@
 """Configuration validation system for LLM services."""
 
 import re
+import time
+import logging
 from typing import Dict, List, Optional, Set, Any, Union
 from configparser import ConfigParser
 from .validation_models import ValidationResult, ValidationError, ErrorCode
 from .config_normalizer import ConfigNormalizer
 from .config_suggester import ConfigSuggester
+
+logger = logging.getLogger(__name__)
 
 
 class ConfigValidator:
@@ -69,47 +73,65 @@ class ConfigValidator:
         Returns:
             ValidationResult with errors, warnings, and suggestions
         """
-        result = ValidationResult(is_valid=True, errors=[], warnings=[], suggestions=[])
+        start_time = time.time()
         
-        # First, analyze the original config for potential typos before normalization
-        original_config = self._convert_to_dict(config)
-        typo_suggestions = []
-        self.suggester._analyze_potential_typos(original_config, typo_suggestions)
-        for suggestion in typo_suggestions:
-            result.add_suggestion(suggestion)
+        # Import here to avoid circular imports
+        from .config_monitor import get_config_monitor
+        monitor = get_config_monitor()
         
-        # Normalize configuration with environment overrides
-        normalized_config = self.normalizer.normalize_and_override(config)
+        # Start monitoring
+        operation_id = monitor.log_validation_start("llm")
         
-        # Validate required sections exist
-        self._validate_required_sections(normalized_config, result)
-        
-        # If basic structure is invalid, return early
-        if not result.is_valid:
+        try:
+            result = ValidationResult(is_valid=True, errors=[], warnings=[], suggestions=[])
+            
+            # First, analyze the original config for potential typos before normalization
+            original_config = self._convert_to_dict(config)
+            
+            typo_suggestions = []
+            self.suggester._analyze_potential_typos(original_config, typo_suggestions)
+            for suggestion in typo_suggestions:
+                if suggestion and suggestion.strip():  # Only add non-empty suggestions
+                    result.add_suggestion(suggestion)
+            
+            # Normalize configuration with environment overrides
+            normalized_config = self.normalizer.normalize_and_override(config)
+            
+            # Validate required sections exist
+            self._validate_required_sections(normalized_config, result)
+            
+            # If basic structure is invalid, return early
+            if not result.is_valid:
+                return result
+            
+            # Get selected LLM service
+            llm_service = normalized_config.get('llm', {}).get('service', '').lower()
+            
+            # Validate service selection
+            self._validate_service_selection(llm_service, result)
+            
+            # Validate service-specific configuration
+            if llm_service in self.VALID_SERVICES:
+                self._validate_service_config(llm_service, normalized_config, result)
+            
+            # Add helpful suggestions
+            self._add_configuration_suggestions(llm_service, normalized_config, result)
+            
+            # Add intelligent error analysis and suggestions
+            if result.errors:
+                intelligent_suggestions = self.suggester.analyze_configuration_errors(
+                    normalized_config, result.errors
+                )
+                for suggestion in intelligent_suggestions:
+                    if suggestion and suggestion.strip():  # Only add non-empty suggestions
+                        result.add_suggestion(suggestion)
+            
             return result
         
-        # Get selected LLM service
-        llm_service = normalized_config.get('llm', {}).get('service', '').lower()
-        
-        # Validate service selection
-        self._validate_service_selection(llm_service, result)
-        
-        # Validate service-specific configuration
-        if llm_service in self.VALID_SERVICES:
-            self._validate_service_config(llm_service, normalized_config, result)
-        
-        # Add helpful suggestions
-        self._add_configuration_suggestions(llm_service, normalized_config, result)
-        
-        # Add intelligent error analysis and suggestions
-        if result.errors:
-            intelligent_suggestions = self.suggester.analyze_configuration_errors(
-                normalized_config, result.errors
-            )
-            for suggestion in intelligent_suggestions:
-                result.add_suggestion(suggestion)
-        
-        return result
+        finally:
+            # Log completion regardless of success/failure
+            duration_ms = (time.time() - start_time) * 1000
+            monitor.log_validation_complete(operation_id, "llm", result, duration_ms)
     
     def validate_service_config(self, service: str, config: Dict[str, Any]) -> ValidationResult:
         """
@@ -122,30 +144,45 @@ class ConfigValidator:
         Returns:
             ValidationResult for the specific service
         """
-        result = ValidationResult(is_valid=True, errors=[], warnings=[], suggestions=[])
+        start_time = time.time()
         
-        # Normalize configuration with environment overrides
-        normalized_config = self.normalizer.normalize_and_override(config)
+        # Import here to avoid circular imports
+        from .config_monitor import get_config_monitor
+        monitor = get_config_monitor()
         
-        # Validate service exists
-        service = service.lower()
-        if service not in self.VALID_SERVICES:
-            result.add_error(ValidationError(
-                section='llm',
-                key='service',
-                message=self.ERROR_MESSAGES[ErrorCode.INVALID_SERVICE].format(
-                    service=service,
-                    valid_services=', '.join(sorted(self.VALID_SERVICES))
-                ),
-                suggestion=f"Set service to one of: {', '.join(sorted(self.VALID_SERVICES))}",
-                error_code=ErrorCode.INVALID_SERVICE
-            ))
+        # Start monitoring
+        operation_id = monitor.log_validation_start(service)
+        
+        try:
+            result = ValidationResult(is_valid=True, errors=[], warnings=[], suggestions=[])
+            
+            # Normalize configuration with environment overrides
+            normalized_config = self.normalizer.normalize_and_override(config)
+            
+            # Validate service exists
+            service = service.lower()
+            if service not in self.VALID_SERVICES:
+                result.add_error(ValidationError(
+                    section='llm',
+                    key='service',
+                    message=self.ERROR_MESSAGES[ErrorCode.INVALID_SERVICE].format(
+                        service=service,
+                        valid_services=', '.join(sorted(self.VALID_SERVICES))
+                    ),
+                    suggestion=f"Set service to one of: {', '.join(sorted(self.VALID_SERVICES))}",
+                    error_code=ErrorCode.INVALID_SERVICE
+                ))
+                return result
+            
+            # Validate service-specific configuration
+            self._validate_service_config(service, normalized_config, result)
+            
             return result
         
-        # Validate service-specific configuration
-        self._validate_service_config(service, normalized_config, result)
-        
-        return result
+        finally:
+            # Log completion regardless of success/failure
+            duration_ms = (time.time() - start_time) * 1000
+            monitor.log_validation_complete(operation_id, service, result, duration_ms)
     
     def _validate_required_sections(self, config: Dict[str, Any], result: ValidationResult) -> None:
         """Validate that all required sections exist."""

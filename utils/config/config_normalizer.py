@@ -75,19 +75,37 @@ class ConfigNormalizer:
         
         # Process each section in the raw config
         for section_name, section_data in raw_config.items():
+            # Skip empty or invalid section names
+            if not section_name or not isinstance(section_name, str) or not section_name.strip():
+                logger.warning(f"Skipping invalid section name: {repr(section_name)}")
+                continue
+                
+            section_name = section_name.strip()
+            
             # Find the canonical (lowercase) section name
             canonical_name = section_mapping.get(section_name.lower(), section_name.lower())
             
             # Normalize keys to lowercase as well
             normalized_section_data = {}
-            for key, value in section_data.items():
-                normalized_key = key.lower()
-                # Special handling for service values - normalize to lowercase
-                if normalized_key == 'service' and canonical_name == 'llm':
-                    normalized_value = value.lower()
-                else:
-                    normalized_value = value
-                normalized_section_data[normalized_key] = normalized_value
+            if isinstance(section_data, dict):
+                for key, value in section_data.items():
+                    # Skip empty or invalid keys
+                    if not key or not isinstance(key, str) or not key.strip():
+                        logger.warning(f"Skipping invalid key in section [{section_name}]: {repr(key)}")
+                        continue
+                        
+                    key = key.strip()
+                    normalized_key = key.lower()
+                    
+                    # Special handling for service values - normalize to lowercase
+                    if normalized_key == 'service' and canonical_name == 'llm':
+                        normalized_value = value.lower() if isinstance(value, str) else value
+                    else:
+                        normalized_value = value
+                    normalized_section_data[normalized_key] = normalized_value
+            else:
+                logger.warning(f"Section [{section_name}] is not a dictionary: {type(section_data)}")
+                continue
             
             if canonical_name in normalized:
                 # Merge with existing section (lowercase takes precedence)
@@ -141,6 +159,15 @@ class ConfigNormalizer:
                 
                 logger.info(f"Environment override applied: {env_var} -> [{section}] {key}")
                 logger.debug(f"Value changed: {old_value} -> {env_value}")
+                
+                # Log to monitoring system
+                try:
+                    from .config_monitor import get_config_monitor
+                    monitor = get_config_monitor()
+                    monitor.log_environment_override(env_var, section, key, str(old_value), env_value)
+                except ImportError:
+                    # Monitoring not available, continue without it
+                    pass
         
         if overrides_applied > 0:
             logger.info(f"Applied {overrides_applied} environment variable overrides")

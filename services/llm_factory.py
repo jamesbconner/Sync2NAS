@@ -6,6 +6,7 @@ to ensure robust service creation and clear error reporting when configuration i
 """
 
 import logging
+import time
 from typing import Union, Dict, Any, Optional
 from configparser import ConfigParser
 from services.llm_implementations.llm_interface import LLMInterface
@@ -16,6 +17,7 @@ from utils.sync2nas_config import get_config_value
 from utils.config.config_validator import ConfigValidator
 from utils.config.config_normalizer import ConfigNormalizer
 from utils.config.health_checker import ConfigHealthChecker
+from utils.config.config_monitor import get_config_monitor
 
 logger = logging.getLogger(__name__)
 
@@ -52,14 +54,22 @@ def create_llm_service(
     """
     logger.info("Creating LLM service with validation")
     
-    # Initialize validation components
+    # Initialize validation components and monitoring
     validator = ConfigValidator()
     normalizer = ConfigNormalizer()
+    monitor = get_config_monitor()
+    
+    # Start monitoring configuration loading
+    config_operation_id = monitor.log_config_loading_start("llm_factory")
+    start_time = time.time()
     
     try:
         # Step 1: Normalize configuration and apply environment overrides
         logger.debug("Normalizing configuration and applying environment overrides")
         normalized_config = normalizer.normalize_and_override(config)
+        
+        # Count sections loaded
+        sections_loaded = len(normalized_config)
         
         # Step 2: Validate configuration
         logger.debug("Validating LLM configuration")
@@ -122,18 +132,40 @@ def create_llm_service(
         # Step 5: Create the appropriate service instance
         logger.debug(f"Creating {llm_type} service instance")
         
+        service_instance = None
         if llm_type == 'ollama':
-            return OllamaLLMService(normalized_config)
+            service_instance = OllamaLLMService(normalized_config)
         elif llm_type == 'openai':
-            return OpenAILLMService(normalized_config)
+            service_instance = OpenAILLMService(normalized_config)
         elif llm_type == 'anthropic':
-            return AnthropicLLMService(normalized_config)
+            service_instance = AnthropicLLMService(normalized_config)
         else:
             error_msg = f"Unsupported LLM service: {llm_type}"
             logger.error(error_msg)
             raise ValueError(error_msg)
+        
+        # Log successful configuration loading
+        duration_ms = (time.time() - start_time) * 1000
+        monitor.log_config_loading_complete(
+            config_operation_id, 
+            success=True, 
+            duration_ms=duration_ms,
+            sections_loaded=sections_loaded
+        )
+        
+        return service_instance
     
     except Exception as e:
+        # Log failed configuration loading
+        duration_ms = (time.time() - start_time) * 1000
+        monitor.log_config_loading_complete(
+            config_operation_id,
+            success=False,
+            duration_ms=duration_ms,
+            sections_loaded=0,
+            error_message=str(e)
+        )
+        
         if isinstance(e, (LLMServiceCreationError, ValueError)):
             raise
         
