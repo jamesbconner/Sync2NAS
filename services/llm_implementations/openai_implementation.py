@@ -1,9 +1,10 @@
 import logging
 import json
 import re
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
+from configparser import ConfigParser
 import openai
-from utils.sync2nas_config import load_configuration
+from utils.sync2nas_config import load_configuration, get_config_value
 from services.llm_implementations.base_llm_service import BaseLLMService
 
 logger = logging.getLogger(__name__)
@@ -20,15 +21,15 @@ class OpenAILLMService(BaseLLMService):
         api_key (str): API key for OpenAI.
         client (OpenAI): OpenAI client instance.
     """
-    def __init__(self, config):
+    def __init__(self, config: Union[ConfigParser, Dict[str, Dict[str, Any]]]):
         """
         Initialize the OpenAI LLM service.
         Args:
-            config: Loaded configuration object
+            config: Loaded configuration object (ConfigParser or normalized dict)
         """
         self.config = config
-        self.model = self.config.get('openai', 'model', fallback='gpt-3.5-turbo')
-        self.api_key = self.config.get('openai', 'api_key', fallback=None)
+        self.model = get_config_value(config, 'openai', 'model', 'gpt-3.5-turbo')
+        self.api_key = get_config_value(config, 'openai', 'api_key', None)
         if not self.api_key:
             logger.exception("OpenAI API key is required. Set it in config file.")
             raise ValueError("OpenAI API key is required. Set it in config file.")

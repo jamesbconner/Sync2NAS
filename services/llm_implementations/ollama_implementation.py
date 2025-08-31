@@ -4,9 +4,10 @@ import re
 from pydantic import BaseModel, Field, ValidationError
 import datetime
 import os as _os
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Union
+from configparser import ConfigParser
 from ollama import Client
-from utils.sync2nas_config import load_configuration
+from utils.sync2nas_config import load_configuration, get_config_value
 from services.llm_implementations.base_llm_service import BaseLLMService
 
 logger = logging.getLogger(__name__)
@@ -36,23 +37,27 @@ class OllamaLLMService(BaseLLMService):
         model (str): Model name used by Ollama.
         client (Client): Ollama client instance.
     """
-    def __init__(self, config):
+    def __init__(self, config: Union[ConfigParser, Dict[str, Dict[str, Any]]]):
         """
         Initialize the Ollama LLM service.
         Args:
-            config: Loaded configuration object
+            config: Loaded configuration object (ConfigParser or normalized dict)
         """
         self.config = config
-        self.model = self.config.get('ollama', 'model', fallback='gemma3:12b')
+        self.model = get_config_value(config, 'ollama', 'model', 'gemma3:12b')
+        
         # Context window for input tokens (model-dependent). Default to 8192 if not specified.
+        num_ctx_raw = get_config_value(config, 'ollama', 'num_ctx', '8192')
         try:
-            self.num_ctx = self.config.getint('ollama', 'num_ctx', fallback=8192)
-        except Exception:
+            self.num_ctx = int(num_ctx_raw)
+        except (ValueError, TypeError):
             self.num_ctx = 8192
+            
         # Use Ollama default host behavior (localhost) without requiring host configuration
-        self.client = Client(host=self.config.get('ollama', 'host', fallback='http://localhost:11434'))
+        self.host = get_config_value(config, 'ollama', 'host', 'http://localhost:11434')
+        self.client = Client(host=self.host)
         logger.info(f"Ollama LLM service initialized with model: {self.model}")
-        logger.debug(f"Ollama client host: {self.config.get('ollama', 'host', fallback='(default)')}")
+        logger.debug(f"Ollama client host: {get_config_value(self.config, 'ollama', 'host', '(default)')}")
 
     def _dump_failure_artifacts(self, context: str, prompt: str, raw_text: str | None) -> None:
         """Persist prompt and raw response for debugging when parsing fails."""

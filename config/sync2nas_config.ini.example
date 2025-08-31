@@ -1,52 +1,69 @@
-[Database]
+# Sync2NAS Configuration File
+# Use lowercase section names for consistency
+# Environment variables can override any setting: SYNC2NAS_<SECTION>_<KEY>
+
+# Database Configuration
+[database]
 # Type of database to use: sqlite, postgres, or milvus
 type = sqlite
 
-[SQLite]
+[sqlite]
 db_file = ./database/sync2nas.db
 
-[PostgreSQL]
+[postgresql]
 host = localhost
 port = 5432
 database = sync2nas
 user = postgres
 password = your_password
 
-[Milvus]
+[milvus]
 host = localhost
 port = 19530
 
-[SFTP]
+# SFTP Server Configuration
+[sftp]
 host = your.sftpserver.com
 port = 22
 username = whatsyourname
 ssh_key_path = ./ssh/your_sftpserver_rsa
-path = /path/to/remote/files/, /path/to/remote/files2/
+paths = /path/to/remote/files/,/path/to/remote/files2/
 
-[Transfers]
+# File Transfer Settings
+[transfers]
 incoming = ./incoming
 
-[TMDB]
+# TMDB API Configuration (Required)
+[tmdb]
 api_key = your_tmdb_api_key
 
-[Routing]
+# Media Library Routing
+[routing]
 anime_tv_path = d:/anime_tv/
 
+# LLM Service Selection (Required)
 [llm]
-service = ollama  # ollama or openai
+service = ollama  # Options: ollama, openai, anthropic
 
+# Ollama Configuration (Default - Free local LLM)
 [ollama]
 model = gemma3:12b
-llm_confidence_threshold = 0.7
+host = http://localhost:11434
+timeout = 30
+# Note: Ensure model is installed with: ollama pull gemma3:12b
 
+# OpenAI Configuration (Optional - Requires API key)
 [openai]
-model = gpt-3.5-turbo
-api_key = your_openai_api_key
-max_tokens = 250
+api_key = your_openai_api_key_here
+model = gpt-4
+max_tokens = 4000
 temperature = 0.1
+# Get API key from: https://platform.openai.com/api-keys
 
+# Anthropic Configuration (Optional - Requires API key)
 [anthropic]
-model = claude-3-5-sonnet-20240620
-api_key = your_anthropic_api_key
-max_tokens = 250
+api_key = your_anthropic_api_key_here
+model = claude-3-sonnet-20240229
+max_tokens = 4000
 temperature = 0.1
+# Get API key from: https://console.anthropic.com/

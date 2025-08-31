@@ -1,6 +1,7 @@
 import click
 from pathlib import Path
 from datetime import datetime
+from utils.sync2nas_config import parse_sftp_paths
 
 """
 CLI command to list files on the remote SFTP server, with options for recursion, dry-run, and populating the sftp_temp table.
@@ -19,7 +20,15 @@ def list_remote(ctx, path, recursive, populate_sftp_temp):
     
     dry_run = ctx.obj["dry_run"]
 
-    remote_path = path if path else ctx.obj["config"]["SFTP"]["path"]
+    if path:
+        remote_path = path
+    else:
+        # Get the first SFTP path from configuration
+        remote_paths = parse_sftp_paths(ctx.obj["config"])
+        if not remote_paths:
+            click.echo("Error: No SFTP paths configured")
+            return 1
+        remote_path = remote_paths[0]
 
     with ctx.obj["sftp"] as sftp:
         if recursive:

@@ -1,8 +1,9 @@
 from configparser import ConfigParser
-from typing import Dict, List
+from typing import Dict, List, Union, Any
 import anthropic
 import logging
 from services.llm_implementations.base_llm_service import BaseLLMService
+from utils.sync2nas_config import get_config_value
 import re
 import json
 
@@ -23,18 +24,28 @@ class AnthropicLLMService(BaseLLMService):
         confidence_threshold (float): Confidence threshold for LLM suggestions.
         client (Anthropic): Anthropic client instance.
     """
-    def __init__(self, config):
+    def __init__(self, config: Union[ConfigParser, Dict[str, Dict[str, Any]]]):
         """
         Initialize the Anthropic LLM service.
         Args:
-            config: Loaded configuration object
+            config: Loaded configuration object (ConfigParser or normalized dict)
         """
         self.config = config
-        self.model = self.config.get("anthropic", "model", fallback="claude-3-sonnet-20240229")
-        self.api_key = self.config.get("anthropic", "api_key", fallback=None)
-        self.max_tokens = self.config.getint("anthropic", "max_tokens", fallback=200)
-        self.temperature = self.config.getfloat("anthropic", "temperature", fallback=0.1)
-        self.confidence_threshold = self.config.getfloat("anthropic", "llm_confidence_threshold", fallback=0.7)
+        self.model = get_config_value(config, "anthropic", "model", "claude-3-sonnet-20240229")
+        self.api_key = get_config_value(config, "anthropic", "api_key", None)
+        
+        # Handle type conversion for normalized dict vs ConfigParser
+        max_tokens_raw = get_config_value(config, "anthropic", "max_tokens", "200")
+        temperature_raw = get_config_value(config, "anthropic", "temperature", "0.1")
+        confidence_raw = get_config_value(config, "anthropic", "llm_confidence_threshold", "0.7")
+        
+        try:
+            self.max_tokens = int(max_tokens_raw)
+            self.temperature = float(temperature_raw)
+            self.confidence_threshold = float(confidence_raw)
+        except (ValueError, TypeError) as e:
+            logger.error(f"Invalid configuration values for Anthropic service: {e}")
+            raise ValueError(f"Invalid configuration values for Anthropic service: {e}")
         
         if not self.api_key:
             logger.exception("Anthropic API key is required. Set it in config file.")

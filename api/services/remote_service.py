@@ -31,7 +31,7 @@ class RemoteService:
             if not remote_paths:
                 raise ValueError("No SFTP paths defined in config [SFTP] section")
 
-            incoming_path = self.config["Transfers"]["incoming"]
+            incoming_path = self.config["transfers"]["incoming"]
 
             with self.sftp as s:
                 downloader(
@@ -56,7 +56,7 @@ class RemoteService:
                               dry_run: bool = False) -> Dict[str, Any]:
         """List files on remote SFTP server"""
         try:
-            remote_path = path if path else self.config["SFTP"]["paths"]
+            remote_path = path if path else self.config["sftp"]["paths"]
 
             with self.sftp as sftp:
                 if recursive:
@@ -106,14 +106,14 @@ class RemoteService:
                 return {
                     "success": True,
                     "status": "connected",
-                    "host": self.config["SFTP"]["host"],
-                    "port": self.config["SFTP"]["port"]
+                    "host": self.config["sftp"]["host"],
+                    "port": self.config["sftp"]["port"]
                 }
         except Exception as e:
             return {
                 "success": False,
                 "status": "disconnected",
                 "error": str(e),
-                "host": self.config["SFTP"]["host"],
-                "port": self.config["SFTP"]["port"]
+                "host": self.config["sftp"]["host"],
+                "port": self.config["sftp"]["port"]
             } 
