@@ -93,6 +93,11 @@ def sync2nas_cli(ctx: click.Context, verbose: int, logfile: str, config: str, dr
             else:
                 # For normal startup, LLM service failure is critical
                 logger.error(f"❌ LLM service initialization failed: {e}")
+                logger.error("💡 LLM service is required for core functionality:")
+                logger.error("   - Check your configuration file for the [llm] section")
+                logger.error("   - Ensure the selected service (ollama/openai/anthropic) is properly configured")
+                logger.error("   - Run 'python sync2nas.py config-monitor validate' for detailed diagnosis")
+                logger.error("   - Run 'python sync2nas.py config-monitor health-check' to test connectivity")
                 if not skip_validation:
                     # Exit with error code for startup failures
                     sys.exit(1)
@@ -109,35 +114,71 @@ def sync2nas_cli(ctx: click.Context, verbose: int, logfile: str, config: str, dr
         except Exception as e:
             logger.warning(f"⚠️  Database service initialization failed: {e}")
             if not is_config_check:
-                logger.error("Database service is required for most operations")
+                logger.error("💡 Database service is required for most operations:")
+                logger.error("   - Check your configuration file for the [database] section")
+                logger.error("   - Supported types: sqlite, postgresql, milvus")
+                logger.error("   - Run 'python sync2nas.py config-monitor validate' for detailed diagnosis")
         
         # SFTP Service
         try:
+            from utils.sync2nas_config import get_config_value
+            sftp_host = get_config_value(cfg, 'sftp', 'host')
+            sftp_port = get_config_value(cfg, 'sftp', 'port', fallback=22, value_type=int)
+            sftp_username = get_config_value(cfg, 'sftp', 'username')
+            sftp_ssh_key_path = get_config_value(cfg, 'sftp', 'ssh_key_path')
+            
+            if not all([sftp_host, sftp_username, sftp_ssh_key_path]):
+                raise ValueError("Missing required SFTP configuration: host, username, or ssh_key_path")
+            
             sftp_service = SFTPService(
-                cfg["SFTP"]["host"], 
-                int(cfg["SFTP"]["port"]), 
-                cfg["SFTP"]["username"], 
-                cfg["SFTP"]["ssh_key_path"], 
+                sftp_host, 
+                sftp_port, 
+                sftp_username, 
+                sftp_ssh_key_path, 
                 llm_service=llm_service
             )
             logger.info("✓ SFTP service initialized successfully")
         except Exception as e:
             logger.warning(f"⚠️  SFTP service initialization failed: {e}")
+            if "not found" in str(e).lower() or "missing required" in str(e).lower():
+                logger.warning("💡 SFTP configuration issue detected:")
+                logger.warning("   - Check your configuration file for the [sftp] section")
+                logger.warning("   - Required: host, username, ssh_key_path")
+                logger.warning("   - Optional: port (defaults to 22)")
+                logger.warning("   - Run 'python sync2nas.py config-monitor validate --service sftp' for detailed diagnosis")
         
         # TMDB Service
         try:
-            tmdb_service = TMDBService(cfg["TMDB"]["api_key"])
+            from utils.sync2nas_config import get_config_value
+            tmdb_api_key = get_config_value(cfg, 'tmdb', 'api_key')
+            
+            if not tmdb_api_key:
+                raise ValueError("Missing required TMDB configuration: api_key")
+            
+            tmdb_service = TMDBService(tmdb_api_key)
             logger.info("✓ TMDB service initialized successfully")
         except Exception as e:
             logger.warning(f"⚠️  TMDB service initialization failed: {e}")
+            if "not found" in str(e).lower() or "missing required" in str(e).lower():
+                logger.warning("💡 TMDB configuration issue detected:")
+                logger.warning("   - Check your configuration file for the [tmdb] section")
+                logger.warning("   - Required: api_key (get from https://www.themoviedb.org/settings/api)")
+                logger.warning("   - Run 'python sync2nas.py config-monitor validate --service tmdb' for detailed diagnosis")
         
         # Configuration paths
         try:
-            anime_tv_path = cfg["Routing"]["anime_tv_path"]
-            incoming_path = cfg["Transfers"]["incoming"]
+            from utils.sync2nas_config import get_config_value
+            anime_tv_path = get_config_value(cfg, 'routing', 'anime_tv_path')
+            incoming_path = get_config_value(cfg, 'transfers', 'incoming')
+            
+            if not incoming_path:
+                logger.warning("⚠️  Missing incoming path configuration")
+            
             logger.debug("✓ Configuration paths loaded successfully")
         except Exception as e:
             logger.warning(f"⚠️  Failed to load configuration paths: {e}")
+            if "not found" in str(e).lower():
+                logger.warning("💡 Check your configuration file for [routing] and [transfers] sections")
         
         # Create context object with all services
         ctx.obj = {
@@ -214,8 +255,13 @@ def validate_context_for_command(ctx: click.Context, required_services: list = N
     """
     if not ctx.obj:
         click.secho("❌ Error: No context object found. Configuration may have failed to load.", fg="red", bold=True)
-        if ctx.obj and "config_error" in ctx.obj:
-            click.secho(f"Configuration error: {ctx.obj['config_error']}", fg="red")
+        click.secho("💡 Try: python sync2nas.py config-monitor validate", fg="yellow")
+        return False
+    
+    # Check for configuration errors
+    if "config_error" in ctx.obj:
+        click.secho(f"❌ Configuration error: {ctx.obj['config_error']}", fg="red")
+        click.secho("💡 Try: python sync2nas.py config-monitor validate", fg="yellow")
         return False
     
     if required_services:
@@ -226,7 +272,8 @@ def validate_context_for_command(ctx: click.Context, required_services: list = N
         
         if missing_services:
             click.secho(f"❌ Error: Required services not available: {', '.join(missing_services)}", fg="red", bold=True)
-            click.secho("This may be due to configuration issues. Try running 'config-check' to diagnose.", fg="yellow")
+            click.secho("💡 This may be due to configuration issues. Try:", fg="yellow")
+            click.secho("   python sync2nas.py config-monitor validate", fg="yellow")
             return False
     
     return True
@@ -247,13 +294,15 @@ def get_service_from_context(ctx: click.Context, service_name: str, required: bo
     if not ctx.obj:
         if required:
             click.secho("❌ Error: No context object available", fg="red", bold=True)
+            click.secho("💡 Try: python sync2nas.py config-monitor validate", fg="yellow")
             sys.exit(1)
         return None
     
     service = ctx.obj.get(service_name)
     if required and not service:
         click.secho(f"❌ Error: {service_name} not available", fg="red", bold=True)
-        click.secho("Try running 'config-check' to diagnose configuration issues", fg="yellow")
+        click.secho("💡 This may be due to configuration issues. Try:", fg="yellow")
+        click.secho("   python sync2nas.py config-monitor validate", fg="yellow")
         sys.exit(1)
     
     return service
