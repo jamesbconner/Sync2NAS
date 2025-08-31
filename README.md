@@ -508,7 +508,7 @@ python sync2nas.py route-files --auto-add --use-llm
 # The LLM backend (Ollama or OpenAI) is selected via the config file
 
 # Dry run to see what would happen
-python sync2nas.py route-files --dry-run
+python sync2nas.py --dry-run route-files
 ```
 
 ### Show Management
@@ -812,7 +812,7 @@ python sync2nas.py config-monitor validate --json
 python sync2nas.py config-monitor health-check
 
 # Legacy command (still supported)
-python sync2nas.py config-check --verbose
+python sync2nas.py --verbose config-check
 ```
 
 **Example validation output:**
@@ -840,7 +840,7 @@ python sync2nas.py config-check --verbose
 
 ```bash
 # Use dry-run mode to test without making changes
-python sync2nas.py route-files --dry-run
+python sync2nas.py --dry-run route-files
 
 # Enable verbose logging for debugging
 python sync2nas.py -vv route-files
