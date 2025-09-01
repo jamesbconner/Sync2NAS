@@ -249,7 +249,7 @@ class MockDatabaseService(DatabaseInterface):
         return file
     
     def set_downloaded_file_hash(self, file_id: int, algo: str, value: str, calculated_at: Optional[datetime.datetime] = None) -> None:
-        """Set hash for a downloaded file."""
+        """Set hash for a downloaded file (supports CRC32 and other hash algorithms)."""
         for file_obj in self._downloaded_file_objects:
             if file_obj.id == file_id:
                 if not file_obj.hashes:
@@ -409,6 +409,7 @@ class MockLLMService(LLMInterface):
             "show_name": "Mock Show",
             "season": 1,
             "episode": 1,
+            "crc32": None,
             "confidence": 0.9,
             "reasoning": "Mock LLM parsing",
             "filename": filename
@@ -426,6 +427,17 @@ class MockLLMService(LLMInterface):
                     result["confidence"] = 0.95
             except:
                 pass
+        
+        # Try to extract CRC32 from filename (8 hex chars in brackets at end)
+        try:
+            import re
+            # Look for [8 hex chars] pattern at the end of filename for CRC32 hash
+            crc32_match = re.search(r'\[([A-Fa-f0-9]{8})\]', filename)
+            if crc32_match:
+                result["crc32"] = crc32_match.group(1).upper()
+                result["confidence"] = 0.95
+        except:
+            pass
         
         # Extract show name from filename
         show_part = filename.split('.')[0] if '.' in filename else filename

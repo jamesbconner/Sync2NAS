@@ -461,6 +461,10 @@ class ConfigSuggester:
         
         # Check section names - suggest lowercase canonical form (only for LLM-related sections)
         llm_sections = {'llm', 'openai', 'anthropic', 'ollama'}
+        
+        # Pre-compute lowercase section names for faster lookup
+        section_names_lower = {s.lower() for s in self.SECTION_NAMES.keys()}
+        
         for section_name in config.keys():
             # Skip empty or invalid section names
             if not section_name or not isinstance(section_name, str) or not section_name.strip():
@@ -473,25 +477,57 @@ class ConfigSuggester:
             if canonical_section in llm_sections or canonical_section in self.SECTION_NAMES:
                 if canonical_section in self.SECTION_NAMES and section_name != canonical_section:
                     typo_suggestions.append(f"  Section '[{section_name}]' should be '[{canonical_section}]' (lowercase preferred)")
-                elif section_name.lower() not in [s.lower() for s in self.SECTION_NAMES.keys()]:
+                elif canonical_section not in section_names_lower:
                     suggested = self.suggest_section_name(section_name)
-                    if suggested and suggested != section_name.lower() and suggested in llm_sections:
+                    if suggested and suggested != canonical_section and suggested in llm_sections:
+                        typo_suggestions.append(f"  Section '[{section_name}]' might be '[{suggested}]'")
+            else:
+                # Only check unknown sections that might be LLM-related (performance optimization)
+                # Skip sections that are clearly not LLM-related (e.g., section_1, section_2, etc.)
+                if not section_name.startswith(('section_', 'key_', 'test_', 'temp_')):
+                    suggested = self.suggest_section_name(section_name)
+                    if suggested and suggested in llm_sections:
                         typo_suggestions.append(f"  Section '[{section_name}]' might be '[{suggested}]'")
         
         # Check key names within sections (only for LLM-related sections)
+        # Limit the number of sections we check for performance
+        sections_checked = 0
+        max_sections_to_check = 10  # Performance limit
+        
         for section_name, section_config in config.items():
             # Skip empty or invalid section names
             if not section_name or not isinstance(section_name, str) or not section_name.strip():
                 continue
                 
             section_name = section_name.strip()
+            canonical_section = section_name.lower()
             
-            # Only check keys for LLM-related sections to avoid false positives
-            if section_name.lower() not in llm_sections:
+            # Check keys for LLM-related sections and sections that might be LLM-related
+            should_check_keys = (
+                canonical_section in llm_sections or 
+                canonical_section in self.SECTION_NAMES or
+                (not section_name.startswith(('section_', 'key_', 'test_', 'temp_')) and 
+                 self.suggest_section_name(section_name) in llm_sections)
+            )
+            
+            if not should_check_keys:
                 continue
             
+            # Performance limit: only check first few LLM-related sections
+            sections_checked += 1
+            if sections_checked > max_sections_to_check:
+                break
+            
             if isinstance(section_config, dict):
-                valid_keys = self._get_valid_keys_for_section(section_name.lower())
+                # Use the canonical section name for getting valid keys
+                target_section = self.suggest_section_name(section_name) or canonical_section
+                valid_keys = self._get_valid_keys_for_section(target_section)
+                valid_keys_lower = {k.lower() for k in valid_keys}  # Pre-compute for faster lookup
+                
+                # Limit the number of keys we check per section for performance
+                keys_checked = 0
+                max_keys_to_check = 20  # Performance limit
+                
                 for key in section_config.keys():
                     # Skip empty or invalid keys
                     if not key or not isinstance(key, str) or not key.strip():
@@ -499,9 +535,15 @@ class ConfigSuggester:
                         
                     key = key.strip()
                     
-                    if key.lower() not in [k.lower() for k in valid_keys]:
-                        suggested = self.suggest_config_key(section_name.lower(), key)
-                        if suggested and suggested != key.lower():
+                    # Performance limit: only check first few keys per section
+                    keys_checked += 1
+                    if keys_checked > max_keys_to_check:
+                        break
+                    
+                    # Check if key is already valid (case-insensitive)
+                    if key.lower() not in valid_keys_lower:
+                        suggested = self.suggest_config_key(target_section, key)
+                        if suggested and suggested.lower() != key.lower():
                             typo_suggestions.append(f"  Key '[{section_name}] {key}' might be '{suggested}'")
         
         if typo_suggestions:

@@ -173,7 +173,7 @@ class TestConfigMonitor:
         
         # Check metrics
         metrics = self.monitor.get_metrics_summary()
-        assert "env_overrides_total[section=openai,key=api_key]" in metrics["counters"]
+        assert "env_overrides_total[key=api_key,section=openai]" in metrics["counters"]
     
     def test_metrics_collection(self):
         """Test metrics collection and summary."""
@@ -246,6 +246,7 @@ class TestConfigMonitor:
             section="openai",
             key="api_key",
             message="API key is missing",
+            suggestion="Add your OpenAI API key",
             error_code=ErrorCode.MISSING_KEY
         ))
         
@@ -393,6 +394,7 @@ class TestConfigMonitor:
             section="openai",
             key="api_key",
             message="API key is missing",
+            suggestion="Add your OpenAI API key",
             error_code=ErrorCode.MISSING_KEY
         ))
         

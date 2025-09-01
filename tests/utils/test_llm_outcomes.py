@@ -108,27 +108,27 @@ def test_llm_parsing_matches_expected_outcomes():
         assert parsed.get('season') == exp.get('season'), f'season mismatch at index {idx}: expected {exp.get("season")}, got {parsed.get("season")}'
         assert parsed.get('episode') == exp.get('episode'), f'episode mismatch at index {idx}: expected {exp.get("episode")}, got {parsed.get("episode")}'
         
-        # Hash comparison - be more tolerant since LLM responses can vary
-        if exp.get('hash') is None:
-            # If expected has no hash, parsed should also have no hash
-            if parsed.get('hash') not in (None, ''):
-                print(f"Warning: Expected no hash but got '{parsed.get('hash')}' at index {idx}")
+        # CRC32 comparison - be more tolerant since LLM responses can vary
+        # Support both 'crc32' (new) and 'hash' (legacy) field names for backward compatibility
+        expected_crc32 = exp.get('crc32') or exp.get('hash')
+        parsed_crc32 = parsed.get('crc32') or parsed.get('hash')
+        
+        if expected_crc32 is None:
+            # If expected has no crc32/hash, parsed should also have no crc32/hash
+            if parsed_crc32 not in (None, ''):
+                print(f"Warning: Expected no crc32/hash but got '{parsed_crc32}' at index {idx}")
         else:
-            # If expected has a hash, check if parsed has the same hash or at least detected a hash pattern
-            expected_hash = exp.get('hash')
-            parsed_hash = parsed.get('hash')
-            
-            # Allow for slight variations in hash extraction (with or without brackets)
-            if parsed_hash is not None:
+            # If expected has a crc32/hash, check if parsed has the same value or at least detected a pattern
+            if parsed_crc32 is not None:
                 # Remove brackets if present for comparison
-                expected_clean = expected_hash.strip('[]')
-                parsed_clean = parsed_hash.strip('[]')
+                expected_clean = expected_crc32.strip('[]')
+                parsed_clean = parsed_crc32.strip('[]')
                 if expected_clean != parsed_clean:
-                    print(f"Warning: Hash mismatch at index {idx}: expected '{expected_clean}', got '{parsed_clean}'")
+                    print(f"Warning: CRC32/hash mismatch at index {idx}: expected '{expected_clean}', got '{parsed_clean}'")
             else:
-                # If LLM didn't extract hash, log but don't fail
-                print(f"Warning: LLM did not extract hash at index {idx} for file: {line}")
-                print(f"Expected hash: {expected_hash}, but LLM returned None")
+                # If LLM didn't extract crc32/hash, log but don't fail
+                print(f"Warning: LLM did not extract crc32/hash at index {idx} for file: {line}")
+                print(f"Expected crc32/hash: {expected_crc32}, but LLM returned None")
         
         # Confidence should be reasonably high; don't require exact match
         confidence = float(parsed.get('confidence', 0.0))
