@@ -16,7 +16,7 @@ class ParsedFilename(BaseModel):
     show_name: str = Field(..., description="Full show name, as extracted from filename")
     season: int | None = Field(..., description="Season number as integer, or null if not present")
     episode: int = Field(..., description="Episode number as integer, or null if not present")
-    hash: str | None = Field(None, description="CRC32 hash if present in the filename. It is always exactly 8 hex characters (0-9A-F), without brackets.")
+    crc32: str | None = Field(None, description="CRC32 checksum if present in the filename. It is always exactly 8 hex characters (0-9A-F), without brackets.")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence between 0.0 and 1.0")
     reasoning: str = Field(..., description="Explanation of field choices and confidence")
 
@@ -44,10 +44,10 @@ class OllamaLLMService(BaseLLMService):
             config: Loaded configuration object (ConfigParser or normalized dict)
         """
         self.config = config
-        self.model = get_config_value(config, 'ollama', 'model', 'gemma3:12b')
+        self.model = get_config_value(config, 'ollama', 'model', 'qwen3:14b')
         
         # Context window for input tokens (model-dependent). Default to 8192 if not specified.
-        num_ctx_raw = get_config_value(config, 'ollama', 'num_ctx', '8192')
+        num_ctx_raw = get_config_value(config, 'ollama', 'num_ctx', '4096')
         try:
             self.num_ctx = int(num_ctx_raw)
         except (ValueError, TypeError):
@@ -184,11 +184,11 @@ class OllamaLLMService(BaseLLMService):
             try:
                 print(f"🔍 PYDANTIC VALIDATION:")
                 print(f"   Input to Pydantic: {result}")
-                print(f"   Hash field in input: {result.get('hash', 'NOT_FOUND')}")
+                print(f"   CRC32 field in input: {result.get('crc32', 'NOT_FOUND')}")
                 model_instance = ParsedFilename.model_validate(result)
                 validated_dict = model_instance.model_dump()
                 print(f"   Pydantic validated: {validated_dict}")
-                print(f"   Hash field after validation: {validated_dict.get('hash', 'NOT_FOUND')}")
+                print(f"   CRC32 field after validation: {validated_dict.get('crc32', 'NOT_FOUND')}")
             except ValidationError as e:
                 logger.error(f"Pydantic validation failed for Ollama response: {e}")
                 print(f"   ❌ Pydantic validation failed: {e}")

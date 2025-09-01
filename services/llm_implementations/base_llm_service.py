@@ -86,9 +86,9 @@ class BaseLLMService(LLMInterface):
             "show_name": normalized_show,
             "season": result.get("season"),
             "episode": result.get("episode"),
+            "crc32": result.get("crc32", None),  # Map crc32 field to hash for backward compatibility
             "confidence": result.get("confidence", 0.0),
-            "reasoning": result.get("reasoning", "No reasoning provided"),
-            "hash": result.get("hash", None)
+            "reasoning": result.get("reasoning", "No reasoning provided")            
         }
         try:
             if validated["season"] is not None:
