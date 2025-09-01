@@ -46,12 +46,12 @@ class OllamaLLMService(BaseLLMService):
         self.config = config
         self.model = get_config_value(config, 'ollama', 'model', 'qwen3:14b')
         
-        # Context window for input tokens (model-dependent). Default to 8192 if not specified.
+        # Context window for input tokens (model-dependent). Default to 4096 if not specified.
         num_ctx_raw = get_config_value(config, 'ollama', 'num_ctx', '4096')
         try:
             self.num_ctx = int(num_ctx_raw)
         except (ValueError, TypeError):
-            self.num_ctx = 8192
+            self.num_ctx = 4096
             
         # Use Ollama default host behavior (localhost) without requiring host configuration
         self.host = get_config_value(config, 'ollama', 'host', 'http://localhost:11434')
@@ -77,7 +77,7 @@ class OllamaLLMService(BaseLLMService):
         except Exception as art_exc:
             logger.debug(f"Failed to write LLM artifacts: {art_exc}")
 
-    def parse_filename(self, filename: str, max_tokens: int = 8192) -> Dict[str, Any]:
+    def parse_filename(self, filename: str, max_tokens: int = 4096) -> Dict[str, Any]:
         """
         Parse a filename using Ollama LLM to extract show metadata.
         Args:
@@ -91,7 +91,7 @@ class OllamaLLMService(BaseLLMService):
         #prompt = self.load_prompt('parse_filename').format(filename=cleaned_filename)
         prompt = self.load_prompt('parse_filename').format(filename=filename)
         try:
-            # Use format parameter with model_json_schema() for models that support it (like gemma3:12b)
+            # Use format parameter with model_json_schema() for models that support it (like qwen3:14b)
             # This ensures proper structured output including all required fields
             use_format = not str(self.model).lower().startswith("gpt-oss")
             format_schema = ParsedFilename.model_json_schema() if use_format else None

@@ -390,13 +390,13 @@ class MockLLMService(LLMInterface):
         
         # Set model based on service type and config
         if service_type == "ollama":
-            self.model = self.config.get("ollama", {}).get("model", "gemma3:12b")
+            self.model = self.config.get("ollama", {}).get("model", "qwen3:14b")
         elif service_type == "openai":
-            self.model = self.config.get("openai", {}).get("model", "gemma3:12b")
+            self.model = self.config.get("openai", {}).get("model", "qwen3:14b")
         elif service_type == "anthropic":
-            self.model = self.config.get("anthropic", {}).get("model", "gemma3:12b")
+            self.model = self.config.get("anthropic", {}).get("model", "qwen3:14b")
         else:
-            self.model = "gemma3:12b"
+            self.model = "qwen3:14b"
     
     def parse_filename(self, filename: str, max_tokens: int = 150) -> Dict[str, Any]:
         """Parse a filename using mock LLM logic."""
@@ -718,12 +718,12 @@ class MockServiceFactory:
     all required abstract methods and provide predictable test behavior without
     external dependencies.
     
-    CRITICAL: All mock services use the SAME model as the main config (gemma3:12b)
+    CRITICAL: All mock services use the SAME model as the main config (qwen3:14b)
     to prevent GPU RAM exhaustion and CPU fallback during testing.
     """
     
     # CRITICAL: Use the EXACT same model as main config to prevent GPU issues
-    STANDARD_TEST_MODEL = "gemma3:12b"
+    STANDARD_TEST_MODEL = "qwen3:14b"
     
     @staticmethod
     def create_mock_db_service(config: Dict[str, Any], read_only: bool = False) -> MockDatabaseService:
@@ -814,7 +814,7 @@ class MockServiceFactory:
         """
         Get standardized test configuration that uses the SAME model as main config.
         
-        CRITICAL: This ensures all tests use gemma3:12b to prevent GPU RAM issues.
+        CRITICAL: This ensures all tests use qwen3:14b to prevent GPU RAM issues.
         
         Returns:
             Dict containing standardized test configuration
@@ -900,7 +900,7 @@ class MockServiceFactory:
         """
         Ensure configuration uses the standard test model to prevent GPU issues.
         
-        CRITICAL: This function forces all test configs to use gemma3:12b
+        CRITICAL: This function forces all test configs to use qwen3:14b
         regardless of what model they originally specified.
         
         Args:
@@ -936,7 +936,7 @@ def fix_test_model_usage():
     CRITICAL FUNCTION: Fix model usage across all test files.
     
     This function can be called to automatically update test files that use
-    incorrect models to use the standard test model (gemma3:12b).
+    incorrect models to use the standard test model (qwen3:14b).
     
     This prevents GPU RAM exhaustion and CPU fallback during testing.
     """
@@ -955,10 +955,10 @@ def fix_test_model_usage():
     
     # Pattern to match model assignments in test files
     MODEL_PATTERNS = [
-        (r'"model":\s*"([^"]*)"', r'"model": "gemma3:12b"'),
-        (r"'model':\s*'([^']*)'", r"'model': 'gemma3:12b'"),
-        (r'parser\["ollama"\]\s*=\s*\{"model":\s*"([^"]*)"', r'parser["ollama"] = {"model": "gemma3:12b"'),
-        (r"parser\['ollama'\]\s*=\s*\{'model':\s*'([^']*)'", r"parser['ollama'] = {'model': 'gemma3:12b'"),
+        (r'"model":\s*"([^"]*)"', r'"model": "qwen3:14b"'),
+        (r"'model':\s*'([^']*)'", r"'model': 'qwen3:14b'"),
+        (r'parser\["ollama"\]\s*=\s*\{"model":\s*"([^"]*)"', r'parser["ollama"] = {"model": "qwen3:14b"'),
+        (r"parser\['ollama'\]\s*=\s*\{'model':\s*'([^']*)'", r"parser['ollama'] = {'model': 'qwen3:14b'"),
     ]
     
     test_dir = Path(__file__).parent.parent  # tests/ directory

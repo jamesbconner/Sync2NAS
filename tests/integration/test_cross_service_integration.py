@@ -39,15 +39,15 @@ class TestCrossServiceIntegration:
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             },
             'ollama': {
-                'model': 'gemma3:12b',
+                'model': 'qwen3:14b',
                 'host': 'http://localhost:11434'
             },
             'anthropic': {
                 'api_key': 'sk-ant-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         
@@ -71,15 +71,15 @@ class TestCrossServiceIntegration:
         base_config = {
             'openai': {
                 'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             },
             'ollama': {
-                'model': 'gemma3:12b',
+                'model': 'qwen3:14b',
                 'host': 'http://localhost:11434'
             },
             'anthropic': {
                 'api_key': 'sk-ant-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         
@@ -136,15 +136,15 @@ class TestCrossServiceIntegration:
             'llm': {'service': 'openai'},  # Default service
             'openai': {
                 'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             },
             'ollama': {
-                'model': 'gemma3:12b',
+                'model': 'qwen3:14b',
                 'host': 'http://localhost:11434'
             },
             'anthropic': {
                 'api_key': 'sk-ant-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         
@@ -182,7 +182,7 @@ class TestCrossServiceIntegration:
                     # Ollama tags endpoint
                     mock_response.json.return_value = {
                         'models': [
-                            {'name': 'gemma3:12b'},
+                            {'name': 'qwen3:14b'},
                             {'name': 'llama2:7b'}
                         ]
                     }
@@ -220,15 +220,15 @@ class TestCrossServiceIntegration:
             'LLM': {'service': 'OpenAI'},
             'OpenAI': {
                 'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             },
             'Ollama': {
-                'model': 'gemma3:12b',
+                'model': 'qwen3:14b',
                 'host': 'http://localhost:11434'
             },
             'Anthropic': {
                 'api_key': 'sk-ant-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         
@@ -260,10 +260,10 @@ class TestCrossServiceIntegration:
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             },
             'ollama': {
-                'model': 'gemma3:12b',
+                'model': 'qwen3:14b',
                 'host': 'http://localhost:11434'
             }
         }
@@ -305,7 +305,7 @@ class TestCrossServiceIntegration:
             },
             'anthropic': {
                 'api_key': 'sk-ant-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         
@@ -333,10 +333,10 @@ class TestCrossServiceIntegration:
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'sk-invalid1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             },
             'ollama': {
-                'model': 'gemma3:12b',
+                'model': 'qwen3:14b',
                 'host': 'http://localhost:11434'
             }
         }
@@ -359,7 +359,7 @@ class TestCrossServiceIntegration:
             # Should succeed with fallback service
             service = create_llm_service(config, validate_health=True)
             assert service is not None
-            assert service.model == 'gemma3:12b'
+            assert service.model == 'qwen3:14b'
     
     def test_configuration_migration_scenarios(self):
         """Test configuration migration between different service formats."""
@@ -368,7 +368,7 @@ class TestCrossServiceIntegration:
             'LLM': {'service': 'OpenAI'},
             'OpenAI': {
                 'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b',
+                'model': 'qwen3:14b',
                 'max_tokens': '4000',
                 'temperature': '0.1'
             }
@@ -426,7 +426,7 @@ max_tokens = 4000
 temperature = 0.1
 
 [ollama]
-model = gemma3:12b
+model = qwen3:14b
 host = http://localhost:11434
 timeout = 30
 
@@ -498,7 +498,7 @@ completed_path = /mnt/completed
         minimal_config = {
             'llm': {'service': 'ollama'},
             'ollama': {
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
                 # Missing optional host (should default)
             }
         }
@@ -515,7 +515,7 @@ completed_path = /mnt/completed
             
             service = create_llm_service(minimal_config, validate_health=False)
             assert service is not None
-            assert service.model == 'gemma3:12b'
+            assert service.model == 'qwen3:14b'
             # Should use default host (stored in client)
             assert hasattr(service, 'client')
     
@@ -560,7 +560,7 @@ model = gpt-3.5-turbo
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'sk-file1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         
@@ -586,16 +586,16 @@ model = gpt-3.5-turbo
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'invalid_key',  # Invalid format
-                'model': 'gemma3:12b',  # Invalid model name
+                'model': 'qwen3:14b',  # Invalid model name
                 'max_tokens': 'invalid_number'  # Invalid type
             },
             'ollama': {
-                'model': 'gemma3:12b',  # Empty model
+                'model': 'qwen3:14b',  # Empty model
                 'host': 'invalid_url'  # Invalid URL format
             },
             'anthropic': {
                 'api_key': 'short_key',  # Too short
-                'model': 'gemma3:12b'  # Invalid model
+                'model': 'qwen3:14b'  # Invalid model
             }
         }
         
@@ -631,7 +631,7 @@ model = gpt-3.5-turbo
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         

@@ -816,7 +816,7 @@ class Sync2NASGUI:
         service = self.llm_service.get()
         
         if service == "ollama":
-            models = ["gpt-oss:20b", "gemma3:12b", "qwen3:14b", "mistral:latest", "deepseek-r1:32b", "llama3.2:latest"]
+            models = ["gpt-oss:20b", "qwen3:14b", "gemma3:12b", "mistral:latest", "deepseek-r1:32b", "llama3.2:latest"]
         elif service == "openai":
             models = ["gpt-3.5-turbo", "gpt-4", "gpt-4-turbo"]
         elif service == "anthropic":
@@ -918,7 +918,7 @@ class Sync2NASGUI:
             
             # Load LLM configuration
             self.llm_service.set(config.get("llm", "service", fallback="ollama"))
-            self.llm_model.set(config.get("ollama", "model", fallback="gemma3:12b"))
+            self.llm_model.set(config.get("ollama", "model", fallback="qwen3:14b"))
             self.llm_api_key.set(config.get("openai", "api_key", fallback=""))
             self.llm_max_tokens.set(config.getint("openai", "max_tokens", fallback=250))
             self.llm_temperature.set(config.getfloat("openai", "temperature", fallback=0.1))

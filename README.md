@@ -147,8 +147,8 @@ Sync2NAS is a comprehensive Python tool for managing TV shows, synchronizing fil
 - TMDB API key (Required, but free. Read the [TMDB FAQ](https://developer.themoviedb.org/docs/faq#how-do-i-apply-for-an-api-key) to learn how to get one.)
 - [OpenAI](https://openai.com/api/) API key (Optional, for AI-powered actions like filename parsing and automatic show matching)
 - [Anthropic](https://www.anthropic.com/api) API key (Optional, for AI-powered actions like filename parsing and automatic show matching)
-- [Ollama](https://ollama.com/) local LLM service running your preferred model (Default [gemma3:12b](https://ollama.com/library/gemma3). It's the best tradeoff between accuracy, compute resource and speed as of July 2025.)
-  **Note:** Sync2NAS does not manage Ollama models. You must ensure that any model specified here (e.g., `gemma3:12b`) is already installed and available in your local Ollama instance. Use `ollama pull gemma3:12b` to install models as needed.
+- [Ollama](https://ollama.com/) local LLM service running your preferred model (Default [qwen3:14b](https://ollama.com/library/qwen3). It's the best tradeoff between accuracy, compute resource and speed as of July 2025.)
+  **Note:** Sync2NAS does not manage Ollama models. You must ensure that any model specified here (e.g., `qwen3:14b`) is already installed and available in your local Ollama instance. Use `ollama pull qwen3:14b` to install models as needed.
 
 ### GUI Interface
 
@@ -309,7 +309,7 @@ service = ollama  # Options: ollama, openai, anthropic
 
 ```ini
 [ollama]
-model = gemma3:12b
+model = qwen3:14b
 host = http://localhost:11434
 timeout = 30
 ```
@@ -372,7 +372,7 @@ export SYNC2NAS_ANTHROPIC_TEMPERATURE=0.1
 
 ```bash
 export SYNC2NAS_OLLAMA_HOST=http://localhost:11434
-export SYNC2NAS_OLLAMA_MODEL=gemma3:12b
+export SYNC2NAS_OLLAMA_MODEL=qwen3:14b
 export SYNC2NAS_OLLAMA_NUM_CTX=4096
 ```
 
@@ -428,7 +428,7 @@ service = ollama  # Options: ollama, openai, anthropic
 
 # Ollama Configuration (Default - Free local LLM)
 [ollama]
-model = gemma3:12b
+model = qwen3:14b
 host = http://localhost:11434
 timeout = 30
 
@@ -787,7 +787,7 @@ curl http://localhost:11434/api/version
 ollama list
 
 # Pull the required model
-ollama pull gemma3:12b
+ollama pull qwen3:14b
 ```
 
 #### Common Configuration Mistakes
@@ -888,3 +888,4 @@ We welcome contributions! Please see our [Contributing Guide](docs/contributing.
 - Review [API documentation](api/README.md)
 - Open an [issue](https://github.com/jamesbconner/sync2nas/issues)
 - Join our [discussions](https://github.com/jamesbconner/sync2nas/discussions)
+

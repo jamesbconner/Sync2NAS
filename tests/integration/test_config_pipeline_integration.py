@@ -78,7 +78,7 @@ api_key = test_tmdb_key
 service = ollama
 
 [ollama]
-model = gemma3:12b
+model = qwen3:14b
 host = http://localhost:11434
 timeout = 30
 
@@ -101,7 +101,7 @@ api_key = test_tmdb_key
             with patch('services.llm_implementations.ollama_implementation.Client'):
                 service = create_llm_service(config, validate_health=False)
                 assert service is not None
-                assert service.model == 'gemma3:12b'
+                assert service.model == 'qwen3:14b'
         
         finally:
             os.unlink(config_file)
@@ -244,7 +244,7 @@ api_key = sk-config1234567890abcdef1234567890abcdef1234567890ab
 model = gpt-4
 
 [ollama]
-model = gemma3:12b
+model = qwen3:14b
 """
         config_file = self.create_temp_config(config_content)
         
@@ -401,14 +401,14 @@ class TestServiceCreationIntegration:
                 'llm': {'service': 'openai'},
                 'openai': {
                     'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                    'model': 'gemma3:12b'
+                    'model': 'qwen3:14b'
                 }
             },
             # Ollama configuration
             {
                 'llm': {'service': 'ollama'},
                 'ollama': {
-                    'model': 'gemma3:12b',
+                    'model': 'qwen3:14b',
                     'host': 'http://localhost:11434'
                 }
             }
@@ -465,9 +465,9 @@ class TestEnvironmentVariableIntegration:
             'llm': {'service': 'ollama'},
             'openai': {
                 'api_key': 'sk-config1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             },
-            'ollama': {'model': 'gemma3:12b'}
+            'ollama': {'model': 'qwen3:14b'}
         }
         
         # Apply environment overrides
@@ -500,7 +500,7 @@ class TestEnvironmentVariableIntegration:
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'sk-config1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         

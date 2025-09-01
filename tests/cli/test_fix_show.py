@@ -33,7 +33,7 @@ def create_temp_config(tmp_path):
     }
     config["TMDB"] = {"api_key": "test_api_key"}
     config["llm"] = {"service": "ollama"}
-    config["ollama"] = {"model": "gemma3:12b"}
+    config["ollama"] = {"model": "qwen3:14b"}
     
     config_path = tmp_path / "test_config.ini"
     with config_path.open("w") as config_file:
@@ -194,7 +194,7 @@ def create_click_context(mock_db, mock_tmdb, tmp_path):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     ctx.obj = {
@@ -380,3 +380,4 @@ def test_fix_show_database_error(tmp_path, mock_db, mock_tmdb, mock_show_details
         assert "Error correcting show" in result.output
         mock_db.add_show.assert_not_called()
         mock_db.add_episodes.assert_not_called()
+

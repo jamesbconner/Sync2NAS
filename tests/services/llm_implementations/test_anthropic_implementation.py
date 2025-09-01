@@ -24,7 +24,7 @@ def test_successful_initialization(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "test-api-key",
-            "model": "gemma3:12b",
+            "model": "qwen3:14b",
             "max_tokens": 300,
             "temperature": 0.2,
             "llm_confidence_threshold": 0.75,
@@ -38,7 +38,7 @@ def test_successful_initialization(monkeypatch):
     monkeypatch.setattr("services.llm_implementations.anthropic_implementation.anthropic.Anthropic", DummyClient)
 
     service = AnthropicLLMService(config=dummy_conf)
-    assert service.model == "gemma3:12b"
+    assert service.model == "qwen3:14b"
     assert service.api_key == "test-api-key"
     assert service.max_tokens == 300
     assert service.temperature == 0.2
@@ -51,7 +51,7 @@ def test_missing_required_field_raises_value_error(missing_key, monkeypatch):
     config_dict = {
         "anthropic": {
             "api_key": "test-api-key",
-            "model": "gemma3:12b",
+            "model": "qwen3:14b",
             "max_tokens": 300,
             "temperature": 0.2,
             "llm_confidence_threshold": 0.75,
@@ -82,7 +82,7 @@ def test_invalid_types_raise_valueerror(bad_key, bad_value, expected_type, monke
     config_dict = {
         "anthropic": {
             "api_key": "test-api-key",
-            "model": "gemma3:12b",
+            "model": "qwen3:14b",
             "max_tokens": 300,
             "temperature": 0.2,
             "llm_confidence_threshold": 0.75,
@@ -101,7 +101,7 @@ def test_parse_filename_success(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "gemma3:12b",
+            "model": "qwen3:14b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -243,7 +243,7 @@ def test_parse_filename_json_decode_error(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "gemma3:12b",
+            "model": "qwen3:14b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -284,7 +284,7 @@ def test_parse_filename_empty_response(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "gemma3:12b",
+            "model": "qwen3:14b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -329,7 +329,7 @@ def test_suggest_short_dirname_success(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "gemma3:12b",
+            "model": "qwen3:14b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -367,7 +367,7 @@ def test_suggest_short_dirname_with_special_characters(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "gemma3:12b",
+            "model": "qwen3:14b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -406,7 +406,7 @@ def test_suggest_short_dirname_exception_handling(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "gemma3:12b",
+            "model": "qwen3:14b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -442,7 +442,7 @@ def test_suggest_short_dirname_empty_response(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "gemma3:12b",
+            "model": "qwen3:14b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -485,7 +485,7 @@ def test_suggest_short_filename_success(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "gemma3:12b",
+            "model": "qwen3:14b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -523,7 +523,7 @@ def test_suggest_short_filename_with_special_characters(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "gemma3:12b",
+            "model": "qwen3:14b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -562,7 +562,7 @@ def test_suggest_short_filename_exception_handling(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "gemma3:12b",
+            "model": "qwen3:14b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -598,7 +598,7 @@ def test_suggest_short_filename_empty_response(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "gemma3:12b",
+            "model": "qwen3:14b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -641,7 +641,7 @@ def test_suggest_show_name_success(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "gemma3:12b",
+            "model": "qwen3:14b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -693,7 +693,7 @@ def test_suggest_show_name_json_decode_error(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "gemma3:12b",
+            "model": "qwen3:14b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -746,7 +746,7 @@ def test_suggest_show_name_missing_required_fields(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "gemma3:12b",
+            "model": "qwen3:14b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -799,7 +799,7 @@ def test_suggest_show_name_exception_handling(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "gemma3:12b",
+            "model": "qwen3:14b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -849,7 +849,7 @@ def test_suggest_show_name_empty_response(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "gemma3:12b",
+            "model": "qwen3:14b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,
@@ -902,7 +902,7 @@ def test_suggest_show_name_empty_candidates(monkeypatch):
     dummy_conf = DummyConfig({
         "anthropic": {
             "api_key": "fake-key",
-            "model": "gemma3:12b",
+            "model": "qwen3:14b",
             "max_tokens": 200,
             "temperature": 0.1,
             "llm_confidence_threshold": 0.7,

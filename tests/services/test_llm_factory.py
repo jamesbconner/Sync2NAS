@@ -13,9 +13,9 @@ class DummyConfig:
         self._service = service
         self._data = {
             'llm': {'service': service} if service else {},
-            'ollama': {'model': 'gemma3:12b', 'host': 'http://localhost:11434'},
-            'openai': {'api_key': 'sk-test123', 'model': 'gemma3:12b'},
-            'anthropic': {'api_key': 'sk-ant-test123', 'model': 'gemma3:12b'}
+            'ollama': {'model': 'qwen3:14b', 'host': 'http://localhost:11434'},
+            'openai': {'api_key': 'sk-test123', 'model': 'qwen3:14b'},
+            'anthropic': {'api_key': 'sk-ant-test123', 'model': 'qwen3:14b'}
         }
     
     def get(self, section, option, fallback=None):
@@ -118,7 +118,7 @@ def test_create_llm_service_with_validation_success():
         mock_validator.validate_llm_config.return_value = validation_result
         
         # Mock successful normalization
-        normalized_config = {'llm': {'service': 'ollama'}, 'ollama': {'model': 'gemma3:12b'}}
+        normalized_config = {'llm': {'service': 'ollama'}, 'ollama': {'model': 'qwen3:14b'}}
         mock_normalizer.normalize_and_override.return_value = normalized_config
         
         # Mock successful health check
@@ -210,7 +210,7 @@ def test_create_llm_service_health_check_failure():
         mock_validator.validate_llm_config.return_value = validation_result
         
         # Mock normalization
-        normalized_config = {'llm': {'service': 'ollama'}, 'ollama': {'model': 'gemma3:12b'}}
+        normalized_config = {'llm': {'service': 'ollama'}, 'ollama': {'model': 'qwen3:14b'}}
         mock_normalizer.normalize_and_override.return_value = normalized_config
         
         # Mock health check failure
@@ -250,7 +250,7 @@ def test_create_llm_service_without_health_check():
         mock_validator.validate_llm_config.return_value = validation_result
         
         # Mock normalization
-        normalized_config = {'llm': {'service': 'ollama'}, 'ollama': {'model': 'gemma3:12b'}}
+        normalized_config = {'llm': {'service': 'ollama'}, 'ollama': {'model': 'qwen3:14b'}}
         mock_normalizer.normalize_and_override.return_value = normalized_config
         
         # Mock service creation
@@ -339,7 +339,7 @@ def test_create_llm_service_with_warnings():
         mock_validator.validate_llm_config.return_value = validation_result
         
         # Mock normalization
-        normalized_config = {'llm': {'service': 'ollama'}, 'ollama': {'model': 'gemma3:12b'}}
+        normalized_config = {'llm': {'service': 'ollama'}, 'ollama': {'model': 'qwen3:14b'}}
         mock_normalizer.normalize_and_override.return_value = normalized_config
         
         # Mock successful health check

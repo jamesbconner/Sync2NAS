@@ -67,7 +67,7 @@ def test_llm_parsing_matches_expected_outcomes():
         pytest.skip(f"Ollama server not accessible at {ollama_host}")
     
     # Check if the required model is available
-    model_name = config.get('ollama', {}).get('model', 'gemma3:12b')
+    model_name = config.get('ollama', {}).get('model', 'qwen3:14b')
     try:
         models_response = requests.get(f"{ollama_host}/api/tags", timeout=5)
         if models_response.status_code == 200:
@@ -135,5 +135,6 @@ def test_llm_parsing_matches_expected_outcomes():
         if confidence < 0.7:
             print(f"Warning: Low confidence {confidence} at index {idx}")
             # Don't fail for low confidence, just warn
+
 
 

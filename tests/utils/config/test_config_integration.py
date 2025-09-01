@@ -93,7 +93,7 @@ service = openai
     def test_get_config_value_with_dict(self):
         """Test get_config_value with normalized dict."""
         config = {
-            'openai': {'api_key': 'test_key', 'model': 'gemma3:12b'},
+            'openai': {'api_key': 'test_key', 'model': 'qwen3:14b'},
             'llm': {'service': 'openai'}
         }
         
@@ -101,7 +101,7 @@ service = openai
         assert get_config_value(config, 'openai', 'api_key') == 'test_key'
         
         # Test case insensitive
-        assert get_config_value(config, 'OpenAI', 'model') == 'gemma3:12b'  # Uses actual config value
+        assert get_config_value(config, 'OpenAI', 'model') == 'qwen3:14b'  # Uses actual config value
         assert get_config_value(config, 'LLM', 'service') == 'openai'
         
         # Test fallback
@@ -132,7 +132,7 @@ service = openai
         
         # Create normalized config with valid test API key format
         config = {
-            'openai': {'api_key': 'sk-' + 'x' * 49, 'model': 'gemma3:12b'},  # Valid format for testing
+            'openai': {'api_key': 'sk-' + 'x' * 49, 'model': 'qwen3:14b'},  # Valid format for testing
             'llm': {'service': 'openai'}
         }
         
@@ -142,7 +142,7 @@ service = openai
         # Should create OpenAI service with correct config
         assert service is not None
         assert service.api_key == 'sk-' + 'x' * 49
-        assert service.model == 'gemma3:12b'  # Uses actual config value
+        assert service.model == 'qwen3:14b'  # Uses actual config value
     
     @patch('services.llm_implementations.openai_implementation.openai.OpenAI')
     def test_llm_factory_with_configparser(self, mock_openai):
@@ -187,7 +187,7 @@ service = openai
         """Test Ollama service creation with normalized config."""
         config = {
             'ollama': {
-                'model': 'gemma3:12b',
+                'model': 'qwen3:14b',
                 'host': 'http://localhost:11434',
                 'num_ctx': '4096'
             },
@@ -197,7 +197,7 @@ service = openai
         service = create_llm_service(config)
         
         assert service is not None
-        assert service.model == 'gemma3:12b'  # Uses actual config value
+        assert service.model == 'qwen3:14b'  # Uses actual config value
         assert service.num_ctx == 4096
         mock_client.assert_called_with(host='http://localhost:11434')
     

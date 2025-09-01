@@ -270,13 +270,13 @@ class TestMockServiceFactory:
     
     def test_create_mock_llm_service_default(self):
         """Test creation of default mock LLM service."""
-        config = {"ollama": {"model": "gemma3:12b"}}
+        config = {"ollama": {"model": "qwen3:14b"}}
         
         mock_service = MockServiceFactory.create_mock_llm_service(config)
         
         # Verify mock service properties
         assert mock_service.service_type == "ollama"
-        assert mock_service.model == "gemma3:12b"  # Uses model from config
+        assert mock_service.model == "qwen3:14b"  # Uses model from config
         
         # Verify mock methods
         result = mock_service.parse_filename("test_file.mkv")
@@ -295,21 +295,21 @@ class TestMockServiceFactory:
     
     def test_create_mock_llm_service_openai(self):
         """Test creation of OpenAI mock LLM service."""
-        config = {"openai": {"model": "gemma3:12b"}}
+        config = {"openai": {"model": "qwen3:14b"}}
         
         mock_service = MockServiceFactory.create_mock_llm_service(config, "openai")
         
         assert mock_service.service_type == "openai"
-        assert mock_service.model == "gemma3:12b"  # Uses model from config
+        assert mock_service.model == "qwen3:14b"  # Uses model from config
     
     def test_create_mock_llm_service_anthropic(self):
         """Test creation of Anthropic mock LLM service."""
-        config = {"anthropic": {"model": "gemma3:12b"}}
+        config = {"anthropic": {"model": "qwen3:14b"}}
         
         mock_service = MockServiceFactory.create_mock_llm_service(config, "anthropic")
         
         assert mock_service.service_type == "anthropic"
-        assert mock_service.model == "gemma3:12b"  # Uses model from config
+        assert mock_service.model == "qwen3:14b"  # Uses model from config
     
     def test_create_mock_db_service_default(self):
         """Test creation of default mock database service."""

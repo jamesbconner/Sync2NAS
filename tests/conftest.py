@@ -44,7 +44,7 @@ def test_config_path():
     }
     config["TMDB"] = {"api_key": "test_api_key"}
     config["llm"] = {"service": "ollama"}
-    config["ollama"] = {"model": "gemma3:12b"}
+    config["ollama"] = {"model": "qwen3:14b"}
 
     with config_path.open("w") as config_file:
         config.write(config_file)

@@ -21,7 +21,7 @@ class TestConfigValidator:
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'sk-' + 'x' * 48,
-                'model': 'gemma3:12b',
+                'model': 'qwen3:14b',
                 'max_tokens': '4000',
                 'temperature': '0.1'
             }
@@ -39,7 +39,7 @@ class TestConfigValidator:
             'llm': {'service': 'anthropic'},
             'anthropic': {
                 'api_key': 'sk-ant-' + 'x' * 35,
-                'model': 'gemma3:12b',
+                'model': 'qwen3:14b',
                 'max_tokens': '4000'
             }
         }
@@ -54,7 +54,7 @@ class TestConfigValidator:
         config = {
             'llm': {'service': 'ollama'},
             'ollama': {
-                'model': 'gemma3:12b',
+                'model': 'qwen3:14b',
                 'host': 'http://localhost:11434',
                 'timeout': '30'
             }
@@ -120,7 +120,7 @@ class TestConfigValidator:
         config = {
             'llm': {'service': 'openai'},
             'openai': {
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
                 # Missing api_key
             }
         }
@@ -137,7 +137,7 @@ class TestConfigValidator:
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'invalid-key-format',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         
@@ -152,7 +152,7 @@ class TestConfigValidator:
             'llm': {'service': 'anthropic'},
             'anthropic': {
                 'api_key': 'sk-invalid-format',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         
@@ -167,7 +167,7 @@ class TestConfigValidator:
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'sk-' + 'x' * 48,
-                'model': 'gemma3:12b',
+                'model': 'qwen3:14b',
                 'max_tokens': 'not_a_number',
                 'temperature': '5.0'  # Too high
             }
@@ -184,7 +184,7 @@ class TestConfigValidator:
         config = {
             'llm': {'service': 'ollama'},
             'ollama': {
-                'model': 'gemma3:12b',
+                'model': 'qwen3:14b',
                 'host': 'not-a-valid-url'
             }
         }
@@ -228,7 +228,7 @@ class TestConfigValidator:
         config = {
             'openai': {
                 'api_key': 'sk-' + 'x' * 48,
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         
@@ -277,7 +277,7 @@ class TestConfigValidator:
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'sk-' + 'x' * 48,
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         

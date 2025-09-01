@@ -96,7 +96,7 @@ def test_add_show_interactively(tmp_path, mock_tmdb_service):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     
@@ -138,7 +138,7 @@ def test_add_show_interactively_dry_run(tmp_path, mock_tmdb_service):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     db = create_db_service(config)
@@ -175,7 +175,7 @@ def test_add_show_with_tmdb_id(tmp_path, mock_tmdb_service):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     db = create_db_service(config)
@@ -216,7 +216,7 @@ def test_add_show_with_override_dir(tmp_path, mock_tmdb_service):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     db = create_db_service(config)
@@ -258,7 +258,7 @@ def test_add_show_already_exists(tmp_path, mock_tmdb_service):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     db = create_db_service(config)
@@ -303,7 +303,7 @@ def test_add_show_no_tmdb_details(tmp_path):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     db = create_db_service(config)
@@ -347,7 +347,7 @@ def test_add_show_no_search_results(tmp_path):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     db = create_db_service(config)
@@ -391,7 +391,7 @@ def test_add_show_no_show_name_or_tmdb_id(tmp_path, mock_tmdb_service):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     db = create_db_service(config)
@@ -425,7 +425,7 @@ def test_add_show_directory_creation_error(tmp_path, mock_tmdb_service):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     db = create_db_service(config)
@@ -463,7 +463,7 @@ def test_add_show_database_error(tmp_path, mock_tmdb_service):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     db = create_db_service(config)
@@ -502,7 +502,7 @@ def test_add_show_with_llm_success(tmp_path, mock_tmdb_service):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     db = create_db_service(config)
@@ -611,7 +611,7 @@ def test_add_show_with_llm_no_results(tmp_path):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     db = create_db_service(config)
@@ -659,7 +659,7 @@ def test_add_show_with_llm_no_detailed_results(tmp_path):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     db = create_db_service(config)
@@ -711,7 +711,7 @@ def test_add_show_with_llm_invalid_response(tmp_path):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     db = create_db_service(config)
@@ -794,7 +794,7 @@ def test_add_show_with_llm_low_confidence(tmp_path):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     db = create_db_service(config)
@@ -885,7 +885,7 @@ def test_add_show_with_llm_failed_details_retrieval(tmp_path):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     db = create_db_service(config)
@@ -957,7 +957,7 @@ def test_add_show_already_exists_with_override(tmp_path, mock_tmdb_service):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     db = create_db_service(config)
@@ -1007,7 +1007,7 @@ def test_add_show_tmdb_id_no_details(tmp_path):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     db = create_db_service(config)
@@ -1048,7 +1048,7 @@ def test_add_show_tmdb_id_missing_info(tmp_path):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     db = create_db_service(config)
@@ -1094,7 +1094,7 @@ def test_add_show_show_name_no_results(tmp_path):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     db = create_db_service(config)
@@ -1138,7 +1138,7 @@ def test_add_show_show_name_failed_details(tmp_path):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     db = create_db_service(config)
@@ -1186,7 +1186,7 @@ def test_add_show_show_name_missing_info(tmp_path):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     db = create_db_service(config)
@@ -1239,7 +1239,7 @@ def test_add_show_exception_handling(tmp_path):
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
     db = create_db_service(config)
@@ -1265,3 +1265,4 @@ def test_add_show_exception_handling(tmp_path):
             anime_tv_path=str(anime_tv_path),
             dry_run=False
         )
+

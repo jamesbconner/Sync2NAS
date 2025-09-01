@@ -235,7 +235,7 @@ api_key = sk-test1234567890abcdef1234567890abcdef1234567890ab
 model = gpt-4
 
 [ollama]
-model = gemma3:12b
+model = qwen3:14b
 host = http://localhost:11434
 
 [anthropic]
@@ -414,7 +414,7 @@ api_key = test_tmdb_key
 service = ollama
 
 [ollama]
-model = gemma3:12b
+model = qwen3:14b
 
 [tmdb]
 api_key = test_tmdb_key
@@ -698,7 +698,7 @@ api_key = sk-test1234567890abcdef1234567890abcdef1234567890ab
 model = gpt-4
 
 [ollama]
-model = gemma3:12b
+model = qwen3:14b
 host = http://localhost:11434
 
 [anthropic]
