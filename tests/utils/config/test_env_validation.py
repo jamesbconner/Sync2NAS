@@ -78,7 +78,7 @@ class TestEnvironmentVariableValidation:
         """Test that invalid numeric environment variables fail validation."""
         config = {
             'llm': {'service': 'openai'},
-            'openai': {'api_key': 'sk-' + 'x' * 49, 'model': 'gemma3:12b'}
+            'openai': {'api_key': 'sk-' + 'x' * 49, 'model': 'qwen3:14b'}
         }
         
         result = self.validator.validate_llm_config(config)
@@ -98,7 +98,7 @@ class TestEnvironmentVariableValidation:
         """Test that invalid URL environment variables fail validation."""
         config = {
             'llm': {'service': 'ollama'},
-            'ollama': {'model': 'gemma3:12b'}
+            'ollama': {'model': 'qwen3:14b'}
         }
         
         result = self.validator.validate_llm_config(config)
@@ -121,7 +121,7 @@ class TestEnvironmentVariableValidation:
         # Config file has OpenAI, but env vars specify Anthropic
         config = {
             'llm': {'service': 'openai'},
-            'openai': {'api_key': 'sk-config-key', 'model': 'gemma3:12b'}
+            'openai': {'api_key': 'sk-config-key', 'model': 'qwen3:14b'}
         }
         
         # Normalize with environment overrides
@@ -145,7 +145,7 @@ class TestEnvironmentVariableValidation:
         # Config has no Ollama section
         config = {
             'llm': {'service': 'openai'},
-            'openai': {'api_key': 'sk-test', 'model': 'gemma3:12b'}
+            'openai': {'api_key': 'sk-test', 'model': 'qwen3:14b'}
         }
         
         # Normalize with environment overrides
@@ -161,7 +161,7 @@ class TestEnvironmentVariableValidation:
         """Test that without environment variables, config file values are used."""
         config = {
             'llm': {'service': 'openai'},
-            'openai': {'api_key': 'sk-' + 'x' * 49, 'model': 'gemma3:12b'}
+            'openai': {'api_key': 'sk-' + 'x' * 49, 'model': 'qwen3:14b'}
         }
         
         result = self.validator.validate_llm_config(config)
@@ -231,7 +231,7 @@ class TestEnvironmentVariableValidation:
         """Test that unknown environment variables are ignored."""
         config = {
             'llm': {'service': 'openai'},
-            'openai': {'api_key': 'sk-' + 'x' * 49, 'model': 'gemma3:12b'}
+            'openai': {'api_key': 'sk-' + 'x' * 49, 'model': 'qwen3:14b'}
         }
         
         # Normalize with environment overrides

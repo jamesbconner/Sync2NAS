@@ -186,7 +186,9 @@ def process_sftp_diffs(
                                 file_model.confidence = metadata.get("confidence")
                                 file_model.reasoning = metadata.get("reasoning")
                                 # Normalize and store filename-provided CRC32 if present
-                                parsed_hash = metadata.get("hash")
+                                parsed_hash = metadata.get("crc32") or metadata.get("hash")
+                                if parsed_hash and metadata.get("hash") and not metadata.get("crc32"):
+                                    logger.debug(f"Using legacy 'hash' field for {file_model.name} - consider updating to 'crc32'")
                                 if isinstance(parsed_hash, str):
                                     trimmed = parsed_hash.strip()
                                     if trimmed.startswith("[") and trimmed.endswith("]"):
@@ -284,7 +286,9 @@ def process_sftp_diffs(
                                 file_model.confidence = metadata.get("confidence")
                                 file_model.reasoning = metadata.get("reasoning")
                                 # Normalize and store filename-provided CRC32 if present
-                                parsed_hash = metadata.get("hash")
+                                parsed_hash = metadata.get("crc32") or metadata.get("hash")
+                                if parsed_hash and metadata.get("hash") and not metadata.get("crc32"):
+                                    logger.debug(f"Using legacy 'hash' field for {file_model.name} - consider updating to 'crc32'")
                                 if isinstance(parsed_hash, str):
                                     trimmed = parsed_hash.strip()
                                     if trimmed.startswith("[") and trimmed.endswith("]"):

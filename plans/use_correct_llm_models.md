@@ -9,7 +9,7 @@
 - ❌ Inconsistent test performance
 
 **AFTER:** All tests now use the **EXACT SAME MODEL** as main config:
-- ✅ `gemma3:12b` (matches `config/sync2nas_config.ini`)
+- ✅ `qwen3:14b` (matches `config/sync2nas_config.ini`)
 - ✅ No GPU RAM issues
 - ✅ Fast test execution
 - ✅ Consistent performance
@@ -18,7 +18,7 @@
 
 ### 🔧 **106 Model References Fixed Across 20 Files**
 
-The following incorrect models were replaced with `gemma3:12b`:
+The following incorrect models were replaced with `qwen3:14b`:
 - `ollama3.2` (invalid model name)
 - `llama3.2` (different model)
 - `gpt-4` (different service)
@@ -35,7 +35,7 @@ The following incorrect models were replaced with `gemma3:12b`:
 
 ### 🛡️ **Critical Safety Features Added:**
 
-1. **`STANDARD_TEST_MODEL = "gemma3:12b"`**
+1. **`STANDARD_TEST_MODEL = "qwen3:14b"`**
    - Centralized constant for the correct model
    - Matches main config exactly
 
@@ -145,6 +145,6 @@ python -c "import sys; sys.path.insert(0, '.'); from tests.utils.mock_service_fa
 
 ## Summary
 
-This fix ensures that **ALL TESTS USE THE SAME MODEL** as the main configuration (`gemma3:12b`), preventing GPU RAM exhaustion and ensuring fast, consistent test execution.
+This fix ensures that **ALL TESTS USE THE SAME MODEL** as the main configuration (`qwen3:14b`), preventing GPU RAM exhaustion and ensuring fast, consistent test execution.
 
 **Key Rule:** Tests should NEVER load different LLM models than what's already in GPU memory.

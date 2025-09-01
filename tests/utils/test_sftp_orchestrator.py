@@ -680,7 +680,7 @@ def test_process_sftp_diffs_llm_enabled_above_threshold(tmp_path, mock_sftp_serv
         "show_name": "Mock Show",
         "season": 3,
         "episode": 7,
-        "hash": "[a4dd1e71]",
+        "crc32": "[a4dd1e71]",
         "confidence": 0.95,
         "reasoning": "High confidence from LLM"
     }
@@ -721,7 +721,7 @@ def test_process_sftp_diffs_llm_enabled_above_threshold(tmp_path, mock_sftp_serv
     assert upsert_arg.season == 3
     assert upsert_arg.episode == 7
     assert upsert_arg.confidence is not None and upsert_arg.confidence >= 0.9
-    # Provided hash should be normalized to uppercase 8-hex and populated
+    # Provided CRC32 should be normalized to uppercase 8-hex and populated
     assert getattr(upsert_arg, 'file_provided_hash_value', None) == 'A4DD1E71'
 
 
@@ -783,3 +783,130 @@ def test_process_sftp_diffs_llm_below_threshold_falls_back_regex(tmp_path, mock_
     # Expect regex parsed S01E02
     assert upsert_arg.season == 1
     assert upsert_arg.episode == 2
+
+
+def test_process_sftp_diffs_backward_compatibility_hash_field(tmp_path, mock_sftp_service, mock_db_service, mocker, mock_llm_service):
+    """Test backward compatibility with legacy 'hash' field in LLM responses."""
+    now = "2024-01-01T12:00:00"
+    diffs = [
+        {
+            "name": "Legacy.Show.S02E03.mkv",
+            "path": "/remote/Legacy.Show.S02E03.mkv",
+            "size": 100,
+            "modified_time": now,
+            "fetched_at": now,
+            "is_dir": False,
+        }
+    ]
+
+    # LLM returns response with legacy 'hash' field (no 'crc32' field)
+    mock_llm_service.parse_filename.return_value = {
+        "show_name": "Legacy Show",
+        "season": 2,
+        "episode": 3,
+        "hash": "[b5ee2f82]",  # Legacy field name
+        "confidence": 0.95,
+        "reasoning": "High confidence with legacy hash field"
+    }
+
+    mocker.patch('utils.sftp_orchestrator.is_valid_media_file', return_value=True)
+
+    mock_executor = mocker.Mock()
+    mock_future = mocker.Mock()
+    mock_executor.__enter__ = mocker.Mock(return_value=mock_executor)
+    mock_executor.submit.return_value = mock_future
+    mock_executor.__exit__ = mocker.Mock(return_value=None)
+    mocker.patch('utils.sftp_orchestrator.ThreadPoolExecutor', return_value=mock_executor)
+    mocker.patch('utils.sftp_orchestrator.as_completed', return_value=[mock_future])
+    mock_future.result.return_value = None
+
+    mock_new_sftp = mocker.Mock()
+    mock_new_sftp.__enter__ = mocker.Mock(return_value=mock_new_sftp)
+    mock_new_sftp.__exit__ = mocker.Mock(return_value=None)
+    mocker.patch('services.sftp_service.SFTPService', return_value=mock_new_sftp)
+
+    from utils.sftp_orchestrator import process_sftp_diffs
+
+    process_sftp_diffs(
+        sftp_service=mock_sftp_service,
+        db_service=mock_db_service,
+        diffs=diffs,
+        remote_base="/remote",
+        local_base=str(tmp_path),
+        dry_run=False,
+        llm_service=mock_llm_service,
+        parse_filenames=True,
+        use_llm=True,
+        llm_confidence_threshold=0.7,
+    )
+
+    upsert_arg = mock_db_service.upsert_downloaded_file.call_args[0][0]
+    assert upsert_arg.show_name == "Legacy Show"
+    assert upsert_arg.season == 2
+    assert upsert_arg.episode == 3
+    # Legacy hash should still be processed and normalized
+    assert getattr(upsert_arg, 'file_provided_hash_value', None) == 'B5EE2F82'
+
+
+def test_process_sftp_diffs_crc32_field_priority(tmp_path, mock_sftp_service, mock_db_service, mocker, mock_llm_service):
+    """Test that 'crc32' field takes priority over 'hash' field when both are present."""
+    now = "2024-01-01T12:00:00"
+    diffs = [
+        {
+            "name": "Priority.Test.S01E01.mkv",
+            "path": "/remote/Priority.Test.S01E01.mkv",
+            "size": 100,
+            "modified_time": now,
+            "fetched_at": now,
+            "is_dir": False,
+        }
+    ]
+
+    # LLM returns response with both 'crc32' and 'hash' fields - crc32 should take priority
+    mock_llm_service.parse_filename.return_value = {
+        "show_name": "Priority Test",
+        "season": 1,
+        "episode": 1,
+        "crc32": "[c6ff3f93]",  # New field name - should be used
+        "hash": "[old_hash]",   # Legacy field name - should be ignored
+        "confidence": 0.95,
+        "reasoning": "Both fields present - crc32 should take priority"
+    }
+
+    mocker.patch('utils.sftp_orchestrator.is_valid_media_file', return_value=True)
+
+    mock_executor = mocker.Mock()
+    mock_future = mocker.Mock()
+    mock_executor.__enter__ = mocker.Mock(return_value=mock_executor)
+    mock_executor.submit.return_value = mock_future
+    mock_executor.__exit__ = mocker.Mock(return_value=None)
+    mocker.patch('utils.sftp_orchestrator.ThreadPoolExecutor', return_value=mock_executor)
+    mocker.patch('utils.sftp_orchestrator.as_completed', return_value=[mock_future])
+    mock_future.result.return_value = None
+
+    mock_new_sftp = mocker.Mock()
+    mock_new_sftp.__enter__ = mocker.Mock(return_value=mock_new_sftp)
+    mock_new_sftp.__exit__ = mocker.Mock(return_value=None)
+    mocker.patch('services.sftp_service.SFTPService', return_value=mock_new_sftp)
+
+    from utils.sftp_orchestrator import process_sftp_diffs
+
+    process_sftp_diffs(
+        sftp_service=mock_sftp_service,
+        db_service=mock_db_service,
+        diffs=diffs,
+        remote_base="/remote",
+        local_base=str(tmp_path),
+        dry_run=False,
+        llm_service=mock_llm_service,
+        parse_filenames=True,
+        use_llm=True,
+        llm_confidence_threshold=0.7,
+    )
+
+    upsert_arg = mock_db_service.upsert_downloaded_file.call_args[0][0]
+    assert upsert_arg.show_name == "Priority Test"
+    assert upsert_arg.season == 1
+    assert upsert_arg.episode == 1
+    # Should use the crc32 field value, not the hash field value
+    assert getattr(upsert_arg, 'file_provided_hash_value', None) == 'C6FF3F93'

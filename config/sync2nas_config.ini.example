@@ -47,10 +47,10 @@ service = ollama  # Options: ollama, openai, anthropic
 
 # Ollama Configuration (Default - Free local LLM)
 [ollama]
-model = gemma3:12b
+model = qwen3:14b
 host = http://localhost:11434
 timeout = 30
-# Note: Ensure model is installed with: ollama pull gemma3:12b
+# Note: Ensure model is installed with: ollama pull qwen3:14b
 
 # OpenAI Configuration (Optional - Requires API key)
 [openai]

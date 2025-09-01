@@ -45,7 +45,7 @@ class TestAdvancedValidationIntegration:
                 'llm': {'service': 'openai'},
                 'openai': {
                     'api_key': f'sk-test{i:04d}1234567890abcdef1234567890abcdef1234567890ab',
-                    'model': 'gemma3:12b'
+                    'model': 'qwen3:14b'
                 }
             }
             for i in range(10)
@@ -85,7 +85,7 @@ class TestAdvancedValidationIntegration:
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         
@@ -120,7 +120,7 @@ class TestAdvancedValidationIntegration:
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         
@@ -166,7 +166,7 @@ class TestAdvancedValidationIntegration:
             'llm': {'service': 'openai'},  # Fixed section name and key
             'openai': {  # Fixed section name
                 'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',  # Fixed key name and value
-                'model': 'gemma3:12b',  # Fixed key name and value
+                'model': 'qwen3:14b',  # Fixed key name and value
                 'max_tokens': '4000'  # Fixed value type
             }
         }
@@ -193,14 +193,14 @@ class TestAdvancedValidationIntegration:
             # Empty strings
             {
                 'llm': {'service': 'openai'},
-                'openai': {'api_key': '', 'model': 'gemma3:12b'}
+                'openai': {'api_key': '', 'model': 'qwen3:14b'}
             },
             # Very long strings
             {
                 'llm': {'service': 'openai'},
                 'openai': {
                     'api_key': 'sk-' + 'x' * 1000,
-                    'model': 'gemma3:12b'
+                    'model': 'qwen3:14b'
                 }
             },
             # Special characters
@@ -208,7 +208,7 @@ class TestAdvancedValidationIntegration:
                 'llm': {'service': 'openai'},
                 'openai': {
                     'api_key': 'sk-test!@#$%^&*()1234567890abcdef1234567890abcdef',
-                    'model': 'gemma3:12b'
+                    'model': 'qwen3:14b'
                 }
             },
             # Unicode characters
@@ -216,7 +216,7 @@ class TestAdvancedValidationIntegration:
                 'llm': {'service': 'openai'},
                 'openai': {
                     'api_key': 'sk-test🔑1234567890abcdef1234567890abcdef1234567890ab',
-                    'model': 'gemma3:12b'
+                    'model': 'qwen3:14b'
                 }
             },
             # Numeric strings that should be strings
@@ -224,7 +224,7 @@ class TestAdvancedValidationIntegration:
                 'llm': {'service': 'openai'},
                 'openai': {
                     'api_key': '12345678901234567890123456789012345678901234567890',
-                    'model': 'gemma3:12b'
+                    'model': 'qwen3:14b'
                 }
             }
         ]
@@ -252,16 +252,16 @@ class TestAdvancedValidationIntegration:
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b',
+                'model': 'qwen3:14b',
                 'fallback_service': 'ollama'  # Reference to another service
             },
             'ollama': {
-                'model': 'gemma3:12b',
+                'model': 'qwen3:14b',
                 'fallback_service': 'anthropic'  # Another reference
             },
             'anthropic': {
                 'api_key': 'sk-ant-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b',
+                'model': 'qwen3:14b',
                 'fallback_service': 'openai'  # Circular reference
             }
         }
@@ -285,7 +285,7 @@ class TestAdvancedValidationIntegration:
                     'llm': {'service': 'openai'},
                     'openai': {
                         'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                        'model': 'gemma3:12b'
+                        'model': 'qwen3:14b'
                     }
                 }
             },
@@ -296,17 +296,17 @@ class TestAdvancedValidationIntegration:
                     'llm': {'service': 'openai'},
                     'openai': {
                         'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                        'model': 'gemma3:12b',
+                        'model': 'qwen3:14b',
                         'max_tokens': '4000',
                         'temperature': '0.1'
                     },
                     'ollama': {
-                        'model': 'gemma3:12b',
+                        'model': 'qwen3:14b',
                         'host': 'http://localhost:11434'
                     },
                     'anthropic': {
                         'api_key': 'sk-ant-test1234567890abcdef1234567890abcdef1234567890ab',
-                        'model': 'gemma3:12b'
+                        'model': 'qwen3:14b'
                     }
                 }
             },
@@ -317,7 +317,7 @@ class TestAdvancedValidationIntegration:
                     'llm': {'service': 'openai'},
                     'openai': {
                         'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                        'model': 'gemma3:12b'
+                        'model': 'qwen3:14b'
                     },
                     **{f'section_{i}': {f'key_{j}': f'value_{j}' for j in range(50)} for i in range(100)}
                 }
@@ -380,7 +380,7 @@ class TestAdvancedValidationIntegration:
                 'name': 'invalid_api_key_format',
                 'config': {
                     'llm': {'service': 'openai'},
-                    'openai': {'api_key': 'invalid_key', 'model': 'gemma3:12b'}
+                    'openai': {'api_key': 'invalid_key', 'model': 'qwen3:14b'}
                 },
                 'expected_suggestions': ['openai', 'configuration'],
                 'error_types': [ErrorCode.API_KEY_INVALID]
@@ -426,7 +426,7 @@ class TestAdvancedValidationIntegration:
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         
@@ -494,7 +494,7 @@ class TestAdvancedValidationIntegration:
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         

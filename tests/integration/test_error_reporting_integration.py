@@ -103,7 +103,7 @@ random_key = random_value
             {
                 'config': {
                     'llm': {'service': 'ollama'},
-                    'ollama': {'model': 'gemma3:12b', 'host': 'invalid_url'}
+                    'ollama': {'model': 'qwen3:14b', 'host': 'invalid_url'}
                 },
                 'expected_error_codes': [ErrorCode.INVALID_VALUE],
                 'expected_suggestions': ['http://', 'localhost']
@@ -247,7 +247,7 @@ max_tokens = too_many
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         
@@ -267,7 +267,7 @@ max_tokens = too_many
             'llm': {'service': 'openai'},  # Valid service key
             'openai': {
                 'api_key': 'invalid',  # Invalid API key
-                'model': 'gemma3:12b',  # Invalid model name
+                'model': 'qwen3:14b',  # Invalid model name
                 'max_tokens': 'invalid',  # Invalid number
                 'temperature': '5.0'  # Out of range
             }

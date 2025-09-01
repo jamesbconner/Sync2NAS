@@ -120,7 +120,7 @@ Configuration for the Ollama local LLM backend. **Recommended for most users** a
 
 ```ini
 [ollama]
-model = gemma3:12b
+model = qwen3:14b
 host = http://localhost:11434
 timeout = 30
 ```
@@ -130,7 +130,7 @@ timeout = 30
 
 **Setup Ollama:**
 1. Install from [ollama.ai](https://ollama.ai/)
-2. Pull a model: `ollama pull gemma3:12b`
+2. Pull a model: `ollama pull qwen3:14b`
 3. Verify: `ollama list`
 
 ### [openai] - OpenAI Configuration (Optional)
@@ -232,7 +232,7 @@ service = ollama  # Options: ollama, openai, anthropic
 
 # Ollama Configuration (Default - Free local LLM)
 [ollama]
-model = gemma3:12b
+model = qwen3:14b
 host = http://localhost:11434
 timeout = 30
 
@@ -277,7 +277,7 @@ export SYNC2NAS_TMDB_API_KEY=your_tmdb_key
 
 # Ollama Configuration
 export SYNC2NAS_OLLAMA_HOST=http://localhost:11434
-export SYNC2NAS_OLLAMA_MODEL=gemma3:12b
+export SYNC2NAS_OLLAMA_MODEL=qwen3:14b
 
 # Database Configuration
 export SYNC2NAS_DATABASE_TYPE=sqlite

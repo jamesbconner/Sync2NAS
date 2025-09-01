@@ -41,7 +41,7 @@ Use lowercase section names consistently:
 api_key = your_key_here
 
 [ollama]
-model = gemma3:12b
+model = qwen3:14b
 
 [anthropic]
 api_key = your_key_here
@@ -112,7 +112,7 @@ service = ollama
 service = ollama
 
 [ollama]
-model = gemma3:12b
+model = qwen3:14b
 host = http://localhost:11434
 timeout = 30
 ```
@@ -168,7 +168,7 @@ model = gpt-4  # or gpt-3.5-turbo
 model = claude-3-sonnet-20240229  # or claude-3-haiku-20240307
 
 [ollama]
-model = gemma3:12b  # or llama2:7b, mistral:7b
+model = qwen3:14b  # or llama2:7b, mistral:7b
 ```
 
 #### Invalid URLs
@@ -199,11 +199,11 @@ host = http://localhost:11434
 ```bash
 # ❌ Wrong format
 export OPENAI_API_KEY=your_key
-export OLLAMA_MODEL=gemma3:12b
+export OLLAMA_MODEL=qwen3:14b
 
 # ✅ Correct format
 export SYNC2NAS_OPENAI_API_KEY=your_key
-export SYNC2NAS_OLLAMA_MODEL=gemma3:12b
+export SYNC2NAS_OLLAMA_MODEL=qwen3:14b
 ```
 
 #### Environment Variable Precedence
@@ -275,7 +275,7 @@ python sync2nas.py config-check --service anthropic
 
 ```bash
 # Install a model
-ollama pull gemma3:12b
+ollama pull qwen3:14b
 
 # List installed models
 ollama list
@@ -318,7 +318,7 @@ api_key = your_tmdb_api_key_here
 service = ollama
 
 [ollama]
-model = gemma3:12b
+model = qwen3:14b
 host = http://localhost:11434
 ```
 

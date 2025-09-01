@@ -44,19 +44,19 @@ class TestConfigFactory:
             },
             "ollama": {
                 "base_url": "http://localhost:11434",
-                "model": "gemma3:12b",
+                "model": "qwen3:14b",
                 "timeout": "30",
                 "num_ctx": "2048"
             },
             "openai": {
                 "api_key": "test-openai-key",
-                "model": "gemma3:12b",
+                "model": "qwen3:14b",
                 "max_tokens": "1000",
                 "temperature": "0.7"
             },
             "anthropic": {
                 "api_key": "test-anthropic-key", 
-                "model": "gemma3:12b",
+                "model": "qwen3:14b",
                 "max_tokens": "1000",
                 "temperature": "0.7"
             },
@@ -131,7 +131,7 @@ class TestConfigFactory:
         elif invalid_section == "llm":
             config["llm"] = {"service": "invalid_llm_service"}
         elif invalid_section == "ollama":
-            config["ollama"] = {"model": "gemma3:12b"}  # Empty model
+            config["ollama"] = {"model": "qwen3:14b"}  # Empty model
         elif invalid_section == "openai":
             config["openai"] = {"api_key": ""}  # Empty API key
         elif invalid_section == "anthropic":
@@ -175,7 +175,7 @@ class TestConfigFactory:
                 "service": "ollama"
             },
             "ollama": {
-                "model": "gemma3:12b"
+                "model": "qwen3:14b"
             }
         }
     

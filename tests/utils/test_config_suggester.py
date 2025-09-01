@@ -205,7 +205,7 @@ class TestConfigSuggester:
     
     def test_analyze_configuration_errors_invalid_values(self):
         """Test error analysis for invalid values."""
-        config = {"openai": {"model": "gemma3:12b"}}
+        config = {"openai": {"model": "qwen3:14b"}}
         errors = [
             ValidationError(
                 section="openai",
@@ -243,8 +243,8 @@ class TestConfigSuggester:
     def test_analyze_potential_typos_no_typos(self):
         """Test typo detection with correct configuration."""
         config = {
-            "openai": {"api_key": "test", "model": "gemma3:12b"},
-            "ollama": {"model": "gemma3:12b", "host": "http://localhost:11434"}
+            "openai": {"api_key": "test", "model": "qwen3:14b"},
+            "ollama": {"model": "qwen3:14b", "host": "http://localhost:11434"}
         }
         
         suggestions = []

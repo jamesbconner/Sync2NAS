@@ -17,7 +17,7 @@ def db_service(db_path):
         "Database": {"type": "sqlite"},
         "SQLite": {"db_file": str(db_path)},
         "llm": {"service": "ollama"},
-        "ollama": {"model": "gemma3:12b"},
+        "ollama": {"model": "qwen3:14b"},
     }
     db = create_db_service(config)
     db.initialize()
@@ -182,3 +182,4 @@ def test_get_sftp_diffs_returns_only_new_files(db_service):
     assert "new_file1.mkv" in diff_names
     assert "new_file2.mkv" in diff_names
     assert "existing_file.mkv" not in diff_names
+

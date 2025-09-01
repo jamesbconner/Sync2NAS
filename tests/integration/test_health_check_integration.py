@@ -40,7 +40,7 @@ class TestHealthCheckIntegration:
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b',
+                'model': 'qwen3:14b',
                 'max_tokens': '100',
                 'temperature': '0.1'
             }
@@ -80,7 +80,7 @@ class TestHealthCheckIntegration:
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'sk-invalid1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         
@@ -103,7 +103,7 @@ class TestHealthCheckIntegration:
         # Mock GET response for /api/tags
         mock_get_response = MagicMock()
         mock_get_response.status_code = 200
-        mock_get_response.json.return_value = {'models': [{'name': 'gemma3:12b'}, {'name': 'llama2:7b'}]}
+        mock_get_response.json.return_value = {'models': [{'name': 'qwen3:14b'}, {'name': 'llama2:7b'}]}
         
         # Mock POST response for /api/generate
         mock_post_response = MagicMock()
@@ -120,7 +120,7 @@ class TestHealthCheckIntegration:
         config = {
             'llm': {'service': 'ollama'},
             'ollama': {
-                'model': 'gemma3:12b',
+                'model': 'qwen3:14b',
                 'host': 'http://localhost:11434',
                 'timeout': '30'
             }
@@ -154,7 +154,7 @@ class TestHealthCheckIntegration:
         config = {
             'llm': {'service': 'ollama'},
             'ollama': {
-                'model': 'gemma3:12b',
+                'model': 'qwen3:14b',
                 'host': 'http://localhost:11434'
             }
         }
@@ -209,10 +209,10 @@ class TestHealthCheckIntegration:
             'llm': {'service': 'ollama'},
             'openai': {
                 'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             },
             'ollama': {
-                'model': 'gemma3:12b',
+                'model': 'qwen3:14b',
                 'host': 'http://localhost:11434'
             }
         }
@@ -258,7 +258,7 @@ class TestHealthCheckIntegration:
                 'llm': {'service': 'openai'},
                 'openai': {
                     'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                    'model': 'gemma3:12b'
+                    'model': 'qwen3:14b'
                 }
             }
             
@@ -288,7 +288,7 @@ class TestHealthCheckIntegration:
                 'llm': {'service': 'openai'},
                 'openai': {
                     'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                    'model': 'gemma3:12b',
+                    'model': 'qwen3:14b',
                     'max_tokens': '100',
                     'temperature': '0.1'
                 }
@@ -336,7 +336,7 @@ class TestHealthCheckServiceIntegration:
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         
@@ -345,7 +345,7 @@ class TestHealthCheckServiceIntegration:
         
         assert service is not None
         assert service.api_key.startswith('sk-')
-        assert service.model == 'gemma3:12b'  # Service uses configured model, not API response model
+        assert service.model == 'qwen3:14b'  # Service uses configured model, not API response model
         
         # Verify health check was performed
         mock_client.get.assert_called()
@@ -360,7 +360,7 @@ class TestHealthCheckServiceIntegration:
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         
@@ -377,7 +377,7 @@ class TestHealthCheckServiceIntegration:
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         
@@ -397,7 +397,7 @@ class TestHealthCheckServiceIntegration:
             if 'api/tags' in url:
                 # Ollama response
                 mock_response.status_code = 200
-                mock_response.json.return_value = {'models': [{'name': 'gemma3:12b'}]}
+                mock_response.json.return_value = {'models': [{'name': 'qwen3:14b'}]}
             else:
                 # OpenAI response
                 mock_response.status_code = 200
@@ -420,12 +420,12 @@ class TestHealthCheckServiceIntegration:
         config = {
             'llm': {'service': 'ollama'},
             'ollama': {
-                'model': 'gemma3:12b',
+                'model': 'qwen3:14b',
                 'host': 'http://localhost:11434'
             },
             'openai': {
                 'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         
@@ -485,7 +485,7 @@ class TestHealthCheckErrorScenarios:
             'llm': {'service': 'openai'},
             'openai': {
                 'api_key': 'sk-test1234567890abcdef1234567890abcdef1234567890ab',
-                'model': 'gemma3:12b'
+                'model': 'qwen3:14b'
             }
         }
         
@@ -506,7 +506,7 @@ class TestHealthCheckErrorScenarios:
             is_healthy=True,
             response_time_ms=150.5,
             error_message=None,
-            details={'model': 'gemma3:12b'}
+            details={'model': 'qwen3:14b'}
         )
         
         unhealthy_result = HealthCheckResult(

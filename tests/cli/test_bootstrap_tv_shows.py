@@ -151,7 +151,7 @@ def test_bootstrap_tv_shows_dir_names(monkeypatch, cli_runner, cli, tmp_path, fo
     }
     parser["TMDB"] = {"api_key": "test_api_key"}
     parser["llm"] = {"service": "ollama"}
-    parser["ollama"] = {"model": "gemma3:12b"}
+    parser["ollama"] = {"model": "qwen3:14b"}
     config_path = write_temp_config(parser, tmp_path)
     config = load_configuration(config_path)
 
@@ -294,4 +294,5 @@ def test_error_handling(runner, mock_db, mock_tmdb, mock_anime_tv_path, mock_llm
     assert result.exit_code == 0
     assert "Failed: 2" in result.output
     mock_db.add_show.assert_not_called()
+
 

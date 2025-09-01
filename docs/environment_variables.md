@@ -56,7 +56,7 @@ export SYNC2NAS_ANTHROPIC_TEMPERATURE=0.1                   # Default: 0.1
 #### Ollama Configuration
 ```bash
 export SYNC2NAS_OLLAMA_HOST=http://localhost:11434     # Default: http://localhost:11434
-export SYNC2NAS_OLLAMA_MODEL=gemma3:12b                # Default: gemma3:12b
+export SYNC2NAS_OLLAMA_MODEL=qwen3:14b                # Default: qwen3:14b
 export SYNC2NAS_OLLAMA_TIMEOUT=30                      # Default: 30 seconds
 export SYNC2NAS_OLLAMA_NUM_CTX=4096                    # Context window size
 ```
@@ -143,7 +143,7 @@ export SYNC2NAS_TMDB_API_KEY=your-secret-tmdb-key
 service = ollama
 
 [ollama]
-model = gemma3:12b
+model = qwen3:14b
 host = http://localhost:11434
 ```
 
@@ -314,7 +314,7 @@ python sync2nas.py -vv config-check --service openai
 | `SYNC2NAS_ANTHROPIC_MAX_TOKENS` | `[anthropic]` | `max_tokens` | Max tokens per request | `4000` |
 | `SYNC2NAS_ANTHROPIC_TEMPERATURE` | `[anthropic]` | `temperature` | Response randomness | `0.1` |
 | `SYNC2NAS_OLLAMA_HOST` | `[ollama]` | `host` | Ollama server URL | `http://localhost:11434` |
-| `SYNC2NAS_OLLAMA_MODEL` | `[ollama]` | `model` | Ollama model name | `gemma3:12b` |
+| `SYNC2NAS_OLLAMA_MODEL` | `[ollama]` | `model` | Ollama model name | `qwen3:14b` |
 | `SYNC2NAS_OLLAMA_TIMEOUT` | `[ollama]` | `timeout` | Request timeout (seconds) | `30` |
 | `SYNC2NAS_DATABASE_TYPE` | `[database]` | `type` | Database backend | `sqlite` |
 | `SYNC2NAS_SQLITE_DB_FILE` | `[sqlite]` | `db_file` | SQLite database file | `./database/sync2nas.db` |

@@ -20,7 +20,7 @@ class TestConfigNormalizer:
     def test_normalize_config_basic(self):
         """Test basic configuration normalization."""
         raw_config = {
-            'OpenAI': {'api_key': 'test_key', 'model': 'gemma3:12b'},
+            'OpenAI': {'api_key': 'test_key', 'model': 'qwen3:14b'},
             'TMDB': {'api_key': 'tmdb_key'},
             'llm': {'service': 'openai'}
         }
@@ -31,14 +31,14 @@ class TestConfigNormalizer:
         assert 'tmdb' in normalized
         assert 'llm' in normalized
         assert normalized['openai']['api_key'] == 'test_key'
-        assert normalized['openai']['model'] == 'gemma3:12b'  # Normalizer preserves original values
+        assert normalized['openai']['model'] == 'qwen3:14b'  # Normalizer preserves original values
         assert normalized['tmdb']['api_key'] == 'tmdb_key'
         assert normalized['llm']['service'] == 'openai'
     
     def test_normalize_config_duplicate_sections(self):
         """Test handling of duplicate sections with different cases."""
         raw_config = {
-            'OpenAI': {'api_key': 'uppercase_key', 'model': 'gemma3:12b'},
+            'OpenAI': {'api_key': 'uppercase_key', 'model': 'qwen3:14b'},
             'openai': {'api_key': 'lowercase_key', 'temperature': '0.1'},
             'OPENAI': {'max_tokens': '150'}
         }
@@ -53,7 +53,7 @@ class TestConfigNormalizer:
         assert normalized['openai']['api_key'] == 'lowercase_key'
         
         # Non-conflicting keys should be merged
-        assert normalized['openai']['model'] == 'gemma3:12b'  # Normalizer preserves original values
+        assert normalized['openai']['model'] == 'qwen3:14b'  # Normalizer preserves original values
         assert normalized['openai']['temperature'] == '0.1'
         assert normalized['openai']['max_tokens'] == '150'
     
@@ -98,7 +98,7 @@ class TestConfigNormalizer:
         """Test environment variable override functionality."""
         config = {
             'llm': {'service': 'openai'},
-            'openai': {'api_key': 'config_key', 'model': 'gemma3:12b'},
+            'openai': {'api_key': 'config_key', 'model': 'qwen3:14b'},
             'anthropic': {'api_key': 'anthropic_key'}
         }
         
@@ -110,7 +110,7 @@ class TestConfigNormalizer:
         assert result['anthropic']['model'] == 'claude-3-sonnet'
         
         # Non-overridden values should remain unchanged
-        assert result['openai']['model'] == 'gemma3:12b'  # Normalizer preserves original values
+        assert result['openai']['model'] == 'qwen3:14b'  # Normalizer preserves original values
         assert result['anthropic']['api_key'] == 'anthropic_key'
     
     @patch.dict(os.environ, {
@@ -146,7 +146,7 @@ class TestConfigNormalizer:
     def test_get_normalized_value(self):
         """Test case-insensitive value retrieval."""
         config = {
-            'openai': {'api_key': 'test_key', 'model': 'gemma3:12b'},
+            'openai': {'api_key': 'test_key', 'model': 'qwen3:14b'},
             'llm': {'service': 'openai'}
         }
         
@@ -155,7 +155,7 @@ class TestConfigNormalizer:
         
         # Test with different case
         assert self.normalizer.get_normalized_value(config, 'OpenAI', 'api_key') == 'test_key'
-        assert self.normalizer.get_normalized_value(config, 'OPENAI', 'model') == 'gemma3:12b'  # Normalizer preserves original values
+        assert self.normalizer.get_normalized_value(config, 'OPENAI', 'model') == 'qwen3:14b'  # Normalizer preserves original values
         
         # Test with fallback
         assert self.normalizer.get_normalized_value(config, 'openai', 'nonexistent', 'default') == 'default'
@@ -169,7 +169,7 @@ class TestConfigNormalizer:
         """Test the complete normalization and override pipeline."""
         raw_config = {
             'OpenAI': {'api_key': 'openai_key'},
-            'anthropic': {'model': 'gemma3:12b'},
+            'anthropic': {'model': 'qwen3:14b'},
             'LLM': {'service': 'openai'}
         }
         
@@ -186,7 +186,7 @@ class TestConfigNormalizer:
         
         # Should preserve non-overridden values
         assert result['openai']['api_key'] == 'openai_key'
-        assert result['anthropic']['model'] == 'gemma3:12b'  # Normalizer preserves original values
+        assert result['anthropic']['model'] == 'qwen3:14b'  # Normalizer preserves original values
     
     def test_get_supported_env_vars(self):
         """Test retrieval of supported environment variables."""
@@ -213,7 +213,7 @@ class TestConfigNormalizer:
     def test_section_precedence_order(self):
         """Test that lowercase sections take precedence over mixed case."""
         raw_config = {
-            'OPENAI': {'api_key': 'upper_key', 'model': 'gemma3:12b'},
+            'OPENAI': {'api_key': 'upper_key', 'model': 'qwen3:14b'},
             'OpenAI': {'api_key': 'mixed_key', 'temperature': '0.5'},
             'openai': {'api_key': 'lower_key', 'max_tokens': '100'}
         }
@@ -224,7 +224,7 @@ class TestConfigNormalizer:
         assert normalized['openai']['api_key'] == 'lower_key'
         
         # All non-conflicting keys should be present
-        assert normalized['openai']['model'] == 'gemma3:12b'  # Normalizer preserves original values
+        assert normalized['openai']['model'] == 'qwen3:14b'  # Normalizer preserves original values
         assert normalized['openai']['temperature'] == '0.5'
         assert normalized['openai']['max_tokens'] == '100'
     
