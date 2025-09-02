@@ -26,6 +26,14 @@ class SuggestedShowName(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence between 0.0 and 1.0")
     reasoning: str = Field(..., description="Explanation of field choices and confidence")
 
+class SuggestedDirname(BaseModel):
+    short_name: str = Field(..., description="Shortened directory name within character limit")
+    reasoning: str = Field(..., description="Brief explanation of shortening choices")
+
+class SuggestedFilename(BaseModel):
+    short_name: str = Field(..., description="Shortened filename within character limit, preserving extension")
+    reasoning: str = Field(..., description="Brief explanation of shortening choices")
+
 class OllamaLLMService(BaseLLMService):
     """
     LLM service implementation using a local Ollama server and model.
@@ -262,29 +270,86 @@ class OllamaLLMService(BaseLLMService):
         Returns:
             str: A short, human-readable directory name.
         """
+        logger.info(f"Suggesting short dirname with Ollama LLM: {long_name} (max={max_length}, model={self.model})")
         prompt = self.load_prompt('suggest_short_dirname')
         prompt = prompt.format(max_length=max_length, long_name=long_name)
         try:
-            response = self.client.generate(
-                model=self.model,
-                prompt=prompt,
-                stream=False,
-                options={"num_predict": max_length, "temperature": 0.1}
-            )
+            # Use format parameter with model_json_schema() for structured output
+            use_format = not str(self.model).lower().startswith("gpt-oss")
+            format_schema = SuggestedDirname.model_json_schema() if use_format else None
+
+            def _call_ollama(format_arg):
+                kwargs = {
+                    "model": self.model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {"num_predict": 200, "temperature": 0.1, "num_ctx": self.num_ctx},
+                }
+                if format_arg is not None:
+                    kwargs["format"] = format_arg
+                logger.debug(f"LLM dirname generate() call: format={'on' if format_arg else 'off'}")
+                return self.client.generate(**kwargs)
+
+            start_ts = datetime.datetime.now()
+            response = _call_ollama(format_schema)
+            duration_ms = (datetime.datetime.now() - start_ts).total_seconds() * 1000.0
+
+            # Extract the JSON/string content
             if hasattr(response, 'response'):
-                content = response.response.strip()
+                content = response.response
             elif isinstance(response, dict) and 'response' in response:
-                content = response['response'].strip()
+                content = response['response']
             else:
-                content = str(response).strip()
-            # Only keep the first line and truncate if needed
-            short_name = content.splitlines()[0][:max_length]
-            # Remove problematic characters
-            short_name = re.sub(r'[^\w\- ]', '', short_name)
-            logger.debug(f"LLM recommended: {short_name}")
-            return short_name or long_name[:max_length]
+                content = response
+
+            text = (content or "").strip() if isinstance(content, str) else str(content)
+            logger.debug(f"LLM dirname response received in {duration_ms:.0f} ms; text_len={len(text)}")
+            
+            if not text and format_schema is not None:
+                logger.info("Empty response with format; retrying without format")
+                response = _call_ollama(None)
+                content = response.response if hasattr(response, 'response') else (response.get('response') if isinstance(response, dict) else response)
+                text = (content or "").strip() if isinstance(content, str) else str(content)
+
+            if not text:
+                logger.error("Empty Ollama response for dirname suggestion; using fallback")
+                return long_name[:max_length]
+
+            # Extract first JSON object in case of extra prose or code fences
+            json_text = self._extract_first_json_object(text)
+            if json_text is None:
+                logger.error("No JSON object found in dirname response; using fallback")
+                return long_name[:max_length]
+
+            try:
+                result = json.loads(json_text)
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to decode JSON from dirname response: {e}")
+                return long_name[:max_length]
+
+            # Validate against the Pydantic model
+            try:
+                model_instance = SuggestedDirname.model_validate(result)
+                validated_dict = model_instance.model_dump()
+                short_name = validated_dict.get('short_name', '').strip()
+            except ValidationError as e:
+                logger.error(f"Pydantic validation failed for dirname response: {e}")
+                return long_name[:max_length]
+
+            # Clean and validate the result
+            if short_name:
+                # Truncate if needed
+                short_name = short_name[:max_length]
+                # Remove problematic characters
+                short_name = re.sub(r'[^\w\- ]', '', short_name)
+                logger.debug(f"LLM recommended dirname: {short_name}")
+                return short_name or long_name[:max_length]
+            else:
+                logger.warning("Empty short_name from LLM; using fallback")
+                return long_name[:max_length]
+                
         except Exception as e:
-            logger.exception(f"LLM error: {e}.")
+            logger.exception(f"LLM dirname error: {e}")
             return long_name[:max_length]
 
     def suggest_short_filename(self, long_name: str, max_length: int = 20) -> str:
@@ -297,27 +362,86 @@ class OllamaLLMService(BaseLLMService):
         Returns:
             str: A short, human-readable filename.
         """
+        logger.info(f"Suggesting short filename with Ollama LLM: {long_name} (max={max_length}, model={self.model})")
         prompt = self.load_prompt('suggest_short_filename')
         prompt = prompt.format(max_length=max_length, long_name=long_name)
         try:
-            response = self.client.generate(
-                model=self.model,
-                prompt=prompt,
-                stream=False,
-                options={"num_predict": max_length, "temperature": 0.1}
-            )
+            # Use format parameter with model_json_schema() for structured output
+            use_format = not str(self.model).lower().startswith("gpt-oss")
+            format_schema = SuggestedFilename.model_json_schema() if use_format else None
+
+            def _call_ollama(format_arg):
+                kwargs = {
+                    "model": self.model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {"num_predict": 200, "temperature": 0.1, "num_ctx": self.num_ctx},
+                }
+                if format_arg is not None:
+                    kwargs["format"] = format_arg
+                logger.debug(f"LLM filename generate() call: format={'on' if format_arg else 'off'}")
+                return self.client.generate(**kwargs)
+
+            start_ts = datetime.datetime.now()
+            response = _call_ollama(format_schema)
+            duration_ms = (datetime.datetime.now() - start_ts).total_seconds() * 1000.0
+
+            # Extract the JSON/string content
             if hasattr(response, 'response'):
-                content = response.response.strip()
+                content = response.response
             elif isinstance(response, dict) and 'response' in response:
-                content = response['response'].strip()
+                content = response['response']
             else:
-                content = str(response).strip()
-            short_name = content.splitlines()[0][:max_length]
-            short_name = re.sub(r'[^\w\-. ]', '', short_name)
-            logger.debug(f"LLM recommended: {short_name}")
-            return short_name or long_name[:max_length]
+                content = response
+
+            text = (content or "").strip() if isinstance(content, str) else str(content)
+            logger.debug(f"LLM filename response received in {duration_ms:.0f} ms; text_len={len(text)}")
+            
+            if not text and format_schema is not None:
+                logger.info("Empty response with format; retrying without format")
+                response = _call_ollama(None)
+                content = response.response if hasattr(response, 'response') else (response.get('response') if isinstance(response, dict) else response)
+                text = (content or "").strip() if isinstance(content, str) else str(content)
+
+            if not text:
+                logger.error("Empty Ollama response for filename suggestion; using fallback")
+                return long_name[:max_length]
+
+            # Extract first JSON object in case of extra prose or code fences
+            json_text = self._extract_first_json_object(text)
+            if json_text is None:
+                logger.error("No JSON object found in filename response; using fallback")
+                return long_name[:max_length]
+
+            try:
+                result = json.loads(json_text)
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to decode JSON from filename response: {e}")
+                return long_name[:max_length]
+
+            # Validate against the Pydantic model
+            try:
+                model_instance = SuggestedFilename.model_validate(result)
+                validated_dict = model_instance.model_dump()
+                short_name = validated_dict.get('short_name', '').strip()
+            except ValidationError as e:
+                logger.error(f"Pydantic validation failed for filename response: {e}")
+                return long_name[:max_length]
+
+            # Clean and validate the result
+            if short_name:
+                # Truncate if needed
+                short_name = short_name[:max_length]
+                # Remove problematic characters (allow dots for extensions)
+                short_name = re.sub(r'[^\w\-. ]', '', short_name)
+                logger.debug(f"LLM recommended filename: {short_name}")
+                return short_name or long_name[:max_length]
+            else:
+                logger.warning("Empty short_name from LLM; using fallback")
+                return long_name[:max_length]
+                
         except Exception as e:
-            logger.exception(f"LLM error: {e}.")
+            logger.exception(f"LLM filename error: {e}")
             return long_name[:max_length]
 
     def suggest_show_name(self, show_name: str, detailed_results: list, max_tokens: int = 16384) -> dict:
@@ -401,6 +525,31 @@ class OllamaLLMService(BaseLLMService):
                     result['confidence'] = 0.0
                 if 'reasoning' not in result:
                     result['reasoning'] = 'LLM provided result without confidence/reasoning; defaulted confidence to 0.0.'
+                
+                # Handle the special case where LLM indicates no match (tmdb_id = -1)
+                if result.get('tmdb_id') == -1:
+                    if not candidates:
+                        # This is the correct response for empty candidates
+                        return result
+                    else:
+                        # LLM said no match but there are candidates - this might be an error
+                        logger.warning(f"LLM returned no match (tmdb_id=-1) but candidates were provided: {len(candidates)} candidates")
+                        return result
+                
+                # Validate that the returned tmdb_id exists in the candidates (if candidates provided)
+                if candidates:
+                    candidate_ids = [c.get('id') for c in candidates]
+                    if result.get('tmdb_id') not in candidate_ids:
+                        logger.warning(f"LLM returned tmdb_id {result.get('tmdb_id')} which is not in candidates {candidate_ids}")
+                        # This might be the JSON extraction bug - let's log it and fall back
+                        first = candidates[0]
+                        return {
+                            'tmdb_id': first['id'],
+                            'show_name': first['name'],
+                            'confidence': 0.0,
+                            'reasoning': f'LLM returned invalid tmdb_id {result.get("tmdb_id")} not in candidates; fell back to first candidate.'
+                        }
+                
                 return result
             else:
                 logger.warning(f"LLM response missing required fields: {result}")
