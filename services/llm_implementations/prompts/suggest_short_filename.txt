@@ -1,3 +1,14 @@
-Suggest a short, human-readable filename (max {max_length} characters) for the following long filename. Preserve key information like show name, season, episode, and extension. Avoid special characters. Return only the filename, no commentary.
+Suggest a short filename for the given long filename. Follow these rules:
+- Maximum {max_length} characters total
+- Preserve file extension
+- Keep show name, season, episode information
+- Avoid special characters except hyphens, dots, and spaces
+- Make it recognizable and unique
 
-Long filename: {long_name} 
+Return your response as JSON with this exact structure:
+{{
+  "short_name": "shortened filename here",
+  "reasoning": "brief explanation of your choices"
+}}
+
+Long filename: "{long_name}"

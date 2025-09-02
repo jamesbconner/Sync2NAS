@@ -1,9 +1,14 @@
-Suggest a short, human-readable directory name (max {max_length} characters) for the following long directory name. Avoid special characters and keep it unique and recognizable. Return only the name, no commentary.
+Suggest a short directory name for the given show title. Follow these rules:
+- Maximum {max_length} characters
+- Keep season/year information if present (format: S1, S2, 2024, etc.)
+- Use CamelCase or spaces as appropriate
+- Avoid special characters except hyphens and spaces
+- Make it recognizable and unique
 
-Rules:
-The directory name represents the title of a show. If there is a season number in the original filename, always include it in the directory name in the format of 'S1', 'S2', etc.
-If there is no season number, but there is a year, include that in the directory name in the format of '2024', '2025', etc.
-The season number or year should be the last part of the directory name if available.
-Do not make up words for the directory name.
-It is valid to use CamelCase for the directory name if the max_length is less than 50 characters.
-Long name: {long_name} 
+Return your response as JSON with this exact structure:
+{{
+  "short_name": "shortened directory name here",
+  "reasoning": "brief explanation of your choices"
+}}
+
+Show title: "{long_name}"
