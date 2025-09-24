@@ -156,14 +156,17 @@ def add_show_interactively(
 
         # Check if the show already exists by multiple criteria
         # First check by the original show_name (before sanitization)
-        show_exists_by_name = db.show_exists(show_name)
+        show_exists_by_name = db.show_exists(show_name) if show_name else False
         # Then check by the sanitized sys_name
-        show_exists_by_sys_name = db.show_exists(sys_name)
+        show_exists_by_sys_name = db.show_exists(sys_name) if sys_name else False
         
         if show_exists_by_name or show_exists_by_sys_name:
             if not override_dir:
                 # Get the actual existing show name for better error reporting
-                existing_show = db.get_show_by_name_or_alias(show_name) or db.get_show_by_name_or_alias(sys_name)
+                existing_show = (
+                    (db.get_show_by_name_or_alias(show_name) if show_name else None)
+                    or (db.get_show_by_name_or_alias(sys_name) if sys_name else None)
+                )
                 existing_name = existing_show.get('tmdb_name', show_name) if existing_show else show_name
                 # Don't log this as an exception since it's not really an error
                 logger.info(f"Show already exists in DB: {existing_name}")

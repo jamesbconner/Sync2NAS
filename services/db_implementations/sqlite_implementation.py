@@ -322,22 +322,28 @@ class SQLiteDBService(DatabaseInterface):
 
     def show_exists(self, name: str) -> bool:
         """Check if a show exists based on sys_name, tmdb_name, or aliases."""
+        # Guard against None or empty input
+        if not name:
+            return False
         with self._connection() as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT sys_name, tmdb_name, tmdb_aliases FROM tv_shows')
             for row in cursor.fetchall():
                 sys_name, tmdb_name, tmdb_aliases = row
                 aliases = [a.strip().lower() for a in (tmdb_aliases or "").split(",") if a.strip()]
-                match_candidates = [sys_name.lower(), tmdb_name.lower()] + aliases
+                sys_lower = (sys_name or "").lower()
+                tmdb_lower = (tmdb_name or "").lower()
+                match_candidates = [sys_lower, tmdb_lower] + aliases
 
                 # Check variations
-                name_set = {x.strip() for x in set(name.lower().split(','))}
-                sys_name_set = {x.strip() for x in set(sys_name.lower().split(','))}
+                name_lower = name.lower()
+                name_set = {x.strip() for x in set(name_lower.split(','))}
+                sys_name_set = {x.strip() for x in set(sys_lower.split(','))}
                 alias_set = {x.strip() for x in set(aliases)}
-                tmdb_name_set = {x.strip() for x in set(tmdb_name.lower().split(','))}
+                tmdb_name_set = {x.strip() for x in set(tmdb_lower.split(','))}
                 set_match_candidates = sys_name_set | alias_set | tmdb_name_set
                 
-                if name.lower() in match_candidates:
+                if name_lower in match_candidates:
                     logger.info(f"Show {name} already exists in the database. (Standard Match)")
                     return True
                 
@@ -359,21 +365,27 @@ class SQLiteDBService(DatabaseInterface):
 
     def get_show_by_name_or_alias(self, name: str) -> Optional[Dict[str, Any]]:
         """Get a show by its name or alias."""
+        # Guard against None or empty input
+        if not name:
+            return None
         with self._connection() as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute("SELECT * FROM tv_shows")
             for row in cursor.fetchall():
                 aliases = [a.strip().lower() for a in (row["tmdb_aliases"] or "").split(",") if a.strip()]
-                match_candidates = [row["sys_name"].lower(), row["tmdb_name"].lower()] + aliases
+                sys_lower = (row["sys_name"] or "").lower()
+                tmdb_lower = (row["tmdb_name"] or "").lower()
+                match_candidates = [sys_lower, tmdb_lower] + aliases
 
                 # Check variations
-                name_set = {x.strip() for x in set(name.lower().split(','))}
-                sys_name_set = {x.strip() for x in set(row["sys_name"].lower().split(','))}
+                name_lower = name.lower()
+                name_set = {x.strip() for x in set(name_lower.split(','))}
+                sys_name_set = {x.strip() for x in set(sys_lower.split(','))}
                 alias_set = {x.strip() for x in set(aliases)}
-                tmdb_name_set = {x.strip() for x in set(row["tmdb_name"].lower().split(','))}
+                tmdb_name_set = {x.strip() for x in set(tmdb_lower.split(','))}
                 set_match_candidates = sys_name_set | alias_set | tmdb_name_set                
 
-                if name.lower() in match_candidates:
+                if name_lower in match_candidates:
                     logger.info(f"Show {name} found in database. (Standard Match)")
                     return dict(row)
                 
