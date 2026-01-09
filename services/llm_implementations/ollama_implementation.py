@@ -160,46 +160,39 @@ class OllamaLLMService(BaseLLMService):
                 return self._fallback_parse(filename)
 
             logger.debug(f"Ollama response: {text}")
-            # Also print to console for debugging
-            print(f"🔍 RAW OLLAMA RESPONSE:")
-            print(f"   Model: {self.model}")
-            print(f"   Format schema: {'enabled' if format_schema else 'disabled'}")
-            print(f"   Response length: {len(text)} characters")
-            print(f"   Raw text: {repr(text)}")
-            print(f"   Raw text (pretty): {text}")
+            logger.debug(f"RAW OLLAMA RESPONSE - Model: {self.model}, Format schema: {'enabled' if format_schema else 'disabled'}, Response length: {len(text)} characters")
+            logger.debug(f"Raw response text: {repr(text)}")
+            logger.debug(f"Raw response (formatted): {text}")
 
             # Extract first JSON object in case of extra prose or code fences
             json_text = self._extract_first_json_object(text)
-            print(f"🔍 JSON EXTRACTION:")
-            print(f"   Extracted JSON: {repr(json_text)}")
+            logger.debug(f"JSON EXTRACTION - Extracted JSON: {repr(json_text)}")
             if json_text is None:
                 logger.error("No JSON object found in Ollama response; using fallback parser")
-                print(f"   ❌ JSON extraction failed!")
+                logger.debug("JSON extraction failed - no valid JSON object found")
                 self._dump_failure_artifacts("parse_filename_no_json", prompt, text)
                 return self._fallback_parse(filename)
 
             try:
                 result = json.loads(json_text)
-                print(f"🔍 JSON PARSING:")
-                print(f"   Parsed JSON result: {result}")
+                logger.debug(f"JSON PARSING - Parsed JSON result: {result}")
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to decode JSON from Ollama response: {e}")
-                print(f"   ❌ JSON parsing failed: {e}")
+                logger.debug(f"JSON parsing failed with error: {e}")
                 self._dump_failure_artifacts("parse_filename_json_error", prompt, text)
                 return self._fallback_parse(filename)
 
             # Strong validation against the Pydantic model to ensure structure/types
             try:
-                print(f"🔍 PYDANTIC VALIDATION:")
-                print(f"   Input to Pydantic: {result}")
-                print(f"   CRC32 field in input: {result.get('crc32', 'NOT_FOUND')}")
+                logger.debug(f"PYDANTIC VALIDATION - Input to Pydantic: {result}")
+                logger.debug(f"CRC32 field in input: {result.get('crc32', 'NOT_FOUND')}")
                 model_instance = ParsedFilename.model_validate(result)
                 validated_dict = model_instance.model_dump()
-                print(f"   Pydantic validated: {validated_dict}")
-                print(f"   CRC32 field after validation: {validated_dict.get('crc32', 'NOT_FOUND')}")
+                logger.debug(f"Pydantic validated result: {validated_dict}")
+                logger.debug(f"CRC32 field after validation: {validated_dict.get('crc32', 'NOT_FOUND')}")
             except ValidationError as e:
                 logger.error(f"Pydantic validation failed for Ollama response: {e}")
-                print(f"   ❌ Pydantic validation failed: {e}")
+                logger.debug(f"Pydantic validation failed with error: {e}")
                 self._dump_failure_artifacts("parse_filename_validation_error", prompt, text)
                 return self._fallback_parse(filename)
 

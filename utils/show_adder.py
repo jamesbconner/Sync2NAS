@@ -140,7 +140,11 @@ def add_show_interactively(
             if not details or "info" not in details:
                 logger.exception(f"show_name Branch - Failed to retrieve full details for TMDB ID {tmdb_id}")
                 raise ValueError(f"show_name Branch - Failed to retrieve full details for TMDB ID {tmdb_id}")
-            sys_name = show_name
+            # IMPORTANT FIX: Use TMDB English name instead of user input to prevent Japanese directory names
+            # This ensures that when users search with Japanese titles like "進撃の巨人", 
+            # the directory created will be "Attack on Titan" instead of "進撃の巨人"
+            sys_name = first_result.get("name", show_name)
+            logger.debug(f"show_name Branch - Using TMDB name '{sys_name}' instead of user input '{show_name}'")
         else:
             logger.exception("Neither show_name nor tmdb_id provided")
             raise ValueError("Neither show_name nor tmdb_id provided")
