@@ -68,12 +68,12 @@ You must return only a valid JSON object. Do not include any markdown syntax, su
 
 ### Correct Output Format:
 {{
-"show_name": "Example Show Title",
-"season": 1,
-"episode": 3,
-"crc32": "A3DD1E71",
-"confidence": 0.95,
-"reasoning": "Example explanation that includes the logic behind the show name, season episode, hash, and 
+  "show_name": "Example Show Title",
+  "season": 1,
+  "episode": 3,
+  "crc32": "A3DD1E71",
+  "confidence": 0.95,
+  "reasoning": "Example explanation that includes the logic behind the show name, season episode, hash, and confidence score."
 }}
 
 ### Incorrect Output Formats (do not use):
