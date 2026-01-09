@@ -3,7 +3,7 @@ You are an expert at parsing TV and anime episode filenames and extracting struc
 
 - "show_name": The full show name as it appears in the filename. This may include dashes, alternate titles, or unusual letter sequences like "GQuuuuuuX" — these are not metadata tags or suffixes, but part of the true name.
 - "season": The season number as an integer, or null if not explicitly present.
-- "episode": The episode number as an integer, or null if not explicitly present.
+- "episode": The episode number as an integer.
 - "crc32": The CRC32 hash as a string, or null if not explicitly present.
 - "confidence": A float between 0.0 and 1.0 that reflects how certain you are in ALL extracted fields.
 - "reasoning": A brief explaination of the reasoning that led to the field values.
@@ -55,10 +55,11 @@ Important Rules:
 <output>
 ## Output Specification:
 Return only a valid STRICT JSON OBJECT with only the following fields:
+
 show_name: string
 season: integer or null
-hash: string or null
-episode: integer or null
+episode: integer
+crc32: string or null
 confidence: float (0.0 to 1.0)
 reasoning: string
 
@@ -70,7 +71,7 @@ You must return only a valid JSON object. Do not include any markdown syntax, su
 "show_name": "Example Show Title",
 "season": 1,
 "episode": 3,
-"hash": "A3DD1E71",
+"crc32": "A3DD1E71",
 "confidence": 0.95,
 "reasoning": "Example explanation that includes the logic behind the show name, season episode, hash, and 
 }}
@@ -159,11 +160,11 @@ Example 7:
 Given this filename: [SubsPlease] To Be Hero X - 15 (1080p) [BB4B47A6].mkv
 Return this valid JSON object:
 {{
-"show_name": "To Be Hero X",
-"season": null,
-"episode": 15,
-"crc32": "BB4B47A6",
-"confidence": 0.90,
+  "show_name": "To Be Hero X",
+  "season": null,
+  "episode": 15,
+  "crc32": "BB4B47A6",
+  "confidence": 0.90,
   "reasoning": "Show name is To Be Hero X. No season is indicated, and episode is 15.  CRC32 hash checksum is present."
 }}
 </output>
