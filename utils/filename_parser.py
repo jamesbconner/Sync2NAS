@@ -53,6 +53,11 @@ def _regex_parse_filename(filename: str) -> dict:
         dict: Parsed metadata with confidence and reasoning.
     """
     import re
+    
+    # Extract CRC32 hash before removing brackets
+    crc32_match = re.search(r'\[([0-9A-Fa-f]{8})\]', filename)
+    crc32 = crc32_match.group(1).upper() if crc32_match else None
+    
     # Remove file extension
     base = re.sub(r"\.[a-z0-9]{2,4}$", "", filename, flags=re.IGNORECASE)
 
@@ -81,20 +86,22 @@ def _regex_parse_filename(filename: str) -> dict:
             show_name = groups.get("name", "").strip(" -_")
             season = int(groups["season"]) if groups.get("season") else None
             episode = int(groups["episode"]) if groups.get("episode") else None
-            logger.debug(f"Parsed: Show={show_name}, Season={season}, Episode={episode} - Pattern {index}")
+            logger.debug(f"Parsed: Show={show_name}, Season={season}, Episode={episode}, CRC32={crc32} - Pattern {index}")
             return {
                 "show_name": show_name, 
                 "season": season, 
                 "episode": episode,
+                "crc32": crc32,
                 "confidence": 0.6,
                 "reasoning": f"Regex pattern {index} matched"
             }
 
-    logger.debug(f"No match found; fallback name: {cleaned}")
+    logger.debug(f"No match found; fallback name: {cleaned}, CRC32={crc32}")
     return {
         "show_name": cleaned, 
         "season": None, 
         "episode": None,
+        "crc32": crc32,
         "confidence": 0.1,
         "reasoning": "No regex pattern matched"
     } 

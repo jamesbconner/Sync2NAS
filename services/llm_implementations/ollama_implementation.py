@@ -16,7 +16,7 @@ class ParsedFilename(BaseModel):
     show_name: str = Field(..., description="Full show name, as extracted from filename")
     season: int | None = Field(..., description="Season number as integer, or null if not present")
     episode: int = Field(..., description="Episode number as integer, or null if not present")
-    crc32: str | None = Field(None, description="CRC32 checksum if present in the filename. It is always exactly 8 hex characters (0-9A-F), without brackets.")
+    crc_hash: str | None = Field(None, description="CRC32 checksum if present in the filename. It is always exactly 8 hex characters (0-9A-F), without brackets.")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence between 0.0 and 1.0")
     reasoning: str = Field(..., description="Explanation of field choices and confidence")
 
@@ -185,11 +185,11 @@ class OllamaLLMService(BaseLLMService):
             # Strong validation against the Pydantic model to ensure structure/types
             try:
                 logger.debug(f"PYDANTIC VALIDATION - Input to Pydantic: {result}")
-                logger.debug(f"CRC32 field in input: {result.get('crc32', 'NOT_FOUND')}")
+                logger.debug(f"CRC_HASH field in input: {result.get('crc_hash', 'NOT_FOUND')}")
                 model_instance = ParsedFilename.model_validate(result)
                 validated_dict = model_instance.model_dump()
                 logger.debug(f"Pydantic validated result: {validated_dict}")
-                logger.debug(f"CRC32 field after validation: {validated_dict.get('crc32', 'NOT_FOUND')}")
+                logger.debug(f"CRC_HASH field after validation: {validated_dict.get('crc_hash', 'NOT_FOUND')}")
             except ValidationError as e:
                 logger.error(f"Pydantic validation failed for Ollama response: {e}")
                 logger.debug(f"Pydantic validation failed with error: {e}")

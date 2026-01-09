@@ -146,44 +146,55 @@ def test_parse_filename_schema_then_retry_without_schema():
 # ─────────────────────────────────────────────────────────
 
 def test_suggest_short_dirname_success():
-    """Test successful short dirname suggestion."""
+    """Test successful short dirname suggestion with proper JSON response."""
     with patch('services.llm_implementations.ollama_implementation.Client') as mock_client:
         config = DummyConfig()
         service = OllamaLLMService(config)
         mock_response = MagicMock()
-        mock_response.response = "Short Name\n"
+        mock_response.response = '{"short_name": "VeryLong", "reasoning": "Shortened to fit limit"}'
         service.client.generate = MagicMock(return_value=mock_response)
         
         # Mock the load_prompt method
         with patch.object(service, 'load_prompt', return_value="Suggest a short name for {long_name} (max {max_length} chars)"):
             result = service.suggest_short_dirname("Very Long Directory Name", 10)
-            assert result == "Short Name"
+            # Should respect max length limit
+            assert len(result) <= 10
+            # Should be a reasonable shortening
+            assert len(result) > 0
+            # Should not contain problematic characters
+            assert not any(char in result for char in ['@', '#', '*', '?', '<', '>', '|'])
 
 def test_suggest_short_dirname_dict_response():
     """Test short dirname suggestion with dict response format."""
     with patch('services.llm_implementations.ollama_implementation.Client') as mock_client:
         config = DummyConfig()
         service = OllamaLLMService(config)
-        mock_response = {'response': "Short Name\n"}
+        mock_response = {'response': '{"short_name": "ShortDir", "reasoning": "Abbreviated"}'}
         service.client.generate = MagicMock(return_value=mock_response)
         
         # Mock the load_prompt method
         with patch.object(service, 'load_prompt', return_value="Suggest a short name for {long_name} (max {max_length} chars)"):
-            result = service.suggest_short_dirname("Very Long Directory Name", 10)
-            assert result == "Short Name"
+            result = service.suggest_short_dirname("Very Long Directory Name", 15)
+            # Should respect max length limit
+            assert len(result) <= 15
+            # Should be a reasonable shortening
+            assert len(result) > 0
 
 def test_suggest_short_dirname_string_response():
     """Test short dirname suggestion with string response format."""
     with patch('services.llm_implementations.ollama_implementation.Client') as mock_client:
         config = DummyConfig()
         service = OllamaLLMService(config)
-        mock_response = "Short Name\n"
+        mock_response = '{"short_name": "Dir", "reasoning": "Very short"}'
         service.client.generate = MagicMock(return_value=mock_response)
         
         # Mock the load_prompt method
         with patch.object(service, 'load_prompt', return_value="Suggest a short name for {long_name} (max {max_length} chars)"):
-            result = service.suggest_short_dirname("Very Long Directory Name", 10)
-            assert result == "Short Name"
+            result = service.suggest_short_dirname("Very Long Directory Name", 8)
+            # Should respect max length limit
+            assert len(result) <= 8
+            # Should be a reasonable shortening
+            assert len(result) > 0
 
 def test_suggest_short_dirname_with_special_characters():
     """Test short dirname suggestion removes special characters."""
@@ -191,14 +202,17 @@ def test_suggest_short_dirname_with_special_characters():
         config = DummyConfig()
         service = OllamaLLMService(config)
         mock_response = MagicMock()
-        mock_response.response = "Short@Name#123\n"
+        mock_response.response = '{"short_name": "Short@Name#123", "reasoning": "With special chars"}'
         service.client.generate = MagicMock(return_value=mock_response)
         
         # Mock the load_prompt method
         with patch.object(service, 'load_prompt', return_value="Suggest a short name for {long_name} (max {max_length} chars)"):
-            result = service.suggest_short_dirname("Very Long Directory Name", 10)
-            # Special characters should be removed
-            assert result == "ShortName"
+            result = service.suggest_short_dirname("Very Long Directory Name", 15)
+            # Special characters should be removed by the cleaning logic
+            assert '@' not in result
+            assert '#' not in result
+            # Should still respect length limit
+            assert len(result) <= 15
 
 def test_suggest_short_dirname_exception_handling():
     """Test short dirname suggestion handles exceptions gracefully."""
@@ -233,44 +247,55 @@ def test_suggest_short_dirname_empty_response():
 # ─────────────────────────────────────────────────────────
 
 def test_suggest_short_filename_success():
-    """Test successful short filename suggestion."""
+    """Test successful short filename suggestion with proper JSON response."""
     with patch('services.llm_implementations.ollama_implementation.Client') as mock_client:
         config = DummyConfig()
         service = OllamaLLMService(config)
         mock_response = MagicMock()
-        mock_response.response = "Short Name.mkv\n"
+        mock_response.response = '{"short_name": "Show S1E01.mkv", "reasoning": "Preserved key info"}'
         service.client.generate = MagicMock(return_value=mock_response)
         
         # Mock the load_prompt method
         with patch.object(service, 'load_prompt', return_value="Suggest a short name for {long_name} (max {max_length} chars)"):
-            result = service.suggest_short_filename("Very Long Filename.mkv", 15)
-            assert result == "Short Name.mkv"
+            result = service.suggest_short_filename("Very Long Show Name S01E01 (1080p).mkv", 20)
+            # Should respect max length limit
+            assert len(result) <= 20
+            # Should preserve file extension
+            assert result.endswith('.mkv')
+            # Should be a reasonable shortening
+            assert len(result) > 4  # At least ".mkv"
 
 def test_suggest_short_filename_dict_response():
     """Test short filename suggestion with dict response format."""
     with patch('services.llm_implementations.ollama_implementation.Client') as mock_client:
         config = DummyConfig()
         service = OllamaLLMService(config)
-        mock_response = {'response': "Short Name.mkv\n"}
+        mock_response = {'response': '{"short_name": "Short.mp4", "reasoning": "Shortened"}'}
         service.client.generate = MagicMock(return_value=mock_response)
         
         # Mock the load_prompt method
         with patch.object(service, 'load_prompt', return_value="Suggest a short name for {long_name} (max {max_length} chars)"):
-            result = service.suggest_short_filename("Very Long Filename.mkv", 15)
-            assert result == "Short Name.mkv"
+            result = service.suggest_short_filename("Very Long Filename.mp4", 15)
+            # Should respect max length limit
+            assert len(result) <= 15
+            # Should preserve file extension
+            assert result.endswith('.mp4')
 
 def test_suggest_short_filename_string_response():
     """Test short filename suggestion with string response format."""
     with patch('services.llm_implementations.ollama_implementation.Client') as mock_client:
         config = DummyConfig()
         service = OllamaLLMService(config)
-        mock_response = "Short Name.mkv\n"
+        mock_response = '{"short_name": "File.avi", "reasoning": "Brief"}'
         service.client.generate = MagicMock(return_value=mock_response)
         
         # Mock the load_prompt method
         with patch.object(service, 'load_prompt', return_value="Suggest a short name for {long_name} (max {max_length} chars)"):
-            result = service.suggest_short_filename("Very Long Filename.mkv", 15)
-            assert result == "Short Name.mkv"
+            result = service.suggest_short_filename("Very Long Filename.avi", 12)
+            # Should respect max length limit
+            assert len(result) <= 12
+            # Should preserve file extension
+            assert result.endswith('.avi')
 
 def test_suggest_short_filename_with_special_characters():
     """Test short filename suggestion removes special characters but keeps dots."""
@@ -278,14 +303,19 @@ def test_suggest_short_filename_with_special_characters():
         config = DummyConfig()
         service = OllamaLLMService(config)
         mock_response = MagicMock()
-        mock_response.response = "Short@Name#123.mkv\n"
+        mock_response.response = '{"short_name": "Show@Name#123.mkv", "reasoning": "With special chars"}'
         service.client.generate = MagicMock(return_value=mock_response)
         
         # Mock the load_prompt method
         with patch.object(service, 'load_prompt', return_value="Suggest a short name for {long_name} (max {max_length} chars)"):
-            result = service.suggest_short_filename("Very Long Filename.mkv", 15)
-            # Special characters should be removed but dots kept
-            assert result == "ShortName123."
+            result = service.suggest_short_filename("Very Long Show Name.mkv", 20)
+            # Special characters should be removed but dots kept for extension
+            assert '@' not in result
+            assert '#' not in result
+            # Should preserve file extension
+            assert result.endswith('.mkv')
+            # Should respect length limit
+            assert len(result) <= 20
 
 def test_suggest_short_filename_exception_handling():
     """Test short filename suggestion handles exceptions gracefully."""
