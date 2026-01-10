@@ -242,24 +242,38 @@ def _auto_add_missing_shows(ctx: click.Context, incoming_path: str, ignore_files
                     # The show was successfully added
                     click.secho(f"✅ Auto-added: {show_name}", fg="green")
                     
+                    # DEBUG: Log the raw output for debugging
+                    logger.debug(f"DEBUG: add-show output for '{show_name}':")
+                    logger.debug(f"DEBUG: Raw output: {repr(add_show_result.output)}")
+                    logger.debug(f"DEBUG: Output lines: {add_show_result.output.strip().split('\n')}")
+                    
                     # Extract show name and directory path from the add-show command output
                     output_lines = add_show_result.output.strip().split('\n')
                     tmdb_name = None
                     directory_path = None
                     
                     for line in output_lines:
+                        logger.debug(f"DEBUG: Processing line: {repr(line)}")
                         if line.startswith("✅ Show added:"):
                             # Extract TMDB name: "✅ Show added: Attack on Titan"
                             tmdb_name = line.replace("✅ Show added:", "").strip()
+                            logger.debug(f"DEBUG: Extracted TMDB name: {repr(tmdb_name)}")
                         elif line.startswith("📂 Directory created at:"):
                             # Extract directory path: "📂 Directory created at: ./testing/anime_tv/Attack on Titan"
                             directory_path = line.replace("📂 Directory created at:", "").strip()
+                            logger.debug(f"DEBUG: Extracted directory path: {repr(directory_path)}")
+                    
+                    logger.debug(f"DEBUG: Final values - TMDB name: {repr(tmdb_name)}, Directory path: {repr(directory_path)}")
                     
                     # Display the additional information if we successfully extracted it
                     if tmdb_name and directory_path:
                         click.secho(f"📁 Show: {tmdb_name} → {directory_path}", fg="blue")
+                        logger.debug(f"DEBUG: Displayed extra line: 📁 Show: {tmdb_name} → {directory_path}")
                     elif tmdb_name:
                         click.secho(f"📁 Show: {tmdb_name}", fg="blue")
+                        logger.debug(f"DEBUG: Displayed extra line (no path): 📁 Show: {tmdb_name}")
+                    else:
+                        logger.debug(f"DEBUG: No extra line displayed - missing TMDB name or directory path")
             else:
                 # This is a genuine error
                 click.secho(f"[ERROR] Failed to add show '{show_name}': {add_show_result.output.strip()}", fg="red")

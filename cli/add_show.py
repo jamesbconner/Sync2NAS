@@ -91,6 +91,11 @@ def add_show(ctx: click.Context, show_name: str, override_dir: bool, use_llm: bo
 
     if dry_run:
         click.secho("✅ DRY RUN successful", fg="green")
+        # Also output the show information for parsing by auto-add
+        if result:
+            click.secho(f"✅ Show added: {result['tmdb_name']}", fg="green")
+            click.secho(f"📂 Directory created at: {result['sys_path']}", fg="blue")
+            click.secho(f"🎞️ Episodes added: {result['episode_count']}", fg="green")
     else:
         click.secho(f"✅ Show added: {result['tmdb_name']}", fg="green")
         click.secho(f"📂 Directory created at: {result['sys_path']}", fg="blue")
