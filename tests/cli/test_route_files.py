@@ -210,6 +210,7 @@ test_cases = [
         "show_name": "Mock Show",
         "season": None,
         "episode": 1,
+        "crc32": None,
         "confidence": 0.6,
         "reasoning": "Regex pattern 4 matched"
     }),
@@ -217,6 +218,7 @@ test_cases = [
         "show_name": "My Show",
         "season": 1,
         "episode": 5,
+        "crc32": None,
         "confidence": 0.6,
         "reasoning": "Regex pattern 1 matched"
     }),
@@ -224,6 +226,7 @@ test_cases = [
         "show_name": "My Show",
         "season": 2,
         "episode": 9,
+        "crc32": None,
         "confidence": 0.6,
         "reasoning": "Regex pattern 1 matched"
     }),
@@ -231,6 +234,7 @@ test_cases = [
         "show_name": "Cool Show",
         "season": None,
         "episode": 12,
+        "crc32": None,
         "confidence": 0.6,
         "reasoning": "Regex pattern 3 matched"
     }),
@@ -238,6 +242,7 @@ test_cases = [
         "show_name": "Title",
         "season": 2,
         "episode": 7,
+        "crc32": None,
         "confidence": 0.6,
         "reasoning": "Regex pattern 0 matched"
     }),
@@ -245,6 +250,7 @@ test_cases = [
         "show_name": "Another Show",
         "season": None,
         "episode": 103,
+        "crc32": None,
         "confidence": 0.6,
         "reasoning": "Regex pattern 4 matched"
     }),
@@ -252,6 +258,7 @@ test_cases = [
         "show_name": "NoMatchHere",
         "season": None,
         "episode": None,
+        "crc32": None,
         "confidence": 0.1,
         "reasoning": "No regex pattern matched"
     }),
@@ -259,6 +266,7 @@ test_cases = [
         "show_name": "Show with underscores",
         "season": 3,
         "episode": 8,
+        "crc32": None,
         "confidence": 0.6,
         "reasoning": "Regex pattern 1 matched"
     }),
@@ -266,6 +274,7 @@ test_cases = [
         "show_name": "Show Name",
         "season": None,
         "episode": 3,
+        "crc32": None,
         "confidence": 0.6,
         "reasoning": "Regex pattern 4 matched"
     }),

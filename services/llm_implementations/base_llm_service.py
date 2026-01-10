@@ -86,7 +86,7 @@ class BaseLLMService(LLMInterface):
             "show_name": normalized_show,
             "season": result.get("season"),
             "episode": result.get("episode"),
-            "crc32": result.get("crc32", None),  # Map crc32 field to hash for backward compatibility
+            "crc32": result.get("crc_hash"),  # Map crc_hash to crc32 for external interface
             "confidence": result.get("confidence", 0.0),
             "reasoning": result.get("reasoning", "No reasoning provided")            
         }
