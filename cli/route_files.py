@@ -245,7 +245,7 @@ def _auto_add_missing_shows(ctx: click.Context, incoming_path: str, ignore_files
                     # DEBUG: Log the raw output for debugging
                     logger.debug(f"DEBUG: add-show output for '{show_name}':")
                     logger.debug(f"DEBUG: Raw output: {repr(add_show_result.output)}")
-                    logger.debug(f"DEBUG: Output lines: {add_show_result.output.strip().split('\\n')}")
+                    logger.debug(f"DEBUG: Output lines: {add_show_result.output.strip().split('\n')}")
                     
                     # Extract show name and directory path from the add-show command output
                     output_lines = add_show_result.output.strip().split('\n')
