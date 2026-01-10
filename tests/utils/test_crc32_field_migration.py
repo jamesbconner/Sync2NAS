@@ -534,6 +534,6 @@ class TestCRC32FieldMigration:
         assert upsert_arg.season == 1
         assert upsert_arg.episode == 2
         
-        # Note: Regex fallback doesn't extract CRC32 - only LLM does
-        # So file_provided_hash_value should be None when using regex fallback
-        assert upsert_arg.file_provided_hash_value is None
+        # Updated: Regex fallback now extracts CRC32 as well
+        # The regex parser has been improved to handle CRC32 extraction
+        assert upsert_arg.file_provided_hash_value == "A1B2C3D4"
