@@ -19,7 +19,7 @@ def parse_filename(filename: str, llm_chains=None, llm_confidence_threshold: flo
         llm_confidence_threshold (float): Minimum confidence to accept LLM result.
 
     Returns:
-        dict: Parsed metadata with keys: show_name, season, episode, confidence, reasoning.
+        dict: Parsed metadata with keys: show_name, season, episode, confidence, reasoning, parsing_method.
     """
     logger.debug(f"Parsing filename: {filename}")
 
@@ -35,6 +35,7 @@ def parse_filename(filename: str, llm_chains=None, llm_confidence_threshold: flo
             # If LLM confidence is high enough, use it
             if result_dict.get("confidence", 0.0) >= llm_confidence_threshold:
                 logger.info(f"Using LangChain parsing (confidence: {result_dict['confidence']})")
+                result_dict["parsing_method"] = "llm"  # Explicitly track which method was used
                 return result_dict
             else:
                 logger.info(f"LangChain confidence too low ({result_dict['confidence']}), falling back to regex")
@@ -45,7 +46,9 @@ def parse_filename(filename: str, llm_chains=None, llm_confidence_threshold: flo
 
     # Fallback to original regex parsing
     logger.debug(f"Using regex fallback parsing")
-    return _regex_parse_filename(filename)
+    result = _regex_parse_filename(filename)
+    result["parsing_method"] = "regex"  # Explicitly track which method was used
+    return result
 
 
 def _regex_parse_filename(filename: str) -> dict:

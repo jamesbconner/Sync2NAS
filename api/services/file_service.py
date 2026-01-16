@@ -72,7 +72,7 @@ class FileService:
                         "season": int(item["season"]) if item["season"] is not None else None,
                         "episode": int(item["episode"]) if item["episode"] is not None else None,
                         "confidence": item.get("confidence", 0.0),
-                        "parsing_method": "llm" if item.get("confidence", 0.0) >= llm_confidence_threshold else "regex"
+                        "parsing_method": item.get("parsing_method", "unknown")  # Use explicit method, not inferred
                     }
                     for item in (routed or [])
                 ],
@@ -160,7 +160,7 @@ class FileService:
                     metadata = parse_filename(fname, llm_chains=self.llm_chains)
                     show_name = metadata["show_name"]
                     confidence = metadata.get("confidence", 0.0)
-                    parsing_method = "llm" if llm_available and confidence >= 0.7 else "regex"
+                    parsing_method = metadata.get("parsing_method", "unknown")  # Use explicit method, not inferred
 
                     if not show_name or show_name in seen:
                         continue
