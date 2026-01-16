@@ -212,7 +212,37 @@ service = openai
         call_kwargs = mock_ollama.call_args[1]
         assert call_kwargs['model'] == 'qwen3:14b'
         assert call_kwargs['base_url'] == 'http://localhost:11434'
-        # Note: num_ctx is no longer passed to ChatOllama (removed in simplification)
+        # num_ctx is optional and only passed if explicitly configured in the config file
+    
+    @patch('langchain_ollama.ChatOllama')
+    def test_ollama_with_num_ctx_configured(self, mock_ollama):
+        """Test Ollama service creation with num_ctx parameter configured."""
+        # Create config with num_ctx
+        config = {
+            'llm': {'service': 'ollama'},
+            'ollama': {
+                'model': 'ministral-3:14b',
+                'host': 'http://localhost:11434',
+                'temperature': '1.0',
+                'num_ctx': '8192'
+            }
+        }
+        
+        # Mock the ChatOllama instance
+        mock_instance = MagicMock()
+        mock_ollama.return_value = mock_instance
+        
+        # Create LLM service
+        from services.llm_factory import create_llm_service
+        llm = create_llm_service(config)
+        
+        # Verify the mock was called with num_ctx parameter
+        mock_ollama.assert_called_once()
+        call_kwargs = mock_ollama.call_args[1]
+        assert call_kwargs['model'] == 'ministral-3:14b'
+        assert call_kwargs['base_url'] == 'http://localhost:11434'
+        assert call_kwargs['temperature'] == 1.0
+        assert call_kwargs['num_ctx'] == 8192
     
     def test_config_normalizer_integration(self):
         """Test direct ConfigNormalizer integration."""

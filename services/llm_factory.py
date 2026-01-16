@@ -186,8 +186,13 @@ def _create_ollama_llm(config: Dict[str, Any]) -> BaseLanguageModel:
     
     # Get Ollama configuration using existing utilities
     host = get_config_string(config, "ollama", "host", "http://localhost:11434")
-    model = get_config_string(config, "ollama", "model", "ministral-3:8b")
+    model = get_config_string(config, "ollama", "model", "ministral-3:14b")
     temperature = float(get_config_string(config, "ollama", "temperature", "1.0"))
+    
+    # Optional: Get context window size (num_ctx)
+    # If not specified, Ollama uses model's default (typically 2048-8192 tokens)
+    num_ctx_str = get_config_string(config, "ollama", "num_ctx", "")
+    num_ctx = int(num_ctx_str) if num_ctx_str else None
     
     # Validate model for JSON output compatibility
     json_optimized_models = [
@@ -213,13 +218,23 @@ def _create_ollama_llm(config: Dict[str, Any]) -> BaseLanguageModel:
             f"You may experience parsing issues with non-JSON-optimized models."
         )
     
-    logger.debug(f"Creating ChatOllama with host: {host}, model: {model}, temperature: {temperature}")
-    
-    return ChatOllama(
-        base_url=host,
-        model=model,
-        temperature=temperature
+    logger.debug(
+        f"Creating ChatOllama with host: {host}, model: {model}, "
+        f"temperature: {temperature}, num_ctx: {num_ctx or 'default'}"
     )
+    
+    # Build kwargs for ChatOllama
+    ollama_kwargs = {
+        "base_url": host,
+        "model": model,
+        "temperature": temperature
+    }
+    
+    # Only add num_ctx if explicitly configured
+    if num_ctx is not None:
+        ollama_kwargs["num_ctx"] = num_ctx
+    
+    return ChatOllama(**ollama_kwargs)
 
 
 def setup_llm_caching_and_tracing(config: Dict[str, Any]) -> None:

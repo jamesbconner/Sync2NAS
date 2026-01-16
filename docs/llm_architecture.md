@@ -390,11 +390,13 @@ All existing Ollama configuration continues to work:
 [ollama]
 host = http://localhost:11434
 model = ministral-3:14b
-num_ctx = 2048
 temperature = 1.0
+num_ctx = 8192  # Optional: Context window size (defaults to model's default if not specified)
 ```
 
 The new `ChatOllama` class uses the same parameters as the deprecated `Ollama` class and provides enhanced support for structured output with JSON-optimized models.
+
+**Note on `num_ctx`**: This parameter is optional. If not specified, Ollama uses the model's default context window (typically 2048-8192 tokens depending on the model). Only set this if you need to override the default for your specific use case.
 
 ### General LLM Issues
 

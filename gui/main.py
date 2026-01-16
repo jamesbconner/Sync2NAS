@@ -79,7 +79,7 @@ class Sync2NASGUI:
         
         # LLM Configuration
         self.llm_service = tk.StringVar(value="ollama")
-        self.llm_model = tk.StringVar(value="gpt-oss:20b")
+        self.llm_model = tk.StringVar(value="ministral-3:14b")  # Default to recommended JSON-optimized model
         self.llm_api_key = tk.StringVar()
         self.llm_max_tokens = tk.IntVar(value=250)
         self.llm_temperature = tk.DoubleVar(value=0.1)
@@ -816,7 +816,8 @@ class Sync2NASGUI:
         service = self.llm_service.get()
         
         if service == "ollama":
-            models = ["ministral-3:14b", "ministral-3:8b", "gpt-oss:20b", "qwen2.5:7b", "gemma3:12b", "mistral:latest", "deepseek-r1:32b", "llama3.2:latest"]
+            # JSON-optimized models only - gpt-oss removed due to lack of structured output support
+            models = ["ministral-3:14b", "ministral-3:8b", "qwen2.5:7b", "gemma3:12b", "mistral:latest", "deepseek-r1:32b", "llama3.2:latest"]
         elif service == "openai":
             models = ["gpt-3.5-turbo", "gpt-4", "gpt-4-turbo"]
         elif service == "anthropic":
