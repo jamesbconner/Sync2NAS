@@ -110,17 +110,17 @@ async def health_check(request: Request):
     try:
         llm_chains = services.get("llm_chains")
         if llm_chains:
-            # Test with a simple filename parse
-            test_result = llm_chains.parse_filename("Test.S01E01.mkv")
-            if test_result and hasattr(test_result, 'confidence'):
+            # Just verify the service exists and has the required method
+            # Don't make actual LLM calls on health checks - they're expensive and slow
+            if hasattr(llm_chains, 'parse_filename') and hasattr(llm_chains, 'llm_service'):
                 status["llm"] = "ok"
-                # Include additional LLM service info
+                # Include LLM service info without making expensive calls
                 status["llm_details"] = {
                     "service_type": type(llm_chains.llm_service).__name__,
-                    "test_confidence": getattr(test_result, 'confidence', 0.0)
+                    "service_available": True
                 }
             else:
-                status["llm"] = "error: invalid response"
+                status["llm"] = "error: service missing required methods"
                 healthy = False
         else:
             status["llm"] = "error: service not available"
