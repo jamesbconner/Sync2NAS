@@ -192,7 +192,7 @@ def _create_ollama_llm(config: Dict[str, Any]) -> BaseLanguageModel:
     # Validate model for JSON output compatibility
     json_optimized_models = [
         'ministral-3:8b',
-        'ministral-3:14b'
+        'ministral-3:14b',
         'qwen2.5:7b',
         'llama3.2:3b',
         'qwen2.5',

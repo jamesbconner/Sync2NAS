@@ -210,9 +210,12 @@ class ShowMatch(BaseModel):
     This schema validates show matching outputs to ensure consistency
     with TMDB data structures and confidence scoring requirements.
     
+    Special case: tmdb_id can be -1 to indicate no match was found when
+    the candidate list is empty or no suitable match exists.
+    
     Attributes:
-        tmdb_id: TMDB show identifier (positive integer)
-        show_name: Selected show name from TMDB
+        tmdb_id: TMDB show identifier (positive integer) or -1 for no match
+        show_name: Selected show name from TMDB, or "NO_MATCH" when tmdb_id is -1
         confidence: Match confidence score (0.0-1.0)
         reasoning: Explanation of selection logic
     
@@ -223,14 +226,19 @@ class ShowMatch(BaseModel):
         ...     confidence=0.98,
         ...     reasoning="Exact name match with high popularity score"
         ... )
+        >>> no_match = ShowMatch(
+        ...     tmdb_id=-1,
+        ...     show_name="NO_MATCH",
+        ...     confidence=0.0,
+        ...     reasoning="No candidates provided for matching"
+        ... )
     """
     
     tmdb_id: int = Field(
-        gt=0,
-        description="TMDB show identifier (positive integer)"
+        description="TMDB show identifier (positive integer) or -1 for no match"
     )
     show_name: str = Field(
-        description="Selected show name from TMDB candidates",
+        description="Selected show name from TMDB candidates, or 'NO_MATCH' when no match found",
         min_length=1
     )
     confidence: float = Field(
@@ -242,6 +250,25 @@ class ShowMatch(BaseModel):
         description="Explanation of selection logic and confidence factors",
         min_length=1
     )
+
+    @field_validator('tmdb_id')
+    @classmethod
+    def validate_tmdb_id(cls, v: int) -> int:
+        """
+        Validate TMDB ID is either positive or the special -1 sentinel value.
+        
+        Args:
+            v: TMDB ID value
+            
+        Returns:
+            int: Validated TMDB ID
+            
+        Raises:
+            ValueError: If ID is not positive and not -1
+        """
+        if v != -1 and v <= 0:
+            raise ValueError("TMDB ID must be positive or -1 (for no match)")
+        return v
 
     @field_validator('show_name')
     @classmethod
@@ -262,3 +289,22 @@ class ShowMatch(BaseModel):
         if not cleaned:
             raise ValueError("Show name cannot be empty")
         return cleaned
+    
+    @model_validator(mode='after')
+    def validate_no_match_consistency(self):
+        """
+        Validate that no-match responses are consistent.
+        
+        When tmdb_id is -1, show_name should be "NO_MATCH" and confidence should be 0.0.
+        This ensures the LLM follows the documented no-match protocol.
+        """
+        if self.tmdb_id == -1:
+            if self.show_name != "NO_MATCH":
+                raise ValueError(
+                    f"When tmdb_id is -1, show_name must be 'NO_MATCH', got '{self.show_name}'"
+                )
+            if self.confidence != 0.0:
+                raise ValueError(
+                    f"When tmdb_id is -1, confidence must be 0.0, got {self.confidence}"
+                )
+        return self

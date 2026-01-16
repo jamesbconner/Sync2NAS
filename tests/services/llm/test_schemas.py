@@ -319,11 +319,16 @@ class TestShowMatchSchema:
         assert len(match.reasoning) > 0
 
     @given(
-        tmdb_id=st.integers(max_value=0)  # Invalid ID
+        tmdb_id=st.integers(max_value=0).filter(lambda x: x != -1)  # Invalid ID (excluding -1 sentinel)
     )
     def test_invalid_tmdb_id_rejection(self, tmdb_id):
-        """Test that non-positive TMDB IDs are rejected."""
-        with pytest.raises(ValidationError):
+        """
+        Test that non-positive TMDB IDs are rejected (except -1 sentinel).
+        
+        TMDB IDs must be positive integers, with the exception of -1
+        which is a special sentinel value for no match scenarios.
+        """
+        with pytest.raises(ValidationError, match="TMDB ID must be positive or -1"):
             ShowMatch(
                 tmdb_id=tmdb_id,
                 show_name="Test Show",
@@ -343,6 +348,74 @@ class TestShowMatchSchema:
             ShowMatch(
                 tmdb_id=1429,
                 show_name=show_name,
+                confidence=0.5,
+                reasoning="Test reasoning"
+            )
+    
+    def test_no_match_sentinel_value_accepted(self):
+        """
+        Test that tmdb_id=-1 is accepted as a special sentinel value for no match.
+        
+        The prompt instructs the LLM to return tmdb_id=-1 when no candidates
+        are available, so the schema must accept this value.
+        """
+        no_match = ShowMatch(
+            tmdb_id=-1,
+            show_name="NO_MATCH",
+            confidence=0.0,
+            reasoning="No candidates provided for matching"
+        )
+        
+        assert no_match.tmdb_id == -1
+        assert no_match.show_name == "NO_MATCH"
+        assert no_match.confidence == 0.0
+        assert "No candidates" in no_match.reasoning
+    
+    def test_no_match_requires_consistent_fields(self):
+        """
+        Test that when tmdb_id=-1, show_name must be 'NO_MATCH' and confidence must be 0.0.
+        
+        This ensures the LLM follows the documented no-match protocol consistently.
+        """
+        # Valid no-match response
+        ShowMatch(
+            tmdb_id=-1,
+            show_name="NO_MATCH",
+            confidence=0.0,
+            reasoning="No candidates available"
+        )
+        
+        # Invalid: tmdb_id=-1 but show_name is not "NO_MATCH"
+        with pytest.raises(ValidationError, match="show_name must be 'NO_MATCH'"):
+            ShowMatch(
+                tmdb_id=-1,
+                show_name="Some Show",
+                confidence=0.0,
+                reasoning="No candidates available"
+            )
+        
+        # Invalid: tmdb_id=-1 but confidence is not 0.0
+        with pytest.raises(ValidationError, match="confidence must be 0.0"):
+            ShowMatch(
+                tmdb_id=-1,
+                show_name="NO_MATCH",
+                confidence=0.5,
+                reasoning="No candidates available"
+            )
+    
+    @given(
+        tmdb_id=st.integers(max_value=-2)  # Invalid negative IDs other than -1
+    )
+    def test_invalid_negative_tmdb_id_rejection(self, tmdb_id):
+        """
+        Test that negative TMDB IDs other than -1 are rejected.
+        
+        Only -1 is allowed as a special sentinel value for no match.
+        """
+        with pytest.raises(ValidationError, match="TMDB ID must be positive or -1"):
+            ShowMatch(
+                tmdb_id=tmdb_id,
+                show_name="Test Show",
                 confidence=0.5,
                 reasoning="Test reasoning"
             )
