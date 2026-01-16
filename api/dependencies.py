@@ -39,18 +39,13 @@ def get_services(config):
     llm_chains = None
     
     try:
-        # Step 1: Validate LLM configuration
-        from services.llm_factory import validate_llm_config
-        logger.info("Validating LLM configuration...")
-        validate_llm_config(config)
-        logger.info("✓ LLM configuration validation passed")
+        # Validate configuration and create LLM service in one step (efficient)
+        from services.llm_factory import validate_and_create_llm_service
+        logger.info("Validating LLM configuration and creating service...")
+        llm_service = validate_and_create_llm_service(config)
+        logger.info("✓ LLM service validated and created successfully")
         
-        # Step 2: Create LLM service instance
-        logger.info("Creating LLM service instance...")
-        llm_service = create_llm_service(config)
-        logger.info("✓ LLM service created successfully")
-        
-        # Step 3: Setup caching and tracing
+        # Setup caching and tracing
         setup_llm_caching_and_tracing(config)
         logger.info("✓ LLM caching and tracing configured")
         

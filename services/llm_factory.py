@@ -308,18 +308,29 @@ def setup_llm_caching_and_tracing(config: Dict[str, Any]) -> None:
         logger.debug("LangSmith tracing disabled")
 
 
-def validate_llm_config(config: Dict[str, Any]) -> None:
+def validate_and_create_llm_service(config: Dict[str, Any]) -> BaseLanguageModel:
     """
-    Validate LLM configuration and test connectivity.
+    Validate LLM configuration, test connectivity, and return the LLM instance.
+    
+    This function combines validation and creation to avoid wastefully creating
+    the LLM instance twice (once for testing, once for actual use).
     
     Args:
         config: Configuration dictionary
         
+    Returns:
+        BaseLanguageModel: Validated and tested LLM instance ready for use
+        
     Raises:
         ValueError: If configuration is invalid
         Exception: If LLM service is not accessible
+        
+    Examples:
+        >>> config = load_configuration("config/sync2nas_config.ini")
+        >>> llm = validate_and_create_llm_service(config)
+        >>> # LLM instance is validated and ready to use
     """
-    logger.debug("Validating LLM configuration")
+    logger.debug("Validating LLM configuration and creating service")
     
     # Check if LLM section exists
     if not has_config_section(config, "llm"):
@@ -352,11 +363,38 @@ def validate_llm_config(config: Dict[str, Any]) -> None:
         if not has_config_section(config, "ollama"):
             raise ValueError("Ollama configuration section [ollama] not found")
     
-    # Test LLM connectivity
+    # Create and test LLM connectivity
     try:
         llm = create_llm_service(config)
         # Simple test to verify the LLM is accessible
         test_response = llm.invoke("Test")
-        logger.info("✓ LLM service validation successful")
+        logger.info("✓ LLM service validation and creation successful")
+        return llm
     except Exception as e:
         raise Exception(f"LLM service connectivity test failed: {e}")
+
+
+def validate_llm_config(config: Dict[str, Any]) -> None:
+    """
+    Validate LLM configuration and test connectivity (legacy function).
+    
+    DEPRECATED: Use validate_and_create_llm_service() instead to avoid
+    creating the LLM instance twice.
+    
+    This function is kept for backward compatibility but creates and
+    discards an LLM instance, which is wasteful. New code should use
+    validate_and_create_llm_service() which returns the validated instance.
+    
+    Args:
+        config: Configuration dictionary
+        
+    Raises:
+        ValueError: If configuration is invalid
+        Exception: If LLM service is not accessible
+    """
+    logger.warning(
+        "validate_llm_config() is deprecated and wasteful. "
+        "Use validate_and_create_llm_service() instead."
+    )
+    # Call the new function but discard the result
+    validate_and_create_llm_service(config)

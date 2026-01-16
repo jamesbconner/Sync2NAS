@@ -15,7 +15,7 @@ from utils.logging_config import setup_logging
 from services.db_factory import create_db_service
 from services.sftp_service import SFTPService
 from services.tmdb_service import TMDBService
-from services.llm_factory import create_llm_service, validate_llm_config, setup_llm_caching_and_tracing
+from services.llm_factory import create_llm_service, validate_and_create_llm_service, setup_llm_caching_and_tracing
 
 logger = logging.getLogger(__name__)
 
@@ -80,9 +80,8 @@ def sync2nas_cli(ctx: click.Context, verbose: int, logfile: str, config: str, dr
                 logger.warning("Skipping LLM service validation (--skip-validation flag)")
                 llm_service = create_llm_service(cfg)
             else:
-                # Use full validation including health checks for startup
-                validate_llm_config(cfg)
-                llm_service = create_llm_service(cfg)
+                # Validate and create LLM service in one efficient step
+                llm_service = validate_and_create_llm_service(cfg)
                 
                 # Setup caching and tracing after successful creation
                 setup_llm_caching_and_tracing(cfg)
