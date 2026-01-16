@@ -45,7 +45,7 @@ def add_show(ctx: click.Context, show_name: str, override_dir: bool, use_llm: bo
     db: DatabaseInterface = ctx.obj["db"]
     tmdb: TMDBService = ctx.obj["tmdb"]
     anime_tv_path = ctx.obj["anime_tv_path"]
-    llm_service = ctx.obj.get("llm_service")
+    llm_chains = ctx.obj.get("llm_chains")
 
     # Require at least a show name or TMDB ID
     if not show_name and not tmdb_id:
@@ -64,7 +64,7 @@ def add_show(ctx: click.Context, show_name: str, override_dir: bool, use_llm: bo
             anime_tv_path=anime_tv_path,
             dry_run=dry_run,
             override_dir=override_dir,
-            llm_service=llm_service,
+            llm_chains=llm_chains,
             use_llm=use_llm,
             llm_confidence=llm_confidence
         )

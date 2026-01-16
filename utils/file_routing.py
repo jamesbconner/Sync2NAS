@@ -10,7 +10,6 @@ from models.episode import Episode
 from models.show import Show
 import logging
 from utils.episode_updater import refresh_episodes_for_show
-from services.llm_implementations.llm_interface import LLMInterface
 from utils.filename_parser import parse_filename
 
 logger = logging.getLogger(__name__)
@@ -21,7 +20,7 @@ def file_routing(
     db: DatabaseInterface,
     tmdb,
     dry_run: bool = False,
-    llm_service: Optional[LLMInterface] = None,
+    llm_chains=None,
     llm_confidence_threshold: float = 0.7,
 ) -> List[Dict[str, str]]:
     """
@@ -33,7 +32,7 @@ def file_routing(
         db (DatabaseInterface): Database interface for show and episode lookup.
         tmdb: TMDB object for episode refreshing.
         dry_run (bool): If True, simulate actions without moving files.
-        llm_service (Optional[LLMInterface]): Optional LLM service for intelligent filename parsing.
+        llm_chains: LLM chain service instance (from context).
         llm_confidence_threshold (float): Minimum confidence to accept LLM result.
 
     Returns:
@@ -48,8 +47,8 @@ def file_routing(
             # Build the full source path
             source_path = os.path.join(root, filename)
 
-            # Parse metadata from the filename (now with LLM support)
-            metadata = parse_filename(filename, llm_service, llm_confidence_threshold)
+            # Parse metadata from the filename using context-based LLM chains
+            metadata = parse_filename(filename, llm_chains, llm_confidence_threshold)
             show_name = metadata["show_name"]
             season = metadata["season"]
             episode = metadata["episode"]

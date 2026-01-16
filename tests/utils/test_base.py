@@ -30,7 +30,7 @@ from tests.utils.test_config_factory import TestConfigFactory
 from tests.utils.mock_service_factory import MockServiceFactory
 from utils.sync2nas_config import get_config_section, get_config_value
 from services.db_implementations.db_interface import DatabaseInterface
-from services.llm_implementations.llm_interface import LLMInterface
+from services.llm.schemas import ParsedFilename
 from services.sftp_service import SFTPService
 from services.tmdb_service import TMDBService
 
@@ -194,7 +194,7 @@ class BaseTestCase(unittest.TestCase):
         self._created_services.append(db_service)
         return db_service
     
-    def create_test_llm_service(self, config: Optional[Dict[str, Any]] = None, service_type: str = "ollama") -> LLMInterface:
+    def create_test_llm_service(self, config: Optional[Dict[str, Any]] = None, service_type: str = "ollama") -> Any:
         """
         Create test LLM service with health checks disabled.
         
@@ -203,7 +203,7 @@ class BaseTestCase(unittest.TestCase):
             service_type: Type of LLM service to create
         
         Returns:
-            LLMInterface: Mock LLM service
+            Any: Mock LLM service
         """
         if config is None:
             config = self.get_test_config()

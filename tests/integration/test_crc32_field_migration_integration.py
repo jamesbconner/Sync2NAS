@@ -44,6 +44,9 @@ class TestCRC32FieldMigrationIntegration:
         # Mock file filters
         mocker.patch('utils.sftp_orchestrator.is_valid_media_file', return_value=True)
         
+        # Mock the filename parser to prevent actual LLM calls
+        mocker.patch('utils.sftp_orchestrator.parse_filename')
+        
         return {
             'sftp': mock_sftp,
             'db': mock_db,
@@ -67,7 +70,7 @@ class TestCRC32FieldMigrationIntegration:
                     "show_name": "Modern Show",
                     "season": 1,
                     "episode": 1,
-                    "crc32": "[A1B2C3D4]",  # New field format
+                    "crc32": "A1B2C3D4",  # New field format
                     "confidence": 0.95,
                     "reasoning": "High confidence parsing"
                 }
@@ -83,7 +86,7 @@ class TestCRC32FieldMigrationIntegration:
                     "show_name": "Legacy Show",
                     "season": 1,
                     "episode": 2,
-                    "hash": "[DEADBEEF]",  # Legacy field format
+                    "hash": "DEADBEEF",  # Legacy field format
                     "confidence": 0.95,
                     "reasoning": "High confidence parsing"
                 }
@@ -99,8 +102,8 @@ class TestCRC32FieldMigrationIntegration:
                     "show_name": "Mixed Show",
                     "season": 1,
                     "episode": 3,
-                    "crc32": "[12345678]",  # New field should take priority
-                    "hash": "[87654321]",   # Legacy field should be ignored
+                    "crc32": "12345678",  # New field should take priority
+                    "hash": "87654321",   # Legacy field should be ignored
                     "confidence": 0.95,
                     "reasoning": "High confidence parsing"
                 }
@@ -114,27 +117,26 @@ class TestCRC32FieldMigrationIntegration:
             for future in mock_futures:
                 future.result.return_value = None
             
-            # Set up LLM responses
-            mock_services['llm'].parse_filename.side_effect = [
-                file_data["llm_result"] for file_data in test_files
-            ]
-            
-            # Extract just the file diffs
-            diffs = [{k: v for k, v in file_data.items() if k != "llm_result"} for file_data in test_files]
-            
-            # Process the files
-            process_sftp_diffs(
-                sftp_service=mock_services['sftp'],
-                db_service=mock_services['db'],
-                diffs=diffs,
-                remote_base="/remote",
-                local_base=str(tmp_path),
-                dry_run=False,
-                llm_service=mock_services['llm'],
-                parse_filenames=True,
-                use_llm=True,
-                llm_confidence_threshold=0.7,
-            )
+            # Mock the parse_filename function directly to prevent actual LLM calls
+            with patch('utils.sftp_orchestrator.parse_filename') as mock_parse:
+                mock_parse.side_effect = [file_data["llm_result"] for file_data in test_files]
+                
+                # Extract just the file diffs
+                diffs = [{k: v for k, v in file_data.items() if k != "llm_result"} for file_data in test_files]
+                
+                # Process the files
+                process_sftp_diffs(
+                    sftp_service=mock_services['sftp'],
+                    db_service=mock_services['db'],
+                    diffs=diffs,
+                    remote_base="/remote",
+                    local_base=str(tmp_path),
+                    dry_run=False,
+                    llm_chains=mock_services['llm'],
+                    parse_filenames=True,
+                    use_llm=True,
+                    llm_confidence_threshold=0.7,
+                )
         
         # Verify all files were processed
         assert mock_services['db'].upsert_downloaded_file.call_count == 3
@@ -192,38 +194,39 @@ class TestCRC32FieldMigrationIntegration:
             for future in mock_futures:
                 future.result.return_value = None
             
-            # Mock LLM responses with different field formats
-            mock_services['llm'].parse_filename.side_effect = [
-                {  # Old format response
-                    "show_name": "Old Format Show",
-                    "season": 1,
-                    "episode": 1,
-                    "hash": "[DEADBEEF]",  # Legacy field only (valid 8-char hex)
-                    "confidence": 0.95,
-                    "reasoning": "Legacy LLM response"
-                },
-                {  # New format response
-                    "show_name": "New Format Show",
-                    "season": 1,
-                    "episode": 2,
-                    "crc32": "[A1B2C3D4]",  # Modern field only (valid 8-char hex)
-                    "confidence": 0.95,
-                    "reasoning": "Modern LLM response"
-                }
-            ]
-            
-            process_sftp_diffs(
-                sftp_service=mock_services['sftp'],
-                db_service=mock_services['db'],
-                diffs=transition_files,
-                remote_base="/remote",
-                local_base=str(tmp_path),
-                dry_run=False,
-                llm_service=mock_services['llm'],
-                parse_filenames=True,
-                use_llm=True,
-                llm_confidence_threshold=0.7,
-            )
+            # Mock the parse_filename function directly to prevent actual LLM calls
+            with patch('utils.sftp_orchestrator.parse_filename') as mock_parse:
+                mock_parse.side_effect = [
+                    {  # Old format response
+                        "show_name": "Old Format Show",
+                        "season": 1,
+                        "episode": 1,
+                        "hash": "DEADBEEF",  # Legacy field only (valid 8-char hex)
+                        "confidence": 0.95,
+                        "reasoning": "Legacy LLM response"
+                    },
+                    {  # New format response
+                        "show_name": "New Format Show",
+                        "season": 1,
+                        "episode": 2,
+                        "crc32": "A1B2C3D4",  # Modern field only (valid 8-char hex)
+                        "confidence": 0.95,
+                        "reasoning": "Modern LLM response"
+                    }
+                ]
+                
+                process_sftp_diffs(
+                    sftp_service=mock_services['sftp'],
+                    db_service=mock_services['db'],
+                    diffs=transition_files,
+                    remote_base="/remote",
+                    local_base=str(tmp_path),
+                    dry_run=False,
+                    llm_chains=mock_services['llm'],
+                    parse_filenames=True,
+                    use_llm=True,
+                    llm_confidence_threshold=0.7,
+                )
         
         # Verify both files were processed correctly
         assert mock_services['db'].upsert_downloaded_file.call_count == 2
@@ -253,7 +256,7 @@ class TestCRC32FieldMigrationIntegration:
                     "show_name": "Test Show 1",
                     "season": 1,
                     "episode": 1,
-                    "crc32": "[aaaaaaaa]",  # Lowercase, should be normalized
+                    "crc32": "aaaaaaaa",  # Lowercase, should be normalized
                     "confidence": 0.95,
                     "reasoning": "Test case 1"
                 }
@@ -270,7 +273,7 @@ class TestCRC32FieldMigrationIntegration:
                     "show_name": "Test Show 2",
                     "season": 1,
                     "episode": 2,
-                    "hash": "  [bbbbbbbb]  ",  # Legacy field with spaces, should be normalized
+                    "hash": "  bbbbbbbb  ",  # Legacy field with spaces, should be normalized
                     "confidence": 0.95,
                     "reasoning": "Test case 2"
                 }
@@ -302,27 +305,26 @@ class TestCRC32FieldMigrationIntegration:
             for future in mock_futures:
                 future.result.return_value = None
             
-            # Set up LLM responses
-            mock_services['llm'].parse_filename.side_effect = [
-                file_data["llm_result"] for file_data in consistency_files
-            ]
-            
-            # Extract file diffs
-            diffs = [{k: v for k, v in file_data.items() if k not in ["llm_result", "expected_hash"]} 
-                    for file_data in consistency_files]
-            
-            process_sftp_diffs(
-                sftp_service=mock_services['sftp'],
-                db_service=mock_services['db'],
-                diffs=diffs,
-                remote_base="/remote",
-                local_base=str(tmp_path),
-                dry_run=False,
-                llm_service=mock_services['llm'],
-                parse_filenames=True,
-                use_llm=True,
-                llm_confidence_threshold=0.7,
-            )
+            # Mock the parse_filename function directly to prevent actual LLM calls
+            with patch('utils.sftp_orchestrator.parse_filename') as mock_parse:
+                mock_parse.side_effect = [file_data["llm_result"] for file_data in consistency_files]
+                
+                # Extract file diffs
+                diffs = [{k: v for k, v in file_data.items() if k not in ["llm_result", "expected_hash"]} 
+                        for file_data in consistency_files]
+                
+                process_sftp_diffs(
+                    sftp_service=mock_services['sftp'],
+                    db_service=mock_services['db'],
+                    diffs=diffs,
+                    remote_base="/remote",
+                    local_base=str(tmp_path),
+                    dry_run=False,
+                    llm_chains=mock_services['llm'],
+                    parse_filenames=True,
+                    use_llm=True,
+                    llm_confidence_threshold=0.7,
+                )
         
         # Verify all files were processed
         assert mock_services['db'].upsert_downloaded_file.call_count == 3
@@ -370,39 +372,40 @@ class TestCRC32FieldMigrationIntegration:
             for future in mock_futures:
                 future.result.return_value = None
             
-            # Mock LLM responses - one valid, one with invalid hash
-            mock_services['llm'].parse_filename.side_effect = [
-                {  # Valid response
-                    "show_name": "Valid Show",
-                    "season": 1,
-                    "episode": 1,
-                    "crc32": "[A1B2C3D4]",
-                    "confidence": 0.95,
-                    "reasoning": "Valid parsing"
-                },
-                {  # Response with invalid hash format
-                    "show_name": "Problem Show",
-                    "season": 1,
-                    "episode": 2,
-                    "crc32": "INVALID_HASH_FORMAT",  # Invalid format
-                    "confidence": 0.95,
-                    "reasoning": "Invalid hash format"
-                }
-            ]
-            
-            # This should not raise an exception
-            process_sftp_diffs(
-                sftp_service=mock_services['sftp'],
-                db_service=mock_services['db'],
-                diffs=error_test_files,
-                remote_base="/remote",
-                local_base=str(tmp_path),
-                dry_run=False,
-                llm_service=mock_services['llm'],
-                parse_filenames=True,
-                use_llm=True,
-                llm_confidence_threshold=0.7,
-            )
+            # Mock the parse_filename function directly to prevent actual LLM calls
+            with patch('utils.sftp_orchestrator.parse_filename') as mock_parse:
+                mock_parse.side_effect = [
+                    {  # Valid response
+                        "show_name": "Valid Show",
+                        "season": 1,
+                        "episode": 1,
+                        "crc32": "A1B2C3D4",
+                        "confidence": 0.95,
+                        "reasoning": "Valid parsing"
+                    },
+                    {  # Response with invalid hash format
+                        "show_name": "Problem Show",
+                        "season": 1,
+                        "episode": 2,
+                        "crc32": "INVALID_HASH_FORMAT",  # Invalid format
+                        "confidence": 0.95,
+                        "reasoning": "Invalid hash format"
+                    }
+                ]
+                
+                # This should not raise an exception
+                process_sftp_diffs(
+                    sftp_service=mock_services['sftp'],
+                    db_service=mock_services['db'],
+                    diffs=error_test_files,
+                    remote_base="/remote",
+                    local_base=str(tmp_path),
+                    dry_run=False,
+                    llm_chains=mock_services['llm'],
+                    parse_filenames=True,
+                    use_llm=True,
+                    llm_confidence_threshold=0.7,
+                )
         
         # Verify both files were processed despite the invalid hash
         assert mock_services['db'].upsert_downloaded_file.call_count == 2
@@ -441,7 +444,7 @@ class TestCRC32FieldMigrationIntegration:
                     "show_name": f"Batch Show {i}",
                     "season": 1,
                     "episode": i + 1,
-                    "crc32": f"[{i:08X}]",
+                    "crc32": f"{i:08X}",
                     "confidence": 0.95,
                     "reasoning": f"crc32 field test {i}"
                 }
@@ -452,7 +455,7 @@ class TestCRC32FieldMigrationIntegration:
                     "show_name": f"Batch Show {i}",
                     "season": 1,
                     "episode": i + 1,
-                    "hash": f"[{i:08X}]",
+                    "hash": f"{i:08X}",
                     "confidence": 0.95,
                     "reasoning": f"hash field test {i}"
                 }
@@ -463,8 +466,8 @@ class TestCRC32FieldMigrationIntegration:
                     "show_name": f"Batch Show {i}",
                     "season": 1,
                     "episode": i + 1,
-                    "crc32": f"[{i:08X}]",
-                    "hash": f"[{(i+1000):08X}]",  # Different value that should be ignored
+                    "crc32": f"{i:08X}",
+                    "hash": f"{(i+1000):08X}",  # Different value that should be ignored
                     "confidence": 0.95,
                     "reasoning": f"both fields test {i}"
                 }
@@ -483,23 +486,22 @@ class TestCRC32FieldMigrationIntegration:
             for future in mock_futures:
                 future.result.return_value = None
             
-            # Set up LLM responses
-            mock_services['llm'].parse_filename.side_effect = [
-                result["llm_result"] for result in expected_results
-            ]
-            
-            process_sftp_diffs(
-                sftp_service=mock_services['sftp'],
-                db_service=mock_services['db'],
-                diffs=test_files,
-                remote_base="/remote",
-                local_base=str(tmp_path),
-                dry_run=False,
-                llm_service=mock_services['llm'],
-                parse_filenames=True,
-                use_llm=True,
-                llm_confidence_threshold=0.7,
-            )
+            # Mock the parse_filename function directly to prevent actual LLM calls
+            with patch('utils.sftp_orchestrator.parse_filename') as mock_parse:
+                mock_parse.side_effect = [result["llm_result"] for result in expected_results]
+                
+                process_sftp_diffs(
+                    sftp_service=mock_services['sftp'],
+                    db_service=mock_services['db'],
+                    diffs=test_files,
+                    remote_base="/remote",
+                    local_base=str(tmp_path),
+                    dry_run=False,
+                    llm_chains=mock_services['llm'],
+                    parse_filenames=True,
+                    use_llm=True,
+                    llm_confidence_threshold=0.7,
+                )
         
         # Verify all files were processed
         assert mock_services['db'].upsert_downloaded_file.call_count == batch_size

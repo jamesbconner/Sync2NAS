@@ -66,7 +66,7 @@ async def root():
 async def health_check(request: Request):
     """
     Health check endpoint.
-    Verifies connectivity to database, SFTP, and TMDB services.
+    Verifies connectivity to database, SFTP, TMDB, and LLM services.
     Returns a status summary for each service and overall health.
     """
     services = request.app.state.services
@@ -104,6 +104,29 @@ async def health_check(request: Request):
             healthy = False
     except Exception as e:
         status["tmdb"] = f"error: {e}"
+        healthy = False
+
+    # 4. LLM service connectivity check
+    try:
+        llm_chains = services.get("llm_chains")
+        if llm_chains:
+            # Test with a simple filename parse
+            test_result = llm_chains.parse_filename("Test.S01E01.mkv")
+            if test_result and hasattr(test_result, 'confidence'):
+                status["llm"] = "ok"
+                # Include additional LLM service info
+                status["llm_details"] = {
+                    "service_type": type(llm_chains.llm_service).__name__,
+                    "test_confidence": getattr(test_result, 'confidence', 0.0)
+                }
+            else:
+                status["llm"] = "error: invalid response"
+                healthy = False
+        else:
+            status["llm"] = "error: service not available"
+            healthy = False
+    except Exception as e:
+        status["llm"] = f"error: {e}"
         healthy = False
 
     status["status"] = "healthy" if healthy else "unhealthy"

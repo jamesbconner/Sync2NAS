@@ -1,284 +1,347 @@
 """
-This module is responsible for instantiating the appropriate LLM service based on the configuration.
+LLM Factory Service for Sync2NAS.
 
-The factory now includes comprehensive configuration validation, normalization, and health checking
-to ensure robust service creation and clear error reporting when configuration issues occur.
+This module provides a factory for creating LLM service instances based on configuration,
+following the same pattern as other services (database, SFTP, TMDB).
+Replaces the singleton pattern with proper dependency injection.
 """
 
 import logging
-import time
-from typing import Union, Dict, Any, Optional
-from configparser import ConfigParser
-from services.llm_implementations.llm_interface import LLMInterface
-from services.llm_implementations.ollama_implementation import OllamaLLMService
-from services.llm_implementations.openai_implementation import OpenAILLMService
-from services.llm_implementations.anthropic_implementation import AnthropicLLMService
-from utils.sync2nas_config import get_config_value
-from utils.config.config_validator import ConfigValidator
-from utils.config.config_normalizer import ConfigNormalizer
-from utils.config.health_checker import ConfigHealthChecker
-from utils.config.config_monitor import get_config_monitor
+from typing import Dict, Any, Optional
+
+from langchain_core.language_models.base import BaseLanguageModel
+from langchain_core.globals import set_llm_cache
+from langchain_community.cache import SQLiteCache
+
+from utils.sync2nas_config import (
+    get_config_value,
+    get_config_bool,
+    get_config_string,
+    has_config_section
+)
 
 logger = logging.getLogger(__name__)
 
-class LLMServiceCreationError(Exception):
-    """Exception raised when LLM service creation fails due to configuration issues."""
-    
-    def __init__(self, message: str, validation_result: Optional[object] = None):
-        super().__init__(message)
-        self.validation_result = validation_result
 
-
-def create_llm_service(
-    config: Union[ConfigParser, Dict[str, Dict[str, Any]]], 
-    validate_health: bool = True,
-    startup_mode: bool = False
-) -> LLMInterface:
+def create_llm_service(config: Dict[str, Any]) -> BaseLanguageModel:
     """
-    Create and return the appropriate LLM service based on configuration.
+    Create LangChain LLM instance using Sync2NAS configuration patterns.
     
-    This function now includes comprehensive validation, normalization, and optional
-    health checking to ensure robust service creation.
-
+    This function creates appropriate LangChain LLM instances based on the configured
+    service type, following the same factory pattern as other services in the project.
+    
     Args:
-        config: Loaded configuration object (ConfigParser or normalized dict).
-        validate_health: Whether to perform connectivity health checks (default: True).
-        startup_mode: Whether this is called during application startup (affects error handling).
-
+        config: Configuration dictionary from load_configuration()
+        
     Returns:
-        LLMInterface: An instance of the appropriate LLM service.
-
+        BaseLanguageModel: Configured LangChain LLM instance
+        
     Raises:
-        LLMServiceCreationError: If configuration validation fails or service creation fails.
-        ValueError: If the LLM service type is not supported (legacy compatibility).
+        ValueError: If LLM service is not configured or unsupported
+        ImportError: If required LangChain provider package is not installed
+        Exception: If LLM instance creation fails
+        
+    Examples:
+        >>> config = load_configuration("config/sync2nas_config.ini")
+        >>> llm = create_llm_service(config)
+        >>> # LLM instance ready for use with LangChain chains
     """
-    logger.info("Creating LLM service with validation")
+    logger.debug("Creating LLM instance from configuration")
     
-    # Initialize validation components and monitoring
-    validator = ConfigValidator()
-    normalizer = ConfigNormalizer()
-    monitor = get_config_monitor()
+    # Get LLM service type using existing configuration patterns
+    llm_service = get_config_string(config, "llm", "service", "").lower()
     
-    # Start monitoring configuration loading
-    config_operation_id = monitor.log_config_loading_start("llm_factory")
-    start_time = time.time()
+    if not llm_service:
+        raise ValueError(
+            "LLM service not configured. Please set [llm] service in configuration file "
+            "or use SYNC2NAS_LLM_SERVICE environment variable. "
+            "Supported services: anthropic, openai, ollama"
+        )
+    
+    logger.info(f"Creating LLM instance for service: {llm_service}")
     
     try:
-        # Step 1: Normalize configuration and apply environment overrides
-        logger.debug("Normalizing configuration and applying environment overrides")
-        normalized_config = normalizer.normalize_and_override(config)
-        
-        # Count sections loaded
-        sections_loaded = len(normalized_config)
-        
-        # Step 2: Validate configuration
-        logger.debug("Validating LLM configuration")
-        validation_result = validator.validate_llm_config(normalized_config)
-        
-        if not validation_result.is_valid:
-            error_msg = _format_validation_errors(validation_result)
-            logger.error(f"LLM configuration validation failed: {error_msg}")
-            
-            if startup_mode:
-                # In startup mode, provide detailed error reporting and exit
-                _handle_startup_validation_failure(validation_result)
-            
-            raise LLMServiceCreationError(
-                f"LLM configuration validation failed: {error_msg}",
-                validation_result
+        if llm_service == "anthropic":
+            return _create_anthropic_llm(config)
+        elif llm_service == "openai":
+            return _create_openai_llm(config)
+        elif llm_service == "ollama":
+            return _create_ollama_llm(config)
+        else:
+            raise ValueError(
+                f"Unsupported LLM service: {llm_service}. "
+                f"Supported services: anthropic, openai, ollama"
             )
-        
-        # Log any warnings
-        if validation_result.warnings:
-            for warning in validation_result.warnings:
-                logger.warning(f"LLM configuration warning: {warning}")
-        
-        # Step 3: Get validated service type
-        llm_type = normalized_config.get('llm', {}).get('service', 'ollama').strip().lower()
-        logger.info(f"Selected LLM service: {llm_type}")
-        
-        # Step 4: Perform health check if requested
-        if validate_health:
-            logger.debug(f"Performing health check for {llm_type}")
-            health_checker = ConfigHealthChecker()
-            
-            try:
-                health_results = health_checker.check_llm_health_sync(normalized_config)
-                
-                for health_result in health_results:
-                    if not health_result.is_healthy:
-                        error_msg = f"Health check failed for {health_result.service}: {health_result.error_message}"
-                        logger.error(error_msg)
-                        
-                        if startup_mode:
-                            _handle_startup_health_failure(health_result)
-                        
-                        raise LLMServiceCreationError(
-                            f"LLM service health check failed: {error_msg}",
-                            health_result
-                        )
-                    else:
-                        logger.info(f"Health check passed for {health_result.service} "
-                                  f"(response time: {health_result.response_time_ms:.1f}ms)")
-            
-            except Exception as e:
-                if isinstance(e, LLMServiceCreationError):
-                    raise
-                logger.warning(f"Health check failed with exception: {e}")
-                if startup_mode:
-                    # In startup mode, health check failures are critical
-                    raise LLMServiceCreationError(f"Health check failed: {str(e)}")
-        
-        # Step 5: Create the appropriate service instance
-        logger.debug(f"Creating {llm_type} service instance")
-        
-        service_instance = None
-        if llm_type == 'ollama':
-            service_instance = OllamaLLMService(normalized_config)
-        elif llm_type == 'openai':
-            service_instance = OpenAILLMService(normalized_config)
-        elif llm_type == 'anthropic':
-            service_instance = AnthropicLLMService(normalized_config)
-        else:
-            error_msg = f"Unsupported LLM service: {llm_type}"
-            logger.error(error_msg)
-            raise ValueError(error_msg)
-        
-        # Log successful configuration loading
-        duration_ms = (time.time() - start_time) * 1000
-        monitor.log_config_loading_complete(
-            config_operation_id, 
-            success=True, 
-            duration_ms=duration_ms,
-            sections_loaded=sections_loaded
+    except ImportError as e:
+        raise ImportError(
+            f"Failed to import LangChain provider for {llm_service}. "
+            f"Please install the required package: pip install langchain-{llm_service}. "
+            f"Original error: {e}"
         )
-        
-        return service_instance
-    
     except Exception as e:
-        # Log failed configuration loading
-        duration_ms = (time.time() - start_time) * 1000
-        monitor.log_config_loading_complete(
-            config_operation_id,
-            success=False,
-            duration_ms=duration_ms,
-            sections_loaded=0,
-            error_message=str(e)
+        logger.error(f"Failed to create LLM instance for {llm_service}: {e}")
+        raise Exception(f"LLM instance creation failed: {e}")
+
+
+def _create_anthropic_llm(config: Dict[str, Any]) -> BaseLanguageModel:
+    """
+    Create Anthropic LLM instance from configuration.
+    
+    Args:
+        config: Configuration dictionary
+        
+    Returns:
+        BaseLanguageModel: Configured Anthropic LLM instance
+    """
+    try:
+        from langchain_anthropic import ChatAnthropic
+    except ImportError:
+        raise ImportError(
+            "Anthropic LangChain integration not available. "
+            "Install with: pip install langchain-anthropic"
         )
-        
-        if isinstance(e, (LLMServiceCreationError, ValueError)):
-            raise
-        
-        # Wrap unexpected exceptions
-        logger.exception(f"Unexpected error creating LLM service: {e}")
-        raise LLMServiceCreationError(f"Unexpected error creating LLM service: {str(e)}")
-
-
-def create_llm_service_legacy(config: Union[ConfigParser, Dict[str, Dict[str, Any]]]) -> LLMInterface:
-    """
-    Legacy function for creating LLM service without validation.
     
-    This function maintains backward compatibility for code that expects
-    the old behavior without validation.
+    # Get Anthropic configuration
+    api_key = get_config_string(config, "anthropic", "api_key", "")
+    model = get_config_string(config, "anthropic", "model", "claude-3-haiku-20240307")
+    max_tokens = int(get_config_string(config, "anthropic", "max_tokens", "1000"))
+    temperature = float(get_config_string(config, "anthropic", "temperature", "0.1"))
+    
+    if not api_key:
+        raise ValueError(
+            "Anthropic API key not configured. Please set api_key in [anthropic] section "
+            "or use SYNC2NAS_ANTHROPIC_API_KEY environment variable."
+        )
+    
+    logger.debug(f"Creating ChatAnthropic with model: {model}, max_tokens: {max_tokens}, temperature: {temperature}")
+    
+    return ChatAnthropic(
+        api_key=api_key,
+        model=model,
+        max_tokens=max_tokens,
+        temperature=temperature
+    )
+
+
+def _create_openai_llm(config: Dict[str, Any]) -> BaseLanguageModel:
+    """
+    Create OpenAI LLM instance from configuration.
     
     Args:
-        config: Loaded configuration object (ConfigParser or normalized dict).
-
+        config: Configuration dictionary
+        
     Returns:
-        LLMInterface: An instance of the appropriate LLM service.
-
-    Raises:
-        ValueError: If the LLM service type is not supported.
+        BaseLanguageModel: Configured OpenAI LLM instance
     """
-    logger.warning("Using legacy LLM service creation without validation")
+    try:
+        from langchain_openai import ChatOpenAI
+    except ImportError:
+        raise ImportError(
+            "OpenAI LangChain integration not available. "
+            "Install with: pip install langchain-openai"
+        )
     
-    # Get LLM service type with case-insensitive lookup
-    llm_type = get_config_value(config, 'llm', 'service', 'ollama').strip().lower()
-    logger.info(f"Selected LLM service: {llm_type}")
+    # Get OpenAI configuration
+    api_key = get_config_string(config, "openai", "api_key", "")
+    model = get_config_string(config, "openai", "model", "gpt-3.5-turbo")
+    max_tokens = int(get_config_string(config, "openai", "max_tokens", "1000"))
+    temperature = float(get_config_string(config, "openai", "temperature", "0.1"))
+    
+    if not api_key:
+        raise ValueError(
+            "OpenAI API key not configured. Please set api_key in [openai] section "
+            "or use SYNC2NAS_OPENAI_API_KEY environment variable."
+        )
+    
+    logger.debug(f"Creating ChatOpenAI with model: {model}, max_tokens: {max_tokens}, temperature: {temperature}")
+    
+    return ChatOpenAI(
+        api_key=api_key,
+        model=model,
+        max_tokens=max_tokens,
+        temperature=temperature
+    )
 
-    if llm_type == 'ollama':
-        return OllamaLLMService(config)
-    elif llm_type == 'openai':
-        return OpenAILLMService(config)
-    elif llm_type == 'anthropic':
-        return AnthropicLLMService(config)
+
+def _create_ollama_llm(config: Dict[str, Any]) -> BaseLanguageModel:
+    """
+    Create Ollama LLM instance from configuration.
+    
+    Uses ChatOllama for better structured output support with JSON-optimized models.
+    Validates model compatibility and logs warnings for non-JSON-optimized models.
+    
+    Args:
+        config: Configuration dictionary
+        
+    Returns:
+        BaseLanguageModel: Configured Ollama LLM instance
+    """
+    try:
+        from langchain_ollama import ChatOllama
+    except ImportError:
+        raise ImportError(
+            "Ollama LangChain integration not available. "
+            "Install with: pip install langchain-ollama"
+        )
+    
+    # Get Ollama configuration using existing utilities
+    host = get_config_string(config, "ollama", "host", "http://localhost:11434")
+    model = get_config_string(config, "ollama", "model", "ministral-3:8b")
+    temperature = float(get_config_string(config, "ollama", "temperature", "1.0"))
+    
+    # Validate model for JSON output compatibility
+    json_optimized_models = [
+        'ministral-3:8b',
+        'ministral-3:14b'
+        'qwen2.5:7b',
+        'llama3.2:3b',
+        'qwen2.5',
+        'ministral',
+        'llama3.2'
+    ]
+    
+    # Check if model is JSON-optimized (exact match or prefix match)
+    is_json_optimized = any(
+        model == json_model or model.startswith(json_model.split(':')[0])
+        for json_model in json_optimized_models
+    )
+    
+    if not is_json_optimized:
+        logger.warning(
+            f"Model '{model}' may not be optimized for JSON structured output. "
+            f"Recommended models for best results: {', '.join(json_optimized_models[:3])}. "
+            f"You may experience parsing issues with non-JSON-optimized models."
+        )
+    
+    logger.debug(f"Creating ChatOllama with host: {host}, model: {model}, temperature: {temperature}")
+    
+    return ChatOllama(
+        base_url=host,
+        model=model,
+        temperature=temperature
+    )
+
+
+def setup_llm_caching_and_tracing(config: Dict[str, Any]) -> None:
+    """
+    Configure LangChain caching and optional LangSmith tracing from configuration.
+    
+    This function sets up optional caching and tracing features using the existing
+    configuration system. LangSmith tracing is only enabled if the langsmith package
+    is available and properly configured.
+    
+    Args:
+        config: Configuration dictionary from load_configuration()
+        
+    Examples:
+        >>> config = load_configuration("config/sync2nas_config.ini")
+        >>> setup_llm_caching_and_tracing(config)
+        >>> # Caching and tracing now configured based on config settings
+    """
+    import os
+    
+    logger.debug("Setting up LangChain caching and tracing")
+    
+    # Setup caching if enabled
+    enable_cache = get_config_bool(config, "llm", "enable_cache", False)
+    if enable_cache:
+        cache_path = get_config_string(config, "llm", "cache_path", ".langchain_cache.db")
+        logger.info(f"Enabling LangChain SQLite cache at: {cache_path}")
+        
+        try:
+            cache = SQLiteCache(database_path=cache_path)
+            set_llm_cache(cache)
+            logger.info("LangChain caching enabled successfully")
+        except Exception as e:
+            logger.warning(f"Failed to enable LangChain caching: {e}")
     else:
-        logger.exception(f"Unsupported LLM service: {llm_type}")
-        raise ValueError(f"Unsupported LLM service: {llm_type}")
-
-
-def validate_llm_config_only(config: Union[ConfigParser, Dict[str, Dict[str, Any]]]) -> object:
-    """
-    Validate LLM configuration without creating a service instance.
+        logger.debug("LangChain caching disabled")
     
-    Useful for configuration testing and validation-only scenarios.
+    # Setup tracing if enabled and available
+    enable_tracing = get_config_bool(config, "llm", "enable_tracing", False)
+    if enable_tracing:
+        try:
+            # Check if langsmith is available
+            import langsmith
+            
+            # Get tracing configuration
+            api_key = get_config_string(config, "llm", "langsmith_api_key", "")
+            project = get_config_string(config, "llm", "langsmith_project", "sync2nas")
+            
+            if not api_key:
+                logger.warning(
+                    "LangSmith tracing enabled but no API key configured. "
+                    "Please set langsmith_api_key in [llm] section or use SYNC2NAS_LLM_LANGSMITH_API_KEY environment variable."
+                )
+                return
+            
+            # Set LangSmith environment variables
+            os.environ["LANGCHAIN_TRACING_V2"] = "true"
+            os.environ["LANGCHAIN_API_KEY"] = api_key
+            os.environ["LANGCHAIN_PROJECT"] = project
+            
+            logger.info(f"LangSmith tracing enabled for project: {project}")
+            
+        except ImportError:
+            logger.warning(
+                "LangSmith tracing requested but langsmith package not available. "
+                "Install with: pip install langsmith"
+            )
+        except Exception as e:
+            logger.warning(f"Failed to setup LangSmith tracing: {e}")
+    else:
+        logger.debug("LangSmith tracing disabled")
+
+
+def validate_llm_config(config: Dict[str, Any]) -> None:
+    """
+    Validate LLM configuration and test connectivity.
     
     Args:
-        config: Loaded configuration object (ConfigParser or normalized dict).
+        config: Configuration dictionary
         
-    Returns:
-        ValidationResult: Detailed validation results.
+    Raises:
+        ValueError: If configuration is invalid
+        Exception: If LLM service is not accessible
     """
-    validator = ConfigValidator()
-    normalizer = ConfigNormalizer()
+    logger.debug("Validating LLM configuration")
     
-    normalized_config = normalizer.normalize_and_override(config)
-    return validator.validate_llm_config(normalized_config)
-
-
-def _format_validation_errors(validation_result: object) -> str:
-    """Format validation errors into a readable error message."""
-    if not validation_result.errors:
-        return "Unknown validation error"
+    # Check if LLM section exists
+    if not has_config_section(config, "llm"):
+        raise ValueError("LLM configuration section [llm] not found")
     
-    error_messages = []
-    for error in validation_result.errors:
-        if error.key:
-            error_messages.append(f"[{error.section}].{error.key}: {error.message}")
-        else:
-            error_messages.append(f"[{error.section}]: {error.message}")
+    # Get and validate service type
+    llm_service = get_config_string(config, "llm", "service", "").lower()
+    if not llm_service:
+        raise ValueError("LLM service not specified in [llm] section")
     
-    return "; ".join(error_messages)
-
-
-def _handle_startup_validation_failure(validation_result: object) -> None:
-    """Handle validation failures during application startup."""
-    print("\n❌ LLM Configuration Validation Failed")
-    print("=" * 50)
+    if llm_service not in ["anthropic", "openai", "ollama"]:
+        raise ValueError(f"Unsupported LLM service: {llm_service}")
     
-    print("\nErrors found:")
-    for i, error in enumerate(validation_result.errors, 1):
-        print(f"{i}. {error.message}")
-        if error.suggestion:
-            print(f"   💡 Suggestion: {error.suggestion}")
+    # Validate service-specific configuration
+    if llm_service == "anthropic":
+        if not has_config_section(config, "anthropic"):
+            raise ValueError("Anthropic configuration section [anthropic] not found")
+        api_key = get_config_string(config, "anthropic", "api_key", "")
+        if not api_key:
+            raise ValueError("Anthropic API key not configured")
     
-    if validation_result.warnings:
-        print("\nWarnings:")
-        for warning in validation_result.warnings:
-            print(f"⚠️  {warning}")
+    elif llm_service == "openai":
+        if not has_config_section(config, "openai"):
+            raise ValueError("OpenAI configuration section [openai] not found")
+        api_key = get_config_string(config, "openai", "api_key", "")
+        if not api_key:
+            raise ValueError("OpenAI API key not configured")
     
-    if validation_result.suggestions:
-        print("\nHelpful suggestions:")
-        for suggestion in validation_result.suggestions:
-            print(f"💡 {suggestion}")
+    elif llm_service == "ollama":
+        if not has_config_section(config, "ollama"):
+            raise ValueError("Ollama configuration section [ollama] not found")
     
-    print("\nPlease fix the configuration issues above and restart the application.")
-    print("For more help, see the configuration documentation.")
-
-
-def _handle_startup_health_failure(health_result: object) -> None:
-    """Handle health check failures during application startup."""
-    print(f"\n❌ LLM Service Health Check Failed: {health_result.service}")
-    print("=" * 50)
-    
-    print(f"\nError: {health_result.error_message}")
-    
-    if health_result.details:
-        if 'suggestion' in health_result.details:
-            print(f"💡 Suggestion: {health_result.details['suggestion']}")
-        
-        if 'error_code' in health_result.details:
-            print(f"Error Code: {health_result.details['error_code']}")
-    
-    print(f"\nPlease ensure {health_result.service} is properly configured and accessible.")
-    print("For troubleshooting help, see the configuration documentation.") 
+    # Test LLM connectivity
+    try:
+        llm = create_llm_service(config)
+        # Simple test to verify the LLM is accessible
+        test_response = llm.invoke("Test")
+        logger.info("✓ LLM service validation successful")
+    except Exception as e:
+        raise Exception(f"LLM service connectivity test failed: {e}")

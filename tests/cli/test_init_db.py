@@ -7,7 +7,14 @@ import time
 
 def test_init_db_creates_tables(test_config_path, mock_llm_service_patch):
     runner = CliRunner()
-    result = runner.invoke(sync2nas_cli, ["-c", str(test_config_path), "init-db"])
+    result = runner.invoke(sync2nas_cli, ["-c", str(test_config_path), "--skip-validation", "init-db"])
+
+    # Debug output if test fails
+    if result.exit_code != 0:
+        print(f"Command failed with exit code: {result.exit_code}")
+        print(f"Output: {result.output}")
+        if result.exception:
+            print(f"Exception: {result.exception}")
 
     assert result.exit_code == 0
 

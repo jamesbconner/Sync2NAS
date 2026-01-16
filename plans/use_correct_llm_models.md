@@ -83,8 +83,8 @@ config = {"ollama": {"model": "llama3.2"}}  # WRONG!
 config = {"ollama": {"model": "gpt-4"}}     # WRONG!
 
 # DON'T create real LLM services in tests
-from services.llm_factory import create_llm_service
-service = create_llm_service(config)  # WILL LOAD REAL MODEL!
+from utils.config.llm_config import get_llm
+llm = get_llm()  # WILL LOAD REAL MODEL!
 ```
 
 ## Verification

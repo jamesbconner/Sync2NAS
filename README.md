@@ -2,6 +2,23 @@
 
 ![Service Test Coverage](https://img.shields.io/badge/Service%20Test%20Coverage-86%25-success?style=flat-square&logo=pytest&logoColor=white)
 
+## What's New (January 2026)
+
+**LangChain Integration and Architecture Modernization**
+
+- **LangChain-Based LLM Processing**: Complete migration to LangChain for all LLM operations, providing better reliability, caching, and tracing capabilities
+- **Structured Output with Pydantic**: All LLM responses now use Pydantic models for type safety and validation
+- **Performance Improvements**: Built-in caching support reduces redundant LLM calls and improves response times
+- **Enhanced Debugging**: Optional LangSmith integration for tracing and debugging LLM chain execution
+- **Batch Processing**: Efficient parallel processing of multiple filenames with order preservation
+- **Singleton Pattern**: Optimized chain reuse for better memory efficiency and performance
+
+**Enhanced Configuration System**
+
+- **Environment Variable Support**: New LangChain-specific environment variables for caching, tracing, and LangSmith integration
+- **Backward Compatibility**: Existing configuration files continue to work without modification
+- **Flexible Deployment**: Easy configuration for development, testing, and production environments
+
 ## What's New (August 2025)
 
 **Major Configuration System Overhaul**
@@ -147,8 +164,8 @@ Sync2NAS is a comprehensive Python tool for managing TV shows, synchronizing fil
 - TMDB API key (Required, but free. Read the [TMDB FAQ](https://developer.themoviedb.org/docs/faq#how-do-i-apply-for-an-api-key) to learn how to get one.)
 - [OpenAI](https://openai.com/api/) API key (Optional, for AI-powered actions like filename parsing and automatic show matching)
 - [Anthropic](https://www.anthropic.com/api) API key (Optional, for AI-powered actions like filename parsing and automatic show matching)
-- [Ollama](https://ollama.com/) local LLM service running your preferred model (Default [qwen3:14b](https://ollama.com/library/qwen3). It's the best tradeoff between accuracy, compute resource and speed as of July 2025.)
-  **Note:** Sync2NAS does not manage Ollama models. You must ensure that any model specified here (e.g., `qwen3:14b`) is already installed and available in your local Ollama instance. Use `ollama pull qwen3:14b` to install models as needed.
+- [Ollama](https://ollama.com/) local LLM service running your preferred model (Default [ministral-3:14b](https://ollama.com/library/ministral-3). Recommended for best accuracy and JSON structured output as of January 2026.)
+  **Note:** Sync2NAS does not manage Ollama models. You must ensure that any model specified here (e.g., `ministral-3:14b`) is already installed and available in your local Ollama instance. Use `ollama pull ministral-3:14b` to install models as needed.
 
 ### GUI Interface
 
@@ -303,6 +320,11 @@ api_key = your_tmdb_api_key_here
 ```ini
 [llm]
 service = ollama  # Options: ollama, openai, anthropic
+enable_cache = true  # Enable LangChain caching for better performance
+cache_path = .langchain_cache.db  # Path for cache database
+enable_tracing = false  # Enable LangSmith tracing for debugging
+langsmith_api_key = your_langsmith_api_key_here  # Required if tracing enabled
+langsmith_project = sync2nas  # Project name for LangSmith traces
 ```
 
 #### Ollama LLM Backend (Default)
@@ -348,6 +370,11 @@ Environment variables follow the pattern: `SYNC2NAS_<SECTION>_<KEY>`
 
 ```bash
 export SYNC2NAS_LLM_SERVICE=openai  # Override [llm] service
+export SYNC2NAS_LLM_ENABLE_CACHE=true  # Enable LangChain caching
+export SYNC2NAS_LLM_CACHE_PATH=.langchain_cache.db  # Cache database path
+export SYNC2NAS_LLM_ENABLE_TRACING=false  # Enable LangSmith tracing
+export SYNC2NAS_LLM_LANGSMITH_API_KEY=your_langsmith_key  # LangSmith API key
+export SYNC2NAS_LLM_LANGSMITH_PROJECT=sync2nas  # LangSmith project name
 ```
 
 **OpenAI Configuration:**
@@ -425,6 +452,11 @@ anime_tv_path = d:/anime_tv/
 # LLM Configuration (Choose one service)
 [llm]
 service = ollama  # Options: ollama, openai, anthropic
+enable_cache = true  # Enable LangChain caching for better performance
+cache_path = .langchain_cache.db  # Path for cache database
+enable_tracing = false  # Enable LangSmith tracing for debugging
+langsmith_api_key = your_langsmith_api_key_here  # Required if tracing enabled
+langsmith_project = sync2nas  # Project name for LangSmith traces
 
 # Ollama Configuration (Default - Free local LLM)
 [ollama]
@@ -787,7 +819,7 @@ curl http://localhost:11434/api/version
 ollama list
 
 # Pull the required model
-ollama pull qwen3:14b
+ollama pull ministral-3:14b
 ```
 
 #### Common Configuration Mistakes

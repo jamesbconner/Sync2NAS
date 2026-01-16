@@ -23,7 +23,7 @@ def process_sftp_diffs(
     remote_base: str,
     local_base: str,
     dry_run: bool = False,
-    llm_service=None,
+    llm_chains=None,
     max_workers: int = 4,
     hashing_service: Optional[HashingService] = None,
     parse_filenames: bool = True,
@@ -41,8 +41,12 @@ def process_sftp_diffs(
         remote_base (str): Root remote path.
         local_base (str): Root local path.
         dry_run (bool): If True, perform no download or DB writes.
-        llm_service: Optional LLM service for directory name suggestions.
+        llm_chains: Optional LLM chains service for filename parsing and directory name suggestions.
         max_workers (int): Number of concurrent download threads for files.
+        hashing_service (Optional[HashingService]): Service for file hashing.
+        parse_filenames (bool): Whether to parse filenames for metadata.
+        use_llm (bool): Whether to use LLM for parsing.
+        llm_confidence_threshold (float): Minimum confidence threshold for LLM parsing.
     Returns:
         None
     """
@@ -54,8 +58,8 @@ def process_sftp_diffs(
         "ssh_key_path": sftp_service.ssh_key_path,
         "llm_service": sftp_service.llm_service,
     }
-    # Determine effective LLM service
-    active_llm_service = llm_service or getattr(sftp_service, "llm_service", None)
+    # Determine effective LLM chains service
+    active_llm_chains = llm_chains or getattr(sftp_service, "llm_chains", None)
     logger.info(
         "SFTP processing config: parse_filenames=%s, use_llm=%s, llm_confidence_threshold=%.2f, max_workers=%d",
         parse_filenames,
@@ -65,7 +69,7 @@ def process_sftp_diffs(
     )
     if not parse_filenames:
         logger.info("Filename parsing is disabled; show/season/episode will not be populated.")
-    elif not use_llm or active_llm_service is None:
+    elif not use_llm or active_llm_chains is None:
         logger.info("LLM parsing disabled or unavailable; regex fallback will be used for filename parsing.")
 
     def download_file_task(remote_path, local_path):
@@ -177,7 +181,7 @@ def process_sftp_diffs(
                             try:
                                 metadata = parse_filename(
                                     file_model.name,
-                                    llm_service=active_llm_service if use_llm else None,
+                                    llm_chains=active_llm_chains if use_llm else None,
                                     llm_confidence_threshold=llm_confidence_threshold,
                                 )
                                 file_model.show_name = metadata.get("show_name")
@@ -202,7 +206,7 @@ def process_sftp_diffs(
                                     "LLM"
                                     if (
                                         use_llm
-                                        and active_llm_service is not None
+                                        and active_llm_chains is not None
                                         and file_model.confidence is not None
                                         and file_model.confidence >= llm_confidence_threshold
                                     )
@@ -277,7 +281,7 @@ def process_sftp_diffs(
                             try:
                                 metadata = parse_filename(
                                     file_model.name,
-                                    llm_service=active_llm_service if use_llm else None,
+                                    llm_chains=active_llm_chains if use_llm else None,
                                     llm_confidence_threshold=llm_confidence_threshold,
                                 )
                                 file_model.show_name = metadata.get("show_name")
@@ -300,7 +304,7 @@ def process_sftp_diffs(
                                     "LLM"
                                     if (
                                         use_llm
-                                        and active_llm_service is not None
+                                        and active_llm_chains is not None
                                         and file_model.confidence is not None
                                         and file_model.confidence >= llm_confidence_threshold
                                     )
@@ -354,6 +358,7 @@ def download_from_remote(
     remote_paths: List[str],
     incoming_path: str,
     dry_run: bool = False,
+    llm_chains=None,
     max_workers: int = 4,
     hashing_service: Optional[HashingService] = None,
     parse_filenames: bool = True,
@@ -373,7 +378,12 @@ def download_from_remote(
         remote_paths (List[str]): List of remote paths to process.
         incoming_path (str): Local incoming directory.
         dry_run (bool): If True, simulate actions without downloading or DB writes.
+        llm_chains: Optional LLM chains service for filename parsing.
         max_workers (int): Number of concurrent download threads for files.
+        hashing_service (Optional[HashingService]): Service for file hashing.
+        parse_filenames (bool): Whether to parse filenames for metadata.
+        use_llm (bool): Whether to use LLM for parsing.
+        llm_confidence_threshold (float): Minimum confidence threshold for LLM parsing.
 
     Returns:
         None
@@ -398,6 +408,7 @@ def download_from_remote(
             remote_base=remote_path,
             local_base=incoming_path,
             dry_run=dry_run,
+            llm_chains=llm_chains,
             max_workers=max_workers,
             hashing_service=hashing_service,
             parse_filenames=parse_filenames,

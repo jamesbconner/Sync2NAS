@@ -5,11 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from api.models.requests import RouteFilesRequest, LLMParseFilenameRequest, UpdateDownloadedFileStatusRequest
 from api.models.responses import RouteFilesResponse, ListIncomingResponse, LLMParseFilenameResponse, ListDownloadedFilesResponse, DownloadedFileDTO
-from api.dependencies import get_db_service
+from api.dependencies import get_db_service, get_llm_chains_service
 from api.services.file_service import FileService
 from api.dependencies import get_file_service
-from services.llm_implementations.llm_interface import LLMInterface as LLMService
-from api.dependencies import get_llm_service
 from fastapi import Query
 from models.downloaded_file import FileStatus
 import os
@@ -180,25 +178,119 @@ def patch_downloaded_file_status(file_id: int, body: UpdateDownloadedFileStatusR
 async def parse_filename_llm(
     request: Request,
     body: LLMParseFilenameRequest,
-    llm_service: LLMService = Depends(get_llm_service)
+    llm_chains=Depends(get_llm_chains_service)
 ):
     """
     Parse a filename using LLM for show/season/episode extraction.
     Returns parsed metadata if LLM confidence meets the threshold.
+    
+    Provides detailed error handling for different failure scenarios:
+    - 503: LLM service unavailable
+    - 422: Low confidence result (includes partial result)
+    - 500: LLM parsing failure
     """
     try:
-        # Use the LLM service to parse the filename
-        result = llm_service.parse_filename(
-            body.filename,
-            max_tokens=150
-        )
-        # Only return if confidence meets threshold
-        if result.get("confidence", 0.0) < body.llm_confidence_threshold:
-            raise HTTPException(status_code=422, detail=f"LLM confidence too low: {result.get('confidence')}")
-        return LLMParseFilenameResponse(**result)
+        # Validate that LLM chains service is available
+        if not llm_chains:
+            raise HTTPException(
+                status_code=503, 
+                detail={
+                    "error": "LLM service unavailable",
+                    "message": "LLM chains service is not initialized or accessible",
+                    "fallback_available": True  # Indicate fallback parsing might be available
+                }
+            )
+        
+        # Use the LLM chains service to parse the filename
+        result = llm_chains.parse_filename(body.filename)
+        
+        # Convert Pydantic model to dict for response
+        result_dict = result.model_dump()
+        
+        # Check confidence threshold
+        confidence = result_dict.get("confidence", 0.0)
+        if confidence < body.llm_confidence_threshold:
+            raise HTTPException(
+                status_code=422, 
+                detail={
+                    "error": "Low confidence result",
+                    "confidence": confidence,
+                    "threshold": body.llm_confidence_threshold,
+                    "message": f"LLM confidence {confidence:.2f} below threshold {body.llm_confidence_threshold:.2f}",
+                    "partial_result": result_dict,  # Include partial result for client decision
+                    "suggestion": "Consider lowering confidence threshold or using fallback parsing"
+                }
+            )
+        
+        return LLMParseFilenameResponse(**result_dict)
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions (already properly formatted)
+        raise
     except Exception as e:
-        # Return 500 error if LLM parsing fails
-        raise HTTPException(status_code=500, detail=str(e)) 
+        # Log the error for debugging
+        logger.error(f"LLM parsing failed for filename '{body.filename}': {e}")
+        
+        # Provide detailed error information
+        raise HTTPException(
+            status_code=500, 
+            detail={
+                "error": "LLM parsing failed",
+                "filename": body.filename,
+                "message": str(e),
+                "suggestion": "Check LLM service status or try again later"
+            }
+        )
+
+
+@router.post("/parse-filename-fallback", response_model=LLMParseFilenameResponse)
+async def parse_filename_fallback(
+    request: Request,
+    body: LLMParseFilenameRequest
+):
+    """
+    Parse a filename using regex-based fallback parsing only.
+    
+    This endpoint provides a reliable fallback when LLM service is unavailable
+    or when LLM parsing fails. Uses the same regex patterns as the main
+    filename parser but without LLM enhancement.
+    
+    Always returns a result (even if confidence is low) to ensure
+    system functionality when LLM services are down.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        from utils.filename_parser import _regex_parse_filename
+        
+        # Use regex-only parsing
+        result = _regex_parse_filename(body.filename)
+        
+        # Always return result regardless of confidence for fallback reliability
+        logger.info(f"Fallback parsing for '{body.filename}': confidence {result.get('confidence', 0.0):.2f}")
+        
+        return LLMParseFilenameResponse(
+            show_name=result["show_name"],
+            season=result["season"],
+            episode=result["episode"],
+            confidence=result["confidence"],
+            reasoning=f"Regex fallback: {result['reasoning']}"
+        )
+        
+    except Exception as e:
+        logger.error(f"Fallback parsing failed for filename '{body.filename}': {e}")
+        
+        # Even fallback parsing failed - return minimal result
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Fallback parsing failed",
+                "filename": body.filename,
+                "message": str(e),
+                "suggestion": "Filename may be in an unsupported format"
+            }
+        ) 
 
 
 @router.post("/downloaded/{file_id}/rehash")
