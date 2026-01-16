@@ -212,7 +212,8 @@ test_cases = [
         "episode": 1,
         "crc32": None,
         "confidence": 0.6,  # Regex parsing confidence
-        "reasoning": "Regex pattern 4 matched"
+        "reasoning": "Regex pattern 4 matched",
+        "parsing_method": "regex"
     }),
     ("[SubsPlease] My Show - S01E05 (1080p).mkv", {
         "show_name": "My Show",
@@ -220,7 +221,8 @@ test_cases = [
         "episode": 5,
         "crc32": None,
         "confidence": 0.6,  # Regex parsing confidence
-        "reasoning": "Regex pattern 1 matched"
+        "reasoning": "Regex pattern 1 matched",
+        "parsing_method": "regex"
     }),
     ("My.Show.S02E09.1080p.mkv", {
         "show_name": "My Show",
@@ -228,7 +230,8 @@ test_cases = [
         "episode": 9,
         "crc32": None,
         "confidence": 0.6,  # Regex parsing confidence
-        "reasoning": "Regex pattern 1 matched"
+        "reasoning": "Regex pattern 1 matched",
+        "parsing_method": "regex"
     }),
     ("Cool_Show-E12.mkv", {
         "show_name": "Cool Show",
@@ -236,7 +239,8 @@ test_cases = [
         "episode": 12,
         "crc32": None,
         "confidence": 0.6,  # Regex parsing confidence
-        "reasoning": "Regex pattern 3 matched"
+        "reasoning": "Regex pattern 3 matched",
+        "parsing_method": "regex"
     }),
     ("Title.2nd Season 07", {
         "show_name": "Title",
@@ -244,7 +248,8 @@ test_cases = [
         "episode": 7,
         "crc32": None,
         "confidence": 0.6,  # Regex parsing confidence
-        "reasoning": "Regex pattern 0 matched"
+        "reasoning": "Regex pattern 0 matched",
+        "parsing_method": "regex"
     }),
     ("Another Show - 103.mkv", {
         "show_name": "Another Show",
@@ -252,7 +257,8 @@ test_cases = [
         "episode": 103,
         "crc32": None,
         "confidence": 0.6,  # Regex parsing confidence
-        "reasoning": "Regex pattern 4 matched"
+        "reasoning": "Regex pattern 4 matched",
+        "parsing_method": "regex"
     }),
     ("NoMatchHere.txt", {
         "show_name": "NoMatchHere",
@@ -260,7 +266,8 @@ test_cases = [
         "episode": None,
         "crc32": None,
         "confidence": 0.1,  # Falls back to regex for unclear patterns
-        "reasoning": "No regex pattern matched"
+        "reasoning": "No regex pattern matched",
+        "parsing_method": "regex"
     }),
     ("Show_with_underscores_S03E08.mkv", {
         "show_name": "Show with underscores",
@@ -268,7 +275,8 @@ test_cases = [
         "episode": 8,
         "crc32": None,
         "confidence": 0.6,  # Regex parsing confidence
-        "reasoning": "Regex pattern 1 matched"
+        "reasoning": "Regex pattern 1 matched",
+        "parsing_method": "regex"
     }),
     ("[FanSub]_Show.Name_03_(720p).mkv", {
         "show_name": "Show Name",
@@ -276,7 +284,8 @@ test_cases = [
         "episode": 3,
         "crc32": None,
         "confidence": 0.6,  # Falls back to regex for this pattern
-        "reasoning": "Regex pattern 4 matched"
+        "reasoning": "Regex pattern 4 matched",
+        "parsing_method": "regex"
     }),
 ]
 

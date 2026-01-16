@@ -82,11 +82,10 @@ def sync2nas_cli(ctx: click.Context, verbose: int, logfile: str, config: str, dr
             else:
                 # Validate and create LLM service in one efficient step
                 llm_service = validate_and_create_llm_service(cfg)
-                
-                # Setup caching and tracing after successful creation
-                setup_llm_caching_and_tracing(cfg)
-                
                 logger.info("✓ LLM service initialized and validated successfully")
+            
+            # Setup caching and tracing after successful creation (regardless of validation flag)
+            setup_llm_caching_and_tracing(cfg)
         
         except Exception as e:
             if is_config_check:
@@ -104,11 +103,6 @@ def sync2nas_cli(ctx: click.Context, verbose: int, logfile: str, config: str, dr
                 if not skip_validation:
                     # Exit with error code for startup failures
                     sys.exit(1)
-        
-        except Exception as e:
-            logger.error(f"❌ Unexpected error creating LLM service: {e}")
-            if not is_config_check and not skip_validation:
-                sys.exit(1)
         
         # Database Service
         try:
