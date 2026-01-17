@@ -49,22 +49,11 @@ def get_services(config):
         setup_llm_caching_and_tracing(config)
         logger.info("✓ LLM caching and tracing configured")
         
-        # Step 4: Initialize LLM Chain Service
+        # Initialize LLM Chain Service
+        # Note: LLM connectivity already validated by validate_and_create_llm_service()
         from services.llm_chain_service import LLMChainService
         llm_chains = LLMChainService(llm_service)
         logger.info("✓ LLM chains service initialized")
-        
-        # Step 5: Validate with test operation
-        logger.info("Testing LLM service with sample parse...")
-        test_result = llm_chains.parse_filename("Test.Show.S01E01.mkv")
-        
-        if not test_result:
-            raise Exception("LLM service test returned no result")
-        
-        if not hasattr(test_result, 'confidence'):
-            raise Exception("LLM service test returned invalid result format")
-        
-        logger.info(f"✓ LLM service test successful (confidence: {test_result.confidence:.2f})")
         
     except Exception as e:
         logger.error(f"❌ LLM service initialization failed: {e}")
