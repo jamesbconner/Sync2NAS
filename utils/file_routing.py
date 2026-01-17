@@ -54,6 +54,7 @@ def file_routing(
             episode = metadata["episode"]
             confidence = metadata.get("confidence", 0.0)
             reasoning = metadata.get("reasoning", "Unknown")
+            parsing_method = metadata.get("parsing_method", "unknown")
 
             # Log parsing details
             logger.info(f"Parsed '{filename}': {show_name} S{season}E{episode} (confidence: {confidence})")
@@ -155,7 +156,8 @@ def file_routing(
                 "season": season_str, # Changed from season_int to season_str
                 "episode": episode_str, # Changed from episode_int to episode_str
                 "confidence": confidence,
-                "reasoning": reasoning
+                "reasoning": reasoning,
+                "parsing_method": parsing_method
             })
 
     return routed_files
