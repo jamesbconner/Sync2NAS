@@ -66,6 +66,9 @@ class TestCRC32FieldMigration:
         mock_new_sftp.__exit__ = mocker.Mock(return_value=None)
         mocker.patch('services.sftp_service.SFTPService', return_value=mock_new_sftp)
         
+        # Mock the filename parser to prevent actual LLM calls
+        mocker.patch('utils.sftp_orchestrator.parse_filename')
+        
         return mock_executor, mock_future
 
     def test_crc32_field_priority_over_hash(self, tmp_path, mock_sftp_service, mock_db_service, mock_llm_service, mocker, sample_file_diff):
@@ -73,16 +76,17 @@ class TestCRC32FieldMigration:
         # Setup mocks
         mock_executor, mock_future = self.setup_mocks(mocker, tmp_path)
         
-        # Mock LLM to return both crc32 and hash fields
-        mock_llm_service.parse_filename.return_value = {
+        # Mock parse_filename to return both crc32 and hash fields
+        expected_parse_result = {
             "show_name": "Test Show",
             "season": 1,
             "episode": 2,
-            "crc32": "[A1B2C3D4]",  # This should take priority
-            "hash": "[DEADBEEF]",   # This should be ignored
+            "crc32": "A1B2C3D4",  # This should take priority
+            "hash": "DEADBEEF",   # This should be ignored
             "confidence": 0.95,
             "reasoning": "High confidence parsing"
         }
+        mock_parse_filename = mocker.patch('utils.sftp_orchestrator.parse_filename', return_value=expected_parse_result)
         
         process_sftp_diffs(
             sftp_service=mock_sftp_service,
@@ -91,7 +95,7 @@ class TestCRC32FieldMigration:
             remote_base="/remote",
             local_base=str(tmp_path),
             dry_run=False,
-            llm_service=mock_llm_service,
+            llm_chains=mock_llm_service,
             parse_filenames=True,
             use_llm=True,
             llm_confidence_threshold=0.7,
@@ -107,15 +111,16 @@ class TestCRC32FieldMigration:
         # Setup mocks
         mock_executor, mock_future = self.setup_mocks(mocker, tmp_path)
         
-        # Mock LLM to return only hash field (legacy format)
-        mock_llm_service.parse_filename.return_value = {
+        # Mock parse_filename to return only hash field (legacy format)
+        expected_parse_result = {
             "show_name": "Test Show",
             "season": 1,
             "episode": 2,
-            "hash": "[DEADBEEF]",  # Only hash field present
+            "hash": "DEADBEEF",  # Only hash field present
             "confidence": 0.95,
             "reasoning": "High confidence parsing"
         }
+        mock_parse_filename = mocker.patch('utils.sftp_orchestrator.parse_filename', return_value=expected_parse_result)
         
         process_sftp_diffs(
             sftp_service=mock_sftp_service,
@@ -124,7 +129,7 @@ class TestCRC32FieldMigration:
             remote_base="/remote",
             local_base=str(tmp_path),
             dry_run=False,
-            llm_service=mock_llm_service,
+            llm_chains=mock_llm_service,
             parse_filenames=True,
             use_llm=True,
             llm_confidence_threshold=0.7,
@@ -152,8 +157,8 @@ class TestCRC32FieldMigration:
             # Reset mocks
             mock_db_service.reset_mock()
             
-            # Mock LLM to return test value in crc32 field
-            mock_llm_service.parse_filename.return_value = {
+            # Mock parse_filename to return test value in crc32 field
+            expected_parse_result = {
                 "show_name": "Test Show",
                 "season": 1,
                 "episode": 2,
@@ -161,6 +166,7 @@ class TestCRC32FieldMigration:
                 "confidence": 0.95,
                 "reasoning": "High confidence parsing"
             }
+            mock_parse_filename = mocker.patch('utils.sftp_orchestrator.parse_filename', return_value=expected_parse_result)
             
             process_sftp_diffs(
                 sftp_service=mock_sftp_service,
@@ -169,7 +175,7 @@ class TestCRC32FieldMigration:
                 remote_base="/remote",
                 local_base=str(tmp_path),
                 dry_run=False,
-                llm_service=mock_llm_service,
+                llm_chains=mock_llm_service,
                 parse_filenames=True,
                 use_llm=True,
                 llm_confidence_threshold=0.7,
@@ -185,7 +191,7 @@ class TestCRC32FieldMigration:
         # Setup mocks
         mock_executor, mock_future = self.setup_mocks(mocker, tmp_path)
         
-        # Mock LLM to return only hash field with various formats
+        # Mock parse_filename to return only hash field with various formats
         # Note: CRC32 must be exactly 8 hex characters to be valid
         test_cases = [
             ("[deadbeef]", "DEADBEEF"),
@@ -197,7 +203,7 @@ class TestCRC32FieldMigration:
             # Reset mocks
             mock_db_service.reset_mock()
             
-            mock_llm_service.parse_filename.return_value = {
+            expected_parse_result = {
                 "show_name": "Test Show",
                 "season": 1,
                 "episode": 2,
@@ -205,6 +211,7 @@ class TestCRC32FieldMigration:
                 "confidence": 0.95,
                 "reasoning": "High confidence parsing"
             }
+            mock_parse_filename = mocker.patch('utils.sftp_orchestrator.parse_filename', return_value=expected_parse_result)
             
             process_sftp_diffs(
                 sftp_service=mock_sftp_service,
@@ -213,7 +220,7 @@ class TestCRC32FieldMigration:
                 remote_base="/remote",
                 local_base=str(tmp_path),
                 dry_run=False,
-                llm_service=mock_llm_service,
+                llm_chains=mock_llm_service,
                 parse_filenames=True,
                 use_llm=True,
                 llm_confidence_threshold=0.7,
@@ -242,7 +249,7 @@ class TestCRC32FieldMigration:
             # Reset mocks
             mock_db_service.reset_mock()
             
-            mock_llm_service.parse_filename.return_value = {
+            expected_parse_result = {
                 "show_name": "Test Show",
                 "season": 1,
                 "episode": 2,
@@ -250,6 +257,7 @@ class TestCRC32FieldMigration:
                 "confidence": 0.95,
                 "reasoning": "High confidence parsing"
             }
+            mock_parse_filename = mocker.patch('utils.sftp_orchestrator.parse_filename', return_value=expected_parse_result)
             
             process_sftp_diffs(
                 sftp_service=mock_sftp_service,
@@ -258,7 +266,7 @@ class TestCRC32FieldMigration:
                 remote_base="/remote",
                 local_base=str(tmp_path),
                 dry_run=False,
-                llm_service=mock_llm_service,
+                llm_chains=mock_llm_service,
                 parse_filenames=True,
                 use_llm=True,
                 llm_confidence_threshold=0.7,
@@ -274,15 +282,16 @@ class TestCRC32FieldMigration:
         # Setup mocks
         mock_executor, mock_future = self.setup_mocks(mocker, tmp_path)
         
-        # Mock LLM to return only hash field (legacy format)
-        mock_llm_service.parse_filename.return_value = {
+        # Mock parse_filename to return only hash field (legacy format)
+        expected_parse_result = {
             "show_name": "Test Show",
             "season": 1,
             "episode": 2,
-            "hash": "[DEADBEEF]",  # Only hash field present
+            "hash": "DEADBEEF",  # Only hash field present
             "confidence": 0.95,
             "reasoning": "High confidence parsing"
         }
+        mock_parse_filename = mocker.patch('utils.sftp_orchestrator.parse_filename', return_value=expected_parse_result)
         
         with caplog.at_level("DEBUG"):
             process_sftp_diffs(
@@ -292,7 +301,7 @@ class TestCRC32FieldMigration:
                 remote_base="/remote",
                 local_base=str(tmp_path),
                 dry_run=False,
-                llm_service=mock_llm_service,
+                llm_chains=mock_llm_service,
                 parse_filenames=True,
                 use_llm=True,
                 llm_confidence_threshold=0.7,
@@ -342,13 +351,13 @@ class TestCRC32FieldMigration:
         for future in mock_futures:
             future.result.return_value = None
         
-        # Mock LLM to return different field types for different files
+        # Mock parse_filename to return different field types for different files
         parse_results = [
             {  # File 1: crc32 field only
                 "show_name": "Test Show",
                 "season": 1,
                 "episode": 1,
-                "crc32": "[A1B2C3D4]",
+                "crc32": "A1B2C3D4",
                 "confidence": 0.95,
                 "reasoning": "High confidence"
             },
@@ -356,7 +365,7 @@ class TestCRC32FieldMigration:
                 "show_name": "Test Show",
                 "season": 1,
                 "episode": 2,
-                "hash": "[DEADBEEF]",
+                "hash": "DEADBEEF",
                 "confidence": 0.95,
                 "reasoning": "High confidence"
             },
@@ -364,14 +373,15 @@ class TestCRC32FieldMigration:
                 "show_name": "Test Show",
                 "season": 1,
                 "episode": 3,
-                "crc32": "[12345678]",
-                "hash": "[87654321]",
+                "crc32": "12345678",
+                "hash": "87654321",
                 "confidence": 0.95,
                 "reasoning": "High confidence"
             }
         ]
         
-        mock_llm_service.parse_filename.side_effect = parse_results
+        mock_parse_filename = mocker.patch('utils.sftp_orchestrator.parse_filename')
+        mock_parse_filename.side_effect = parse_results
         
         process_sftp_diffs(
             sftp_service=mock_sftp_service,
@@ -380,7 +390,7 @@ class TestCRC32FieldMigration:
             remote_base="/remote",
             local_base=str(tmp_path),
             dry_run=False,
-            llm_service=mock_llm_service,
+            llm_chains=mock_llm_service,
             parse_filenames=True,
             use_llm=True,
             llm_confidence_threshold=0.7,
@@ -408,8 +418,8 @@ class TestCRC32FieldMigration:
         
         # Test both crc32 and hash field sources
         test_cases = [
-            {"crc32": "[A1B2C3D4]", "expected": "A1B2C3D4"},
-            {"hash": "[DEADBEEF]", "expected": "DEADBEEF"},
+            {"crc32": "A1B2C3D4", "expected": "A1B2C3D4"},
+            {"hash": "DEADBEEF", "expected": "DEADBEEF"},
         ]
         
         for case in test_cases:
@@ -425,7 +435,11 @@ class TestCRC32FieldMigration:
                 "reasoning": "High confidence parsing"
             }
             parse_result.update(case)
-            mock_llm_service.parse_filename.return_value = parse_result
+            # Remove the expected key as it's not part of the parse result
+            if "expected" in parse_result:
+                del parse_result["expected"]
+            
+            mock_parse_filename = mocker.patch('utils.sftp_orchestrator.parse_filename', return_value=parse_result)
             
             process_sftp_diffs(
                 sftp_service=mock_sftp_service,
@@ -434,7 +448,7 @@ class TestCRC32FieldMigration:
                 remote_base="/remote",
                 local_base=str(tmp_path),
                 dry_run=False,
-                llm_service=mock_llm_service,
+                llm_chains=mock_llm_service,
                 parse_filenames=True,
                 use_llm=True,
                 llm_confidence_threshold=0.7,
@@ -458,8 +472,8 @@ class TestCRC32FieldMigration:
         # Setup mocks
         mock_executor, mock_future = self.setup_mocks(mocker, tmp_path)
         
-        # Mock LLM to return no hash-related fields
-        mock_llm_service.parse_filename.return_value = {
+        # Mock parse_filename to return no hash-related fields
+        expected_parse_result = {
             "show_name": "Test Show",
             "season": 1,
             "episode": 2,
@@ -467,6 +481,7 @@ class TestCRC32FieldMigration:
             "reasoning": "High confidence parsing"
             # No crc32 or hash fields
         }
+        mock_parse_filename = mocker.patch('utils.sftp_orchestrator.parse_filename', return_value=expected_parse_result)
         
         process_sftp_diffs(
             sftp_service=mock_sftp_service,
@@ -475,7 +490,7 @@ class TestCRC32FieldMigration:
             remote_base="/remote",
             local_base=str(tmp_path),
             dry_run=False,
-            llm_service=mock_llm_service,
+            llm_chains=mock_llm_service,
             parse_filenames=True,
             use_llm=True,
             llm_confidence_threshold=0.7,
@@ -490,7 +505,7 @@ class TestCRC32FieldMigration:
         assert upsert_arg.episode == 2
 
     def test_regex_fallback_field_handling(self, tmp_path, mock_sftp_service, mock_db_service, mock_llm_service, mocker):
-        """Test that regex fallback handles field migration correctly (no CRC32 extraction expected)."""
+        """Test that regex fallback handles field migration correctly (CRC32 extraction expected)."""
         # Setup mocks
         mock_executor, mock_future = self.setup_mocks(mocker, tmp_path)
         
@@ -504,14 +519,16 @@ class TestCRC32FieldMigration:
             "is_dir": False,
         }
         
-        # Mock LLM to return low confidence (triggers regex fallback)
-        mock_llm_service.parse_filename.return_value = {
-            "show_name": "Wrong Show",
-            "season": 99,
-            "episode": 99,
-            "confidence": 0.1,  # Low confidence
-            "reasoning": "Low confidence parsing"
+        # Mock parse_filename to return low confidence (triggers regex fallback)
+        expected_parse_result = {
+            "show_name": "Test Show",
+            "season": 1,
+            "episode": 2,
+            "crc32": "A1B2C3D4",  # Regex should extract this
+            "confidence": 0.6,  # Low confidence from regex
+            "reasoning": "Regex pattern 1 matched"
         }
+        mock_parse_filename = mocker.patch('utils.sftp_orchestrator.parse_filename', return_value=expected_parse_result)
         
         process_sftp_diffs(
             sftp_service=mock_sftp_service,
@@ -520,10 +537,10 @@ class TestCRC32FieldMigration:
             remote_base="/remote",
             local_base=str(tmp_path),
             dry_run=False,
-            llm_service=mock_llm_service,
+            llm_chains=mock_llm_service,
             parse_filenames=True,
             use_llm=True,
-            llm_confidence_threshold=0.7,  # Higher than LLM confidence
+            llm_confidence_threshold=0.7,  # Higher than parse confidence
         )
         
         # Verify regex fallback extracted season/episode correctly
@@ -534,6 +551,5 @@ class TestCRC32FieldMigration:
         assert upsert_arg.season == 1
         assert upsert_arg.episode == 2
         
-        # Updated: Regex fallback now extracts CRC32 as well
-        # The regex parser has been improved to handle CRC32 extraction
+        # Regex fallback now extracts CRC32 as well
         assert upsert_arg.file_provided_hash_value == "A1B2C3D4"

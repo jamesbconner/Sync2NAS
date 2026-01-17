@@ -120,7 +120,7 @@ Configuration for the Ollama local LLM backend. **Recommended for most users** a
 
 ```ini
 [ollama]
-model = qwen3:14b
+model = ministral-3:14b
 host = http://localhost:11434
 timeout = 30
 ```
@@ -128,9 +128,15 @@ timeout = 30
 - `host`: Ollama server URL (default: http://localhost:11434)
 - `timeout`: Request timeout in seconds (default: 30)
 
+**Recommended Models:**
+- `ministral-3:14b` - Best JSON output (recommended)
+- `ministral-3:8b` - Lighter weight alternative
+- `qwen2.5:7b` - Good JSON capabilities
+- `llama3.2:3b` - Compact option
+
 **Setup Ollama:**
 1. Install from [ollama.ai](https://ollama.ai/)
-2. Pull a model: `ollama pull qwen3:14b`
+2. Pull a model: `ollama pull ministral-3:14b`
 3. Verify: `ollama list`
 
 ### [openai] - OpenAI Configuration (Optional)
@@ -232,7 +238,7 @@ service = ollama  # Options: ollama, openai, anthropic
 
 # Ollama Configuration (Default - Free local LLM)
 [ollama]
-model = qwen3:14b
+model = ministral-3:14b
 host = http://localhost:11434
 timeout = 30
 
@@ -277,7 +283,7 @@ export SYNC2NAS_TMDB_API_KEY=your_tmdb_key
 
 # Ollama Configuration
 export SYNC2NAS_OLLAMA_HOST=http://localhost:11434
-export SYNC2NAS_OLLAMA_MODEL=qwen3:14b
+export SYNC2NAS_OLLAMA_MODEL=ministral-3:14b
 
 # Database Configuration
 export SYNC2NAS_DATABASE_TYPE=sqlite

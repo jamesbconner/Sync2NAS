@@ -171,30 +171,29 @@ class TestEndToEndCRC32Validation:
             for future in mock_futures:
                 future.result.return_value = None
             
-            # Set up LLM responses
-            mock_services['llm'].parse_filename.side_effect = [
-                file_data["llm_response"] for file_data in test_files
-            ]
-            
-            # Extract file diffs for processing
-            diffs = [{k: v for k, v in file_data.items() 
-                     if k not in ["expected_crc32", "llm_response"]} 
-                    for file_data in test_files]
-            
-            # Process the complete SFTP workflow
-            process_sftp_diffs(
-                sftp_service=mock_services['sftp'],
-                db_service=mock_services['db'],
-                diffs=diffs,
-                remote_base="/remote",
-                local_base=temp_directory,
-                dry_run=False,
-                llm_service=mock_services['llm'],
-                hashing_service=mock_services['hashing'],
-                parse_filenames=True,
-                use_llm=True,
-                llm_confidence_threshold=0.7,
-            )
+            # Mock the parse_filename function directly to prevent actual LLM calls
+            with patch('utils.sftp_orchestrator.parse_filename') as mock_parse:
+                mock_parse.side_effect = [file_data["llm_response"] for file_data in test_files]
+                
+                # Extract file diffs for processing
+                diffs = [{k: v for k, v in file_data.items() 
+                         if k not in ["expected_crc32", "llm_response"]} 
+                        for file_data in test_files]
+                
+                # Process the complete SFTP workflow
+                process_sftp_diffs(
+                    sftp_service=mock_services['sftp'],
+                    db_service=mock_services['db'],
+                    diffs=diffs,
+                    remote_base="/remote",
+                    local_base=temp_directory,
+                    dry_run=False,
+                    llm_chains=mock_services['llm'],
+                    hashing_service=mock_services['hashing'],
+                    parse_filenames=True,
+                    use_llm=True,
+                    llm_confidence_threshold=0.7,
+                )
         
         # Verify all files were processed through the complete workflow
         assert mock_services['db'].add_downloaded_file.call_count == len(test_files)
@@ -271,7 +270,7 @@ class TestEndToEndCRC32Validation:
                 remote_base="/remote",
                 local_base=temp_directory,
                 dry_run=False,
-                llm_service=mock_services['llm'],
+                llm_chains=mock_services['llm'],
                 hashing_service=mock_services['hashing'],
                 parse_filenames=True,
                 use_llm=True,
@@ -423,30 +422,29 @@ class TestEndToEndCRC32Validation:
             for future in mock_futures:
                 future.result.return_value = None
             
-            # Set up LLM responses
-            mock_services['llm'].parse_filename.side_effect = [
-                file_data["llm_response"] for file_data in normalization_test_files
-            ]
-            
-            # Extract file diffs
-            diffs = [{k: v for k, v in file_data.items() 
-                     if k not in ["expected_crc32", "llm_response"]} 
-                    for file_data in normalization_test_files]
-            
-            # Process files
-            process_sftp_diffs(
-                sftp_service=mock_services['sftp'],
-                db_service=mock_services['db'],
-                diffs=diffs,
-                remote_base="/remote",
-                local_base=temp_directory,
-                dry_run=False,
-                llm_service=mock_services['llm'],
-                hashing_service=mock_services['hashing'],
-                parse_filenames=True,
-                use_llm=True,
-                llm_confidence_threshold=0.7,
-            )
+            # Mock the parse_filename function directly to prevent actual LLM calls
+            with patch('utils.sftp_orchestrator.parse_filename') as mock_parse:
+                mock_parse.side_effect = [file_data["llm_response"] for file_data in normalization_test_files]
+                
+                # Extract file diffs
+                diffs = [{k: v for k, v in file_data.items() 
+                         if k not in ["expected_crc32", "llm_response"]} 
+                        for file_data in normalization_test_files]
+                
+                # Process files
+                process_sftp_diffs(
+                    sftp_service=mock_services['sftp'],
+                    db_service=mock_services['db'],
+                    diffs=diffs,
+                    remote_base="/remote",
+                    local_base=temp_directory,
+                    dry_run=False,
+                    llm_chains=mock_services['llm'],
+                    hashing_service=mock_services['hashing'],
+                    parse_filenames=True,
+                    use_llm=True,
+                    llm_confidence_threshold=0.7,
+                )
         
         # Verify all files were processed
         assert mock_services['db'].upsert_downloaded_file.call_count == len(normalization_test_files)
@@ -639,7 +637,7 @@ class TestEndToEndCRC32Validation:
                 remote_base="/remote",
                 local_base=temp_directory,
                 dry_run=False,
-                llm_service=mock_services['llm'],
+                llm_chains=mock_services['llm'],
                 hashing_service=mock_services['hashing'],
                 parse_filenames=True,
                 use_llm=True,

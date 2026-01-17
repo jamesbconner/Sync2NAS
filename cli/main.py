@@ -15,7 +15,7 @@ from utils.logging_config import setup_logging
 from services.db_factory import create_db_service
 from services.sftp_service import SFTPService
 from services.tmdb_service import TMDBService
-from services.llm_factory import create_llm_service, LLMServiceCreationError
+from services.llm_factory import create_llm_service, validate_and_create_llm_service, setup_llm_caching_and_tracing
 
 logger = logging.getLogger(__name__)
 
@@ -78,14 +78,16 @@ def sync2nas_cli(ctx: click.Context, verbose: int, logfile: str, config: str, dr
         try:
             if skip_validation:
                 logger.warning("Skipping LLM service validation (--skip-validation flag)")
-                from services.llm_factory import create_llm_service_legacy
-                llm_service = create_llm_service_legacy(cfg)
+                llm_service = create_llm_service(cfg)
             else:
-                # Use full validation including health checks for startup
-                llm_service = create_llm_service(cfg, validate_health=not is_config_check, startup_mode=not is_config_check)
+                # Validate and create LLM service in one efficient step
+                llm_service = validate_and_create_llm_service(cfg)
                 logger.info("✓ LLM service initialized and validated successfully")
+            
+            # Setup caching and tracing after successful creation (regardless of validation flag)
+            setup_llm_caching_and_tracing(cfg)
         
-        except LLMServiceCreationError as e:
+        except Exception as e:
             if is_config_check:
                 # For config-check, we want to capture the error but continue
                 logger.debug(f"LLM service validation failed (config-check mode): {e}")
@@ -101,11 +103,6 @@ def sync2nas_cli(ctx: click.Context, verbose: int, logfile: str, config: str, dr
                 if not skip_validation:
                     # Exit with error code for startup failures
                     sys.exit(1)
-        
-        except Exception as e:
-            logger.error(f"❌ Unexpected error creating LLM service: {e}")
-            if not is_config_check and not skip_validation:
-                sys.exit(1)
         
         # Database Service
         try:
@@ -180,11 +177,22 @@ def sync2nas_cli(ctx: click.Context, verbose: int, logfile: str, config: str, dr
             if "not found" in str(e).lower():
                 logger.warning("💡 Check your configuration file for [routing] and [transfers] sections")
         
+        # Initialize LLM Chain Service if LLM service is available
+        llm_chains = None
+        if llm_service:
+            try:
+                from services.llm_chain_service import LLMChainService
+                llm_chains = LLMChainService(llm_service)
+                logger.info("✓ LLM Chain service initialized successfully")
+            except Exception as e:
+                logger.warning(f"⚠️  LLM Chain service initialization failed: {e}")
+        
         # Create context object with all services
         ctx.obj = {
             "config": cfg,
             "db": db_service,
             "llm_service": llm_service,
+            "llm_chains": llm_chains,
             "sftp": sftp_service,
             "tmdb": tmdb_service,
             "anime_tv_path": anime_tv_path,
@@ -196,6 +204,7 @@ def sync2nas_cli(ctx: click.Context, verbose: int, logfile: str, config: str, dr
         # Log successful initialization
         services_status = []
         if llm_service: services_status.append("LLM")
+        if llm_chains: services_status.append("LLM Chains")
         if db_service: services_status.append("Database")
         if sftp_service: services_status.append("SFTP")
         if tmdb_service: services_status.append("TMDB")
@@ -212,6 +221,7 @@ def sync2nas_cli(ctx: click.Context, verbose: int, logfile: str, config: str, dr
                 "config": None,
                 "db": None,
                 "llm_service": None,
+                "llm_chains": None,
                 "sftp": None,
                 "tmdb": None,
                 "anime_tv_path": None,

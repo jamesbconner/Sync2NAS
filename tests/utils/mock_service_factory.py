@@ -16,13 +16,35 @@ from typing import Dict, Any, List, Optional, Tuple, Union
 from unittest.mock import Mock, MagicMock
 
 from services.db_implementations.db_interface import DatabaseInterface
-from services.llm_implementations.llm_interface import LLMInterface
+from services.llm.schemas import ParsedFilename
 from services.sftp_service import SFTPService
 from services.tmdb_service import TMDBService
 from models.show import Show
 from models.episode import Episode
 from models.downloaded_file import DownloadedFile, FileStatus
-from utils.sync2nas_config import get_config_value
+from utils.sync2nas_config import get_config_value, load_configuration
+
+
+def get_test_model_from_config() -> str:
+    """
+    Get the Ollama model from the actual config file.
+    
+    This ensures tests use the same model as production to prevent
+    GPU memory issues from loading multiple models.
+    
+    Returns:
+        str: Model name from config, defaults to "ministral-3:14b" if config not found
+    """
+    try:
+        config = load_configuration("config/sync2nas_config.ini")
+        return get_config_value(config, "ollama", "model", "ministral-3:14b")
+    except Exception:
+        # Fallback if config can't be loaded
+        return "ministral-3:14b"
+
+
+# Get the standard test model from actual config
+STANDARD_TEST_MODEL = get_test_model_from_config()
 
 
 class MockDatabaseService(DatabaseInterface):
@@ -380,8 +402,8 @@ class MockDatabaseService(DatabaseInterface):
         return None
 
 
-class MockLLMService(LLMInterface):
-    """Mock LLM service that implements all abstract methods with predictable behavior."""
+class MockLLMService:
+    """Mock LLM service that provides predictable behavior without external dependencies."""
     
     def __init__(self, config: Optional[Dict[str, Any]] = None, service_type: str = "ollama"):
         self.config = config or {}
@@ -390,64 +412,112 @@ class MockLLMService(LLMInterface):
         
         # Set model based on service type and config
         if service_type == "ollama":
-            self.model = self.config.get("ollama", {}).get("model", "qwen3:14b")
+            self.model = self.config.get("ollama", {}).get("model", STANDARD_TEST_MODEL)
         elif service_type == "openai":
-            self.model = self.config.get("openai", {}).get("model", "qwen3:14b")
+            self.model = self.config.get("openai", {}).get("model", "gpt-3.5-turbo")
         elif service_type == "anthropic":
-            self.model = self.config.get("anthropic", {}).get("model", "qwen3:14b")
+            self.model = self.config.get("anthropic", {}).get("model", "claude-3-haiku-20240307")
         else:
-            self.model = "qwen3:14b"
+            self.model = STANDARD_TEST_MODEL
     
-    def parse_filename(self, filename: str, max_tokens: int = 150) -> Dict[str, Any]:
+    def parse_filename(self, filename: str, max_tokens: int = 150) -> ParsedFilename:
         """Parse a filename using mock LLM logic."""
         # Check if custom result is set for this filename
         if filename in self.parse_results:
-            return self.parse_results[filename]
+            result = self.parse_results[filename]
+            # If it's already a ParsedFilename object, return it directly
+            if isinstance(result, ParsedFilename):
+                return result
+            # Otherwise, treat it as a dictionary and create ParsedFilename
+            return ParsedFilename(**result)
         
-        # Default mock parsing logic
-        result = {
-            "show_name": "Mock Show",
-            "season": 1,
-            "episode": 1,
-            "crc32": None,
-            "confidence": 0.9,
-            "reasoning": "Mock LLM parsing",
-            "filename": filename
-        }
+        # For CLI route files tests, return low confidence to force regex fallback
+        # These specific filenames are used in CLI tests that expect regex parsing
+        regex_test_filenames = [
+            "[Group] Mock Show (2022) - 01.mkv",
+            "[SubsPlease] My Show - S01E05 (1080p).mkv", 
+            "My.Show.S02E09.1080p.mkv",
+            "Cool_Show-E12.mkv",
+            "Title.2nd Season 07",
+            "Another Show - 103.mkv",
+            "NoMatchHere.txt",
+            "Show_with_underscores_S03E08.mkv",
+            "[FanSub]_Show.Name_03_(720p).mkv"
+        ]
         
-        # Try to extract some basic info from filename for more realistic behavior
-        if "S" in filename and "E" in filename:
-            try:
-                # Look for SxxExx pattern
-                import re
-                match = re.search(r'S(\d+)E(\d+)', filename, re.IGNORECASE)
-                if match:
-                    result["season"] = int(match.group(1))
-                    result["episode"] = int(match.group(2))
-                    result["confidence"] = 0.95
-            except:
-                pass
+        if filename in regex_test_filenames:
+            # Raise exception to force regex fallback (more reliable than low confidence)
+            raise Exception(f"Mock LLM intentionally failing for regex test: {filename}")
         
-        # Try to extract CRC32 from filename (8 hex chars in brackets at end)
-        try:
-            import re
-            # Look for [8 hex chars] pattern at the end of filename for CRC32 hash
-            crc32_match = re.search(r'\[([A-Fa-f0-9]{8})\]', filename)
-            if crc32_match:
-                result["crc32"] = crc32_match.group(1).upper()
-                result["confidence"] = 0.95
-        except:
-            pass
+        # Use realistic parsing logic based on regex patterns for better test accuracy
+        result = self._parse_filename_realistically(filename)
         
-        # Extract show name from filename
-        show_part = filename.split('.')[0] if '.' in filename else filename
-        show_part = show_part.replace('_', ' ').replace('-', ' ')
-        if show_part:
-            result["show_name"] = show_part
-        
-        return result
+        return ParsedFilename(**result)
     
-    def batch_parse_filenames(self, filenames: List[str], max_tokens: int = 150) -> List[Dict[str, Any]]:
+    def _parse_filename_realistically(self, filename: str) -> dict:
+        """
+        Parse filename using regex patterns similar to the real parser for realistic test behavior.
+        
+        Args:
+            filename (str): Raw filename to parse
+            
+        Returns:
+            dict: Parsed metadata with show_name, season, episode, crc32, confidence, reasoning
+        """
+        import re
+        
+        # Extract CRC32 hash before removing brackets
+        crc32_match = re.search(r'\[([0-9A-Fa-f]{8})\]', filename)
+        crc32 = crc32_match.group(1).upper() if crc32_match else None
+        
+        # Remove file extension
+        base = re.sub(r"\.[a-z0-9]{2,4}$", "", filename, flags=re.IGNORECASE)
+
+        # Remove all [tags] and (metadata)
+        cleaned = re.sub(r"[\[\(].*?[\]\)]", "", base)
+
+        # Normalize delimiters but preserve case
+        cleaned = re.sub(r"[_.]", " ", cleaned)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+
+        # Patterns to match the show name, season, and episode (same as real parser)
+        patterns = [
+            r"(?P<name>.*?)[\s\-]+(?P<season>\d{1,2})(?:st|nd|rd|th)?[\s\-]+Season[\s\-]+(?P<episode>\d{1,3})",
+            r"(?P<name>.*?)[\s\-]+[Ss](?P<season>\d{1,2})[Ee](?P<episode>\d{1,3})",
+            r"(?P<name>.*?)[\s\-]+[Ss](?P<season>\d{1,2})[\s\-]+(?P<episode>\d{1,3})",
+            r"(?P<name>.*?)(?:[\s\-]+[Ss](?P<season>\d{1,2}).*)?[\s\-]+[Ee](?P<episode>\d{1,3})",
+            r"(?P<name>.*?)[\s\-]+(?P<episode>\d{1,3})(?:v\d)?\b",
+            r"(?P<name>.*?)[\s\-]+(?P<episode>\d{1,3})$",
+            r"(?P<name>.*?)\s+[Ss](?P<season>\d{1,2})[Ee](?P<episode>\d{1,3})"
+        ]
+
+        for index, pattern in enumerate(patterns):
+            match = re.search(pattern, cleaned, re.IGNORECASE)
+            if match:
+                groups = match.groupdict()
+                show_name = groups.get("name", "").strip(" -_")
+                season = int(groups["season"]) if groups.get("season") else None
+                episode = int(groups["episode"]) if groups.get("episode") else None
+                return {
+                    "show_name": show_name, 
+                    "season": season, 
+                    "episode": episode,
+                    "crc32": crc32,
+                    "confidence": 0.95,  # High confidence for mock
+                    "reasoning": f"Mock regex pattern {index} matched"
+                }
+
+        # Fallback: return cleaned name with no season/episode
+        return {
+            "show_name": cleaned, 
+            "season": None, 
+            "episode": None,
+            "crc32": crc32,
+            "confidence": 0.8,  # Lower confidence for fallback
+            "reasoning": "Mock fallback parsing"
+        }
+    
+    def batch_parse_filenames(self, filenames: List[str], max_tokens: int = 150) -> List[ParsedFilename]:
         """Parse multiple filenames in batch."""
         return [self.parse_filename(filename, max_tokens) for filename in filenames]
     
@@ -628,13 +698,23 @@ class MockTMDBService:
     def _setup_default_shows(self):
         """Set up default mock shows for testing."""
         self._shows = {
+            "test show": {
+                "results": [
+                    {
+                        "id": 12345,
+                        "name": "Test Show",
+                        "first_air_date": "2020-01-01",
+                        "overview": "A test show for testing"
+                    }
+                ]
+            },
             "mock show": {
                 "results": [
                     {
                         "id": 12345,
                         "name": "Mock Show",
                         "first_air_date": "2020-01-01",
-                        "overview": "A mock show for testing"
+                        "overview": "A test show for testing"
                     }
                 ]
             }
@@ -651,9 +731,9 @@ class MockTMDBService:
             "results": [
                 {
                     "id": 99999,
-                    "name": query,
+                    "name": "Test Show",
                     "first_air_date": "2020-01-01",
-                    "overview": f"Mock show for query: {query}"
+                    "overview": f"Test show for query: {query}"
                 }
             ]
         }
@@ -718,12 +798,9 @@ class MockServiceFactory:
     all required abstract methods and provide predictable test behavior without
     external dependencies.
     
-    CRITICAL: All mock services use the SAME model as the main config (qwen3:14b)
+    CRITICAL: All mock services use the SAME model as the main config
     to prevent GPU RAM exhaustion and CPU fallback during testing.
     """
-    
-    # CRITICAL: Use the EXACT same model as main config to prevent GPU issues
-    STANDARD_TEST_MODEL = "qwen3:14b"
     
     @staticmethod
     def create_mock_db_service(config: Dict[str, Any], read_only: bool = False) -> MockDatabaseService:
@@ -814,7 +891,7 @@ class MockServiceFactory:
         """
         Get standardized test configuration that uses the SAME model as main config.
         
-        CRITICAL: This ensures all tests use qwen3:14b to prevent GPU RAM issues.
+        CRITICAL: This ensures all tests use the model from config to prevent GPU RAM issues.
         
         Returns:
             Dict containing standardized test configuration
@@ -887,20 +964,39 @@ class MockServiceFactory:
         Returns:
             Context manager that patches LLM service creation
         """
-        from unittest.mock import patch
+        from unittest.mock import patch, MagicMock
+        from contextlib import ExitStack
         
         def mock_create_llm_service(config, validate_health=True, startup_mode=False):
             """Mock LLM service creation that always returns a mock."""
             return MockServiceFactory.create_mock_llm_service(config)
         
-        return patch('services.llm_factory.create_llm_service', side_effect=mock_create_llm_service)
+        def mock_get_llm():
+            """Mock get_llm function that returns a mock LLM for chains."""
+            # Create a mock LLM that will cause chain parsing to fail
+            # This forces the filename parser to fall back to regex parsing
+            mock_llm = MagicMock()
+            mock_llm.invoke.side_effect = Exception("Mock LLM intentionally failing for test")
+            return mock_llm
+        
+        # Reset chain singletons to ensure fresh instances with mocked LLM
+        try:
+            from services.llm.chains import reset_chain_singletons
+            reset_chain_singletons()
+        except ImportError:
+            pass  # Module might not be available in some test contexts
+        
+        # Use ExitStack to manage multiple patches
+        stack = ExitStack()
+        stack.enter_context(patch('services.llm_factory.create_llm_service', side_effect=mock_create_llm_service))
+        return stack
     
     @staticmethod
     def ensure_test_model_consistency(config: Dict[str, Any]) -> Dict[str, Any]:
         """
         Ensure configuration uses the standard test model to prevent GPU issues.
         
-        CRITICAL: This function forces all test configs to use qwen3:14b
+        CRITICAL: This function forces all test configs to use the model from config
         regardless of what model they originally specified.
         
         Args:

@@ -19,7 +19,8 @@ from utils.config.config_normalizer import ConfigNormalizer
 from utils.config.health_checker import ConfigHealthChecker
 from utils.config.config_suggester import ConfigSuggester
 from utils.config.validation_models import ValidationResult, HealthCheckResult, ErrorCode
-from services.llm_factory import create_llm_service, LLMServiceCreationError
+from services.llm_factory import create_llm_service, validate_llm_config
+from services.llm_factory import create_llm_service
 
 
 class TestAdvancedValidationIntegration:
@@ -177,14 +178,14 @@ class TestAdvancedValidationIntegration:
         assert len(result2.errors) == 0
         
         # Step 4: Test service creation with fixed config
-        with patch('services.llm_implementations.openai_implementation.openai.OpenAI') as mock_openai:
+        with patch('langchain_openai.ChatOpenAI') as mock_openai:
             mock_client = MagicMock()
             mock_response = MagicMock()
             mock_response.choices = [MagicMock(message=MagicMock(content="Test"))]
             mock_client.chat.completions.create.return_value = mock_response
             mock_openai.return_value = mock_client
             
-            service = create_llm_service(partially_fixed_config, validate_health=False)
+            service = create_llm_service(partially_fixed_config)
             assert service is not None
     
     def test_validation_with_edge_case_values(self):
@@ -464,7 +465,7 @@ class TestAdvancedValidationIntegration:
         ]
         
         for scenario in failure_scenarios:
-            with patch('services.llm_implementations.openai_implementation.openai.OpenAI') as mock_openai:
+            with patch('langchain_openai.ChatOpenAI') as mock_openai:
                 # Mock the specific failure
                 mock_openai.side_effect = scenario['exception']
                 

@@ -370,9 +370,9 @@ class MockServiceFactory:
             Mock LLM service instance
         """
         from unittest.mock import Mock
-        from services.llm_implementations.base_llm_service import BaseLLMService
+        from services.llm.schemas import ParsedFilename
         
-        mock_service = Mock(spec=BaseLLMService)
+        mock_service = Mock()
         
         # Set up standard mock responses
         mock_service.parse_filename.return_value = {

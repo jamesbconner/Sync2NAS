@@ -81,7 +81,7 @@ def mock_routing(monkeypatch):
 
 @pytest.fixture
 def patch_add_show(monkeypatch):
-    def mock_add_show_interactively(show_name, tmdb_id, db, tmdb, anime_tv_path, override_dir=False, dry_run=False, llm_service=None, use_llm=False, llm_confidence=0.7):
+    def mock_add_show_interactively(show_name, tmdb_id, db, tmdb, anime_tv_path, dry_run=False, override_dir=False, llm_chains=None, use_llm=False, max_tmdb_results=20, llm_confidence=0.7):
         # Get dry_run from ctx.obj if available, otherwise default to False
         return {
             "sys_path": f"/fake/path/{show_name}",
@@ -204,79 +204,88 @@ def test_route_files_auto_add(tmp_path, test_config, mock_tmdb_service, cli_runn
     assert "Mock Show" in result.output
     
 
-# Test cases for the refactored parse_filename
+# Test cases for the refactored parse_filename with LLM integration
 test_cases = [
     ("[Group] Mock Show (2022) - 01.mkv", {
         "show_name": "Mock Show",
         "season": None,
         "episode": 1,
         "crc32": None,
-        "confidence": 0.6,
-        "reasoning": "Regex pattern 4 matched"
+        "confidence": 0.6,  # Regex parsing confidence
+        "reasoning": "Regex pattern 4 matched",
+        "parsing_method": "regex"
     }),
     ("[SubsPlease] My Show - S01E05 (1080p).mkv", {
         "show_name": "My Show",
         "season": 1,
         "episode": 5,
         "crc32": None,
-        "confidence": 0.6,
-        "reasoning": "Regex pattern 1 matched"
+        "confidence": 0.6,  # Regex parsing confidence
+        "reasoning": "Regex pattern 1 matched",
+        "parsing_method": "regex"
     }),
     ("My.Show.S02E09.1080p.mkv", {
         "show_name": "My Show",
         "season": 2,
         "episode": 9,
         "crc32": None,
-        "confidence": 0.6,
-        "reasoning": "Regex pattern 1 matched"
+        "confidence": 0.6,  # Regex parsing confidence
+        "reasoning": "Regex pattern 1 matched",
+        "parsing_method": "regex"
     }),
     ("Cool_Show-E12.mkv", {
         "show_name": "Cool Show",
         "season": None,
         "episode": 12,
         "crc32": None,
-        "confidence": 0.6,
-        "reasoning": "Regex pattern 3 matched"
+        "confidence": 0.6,  # Regex parsing confidence
+        "reasoning": "Regex pattern 3 matched",
+        "parsing_method": "regex"
     }),
     ("Title.2nd Season 07", {
         "show_name": "Title",
         "season": 2,
         "episode": 7,
         "crc32": None,
-        "confidence": 0.6,
-        "reasoning": "Regex pattern 0 matched"
+        "confidence": 0.6,  # Regex parsing confidence
+        "reasoning": "Regex pattern 0 matched",
+        "parsing_method": "regex"
     }),
     ("Another Show - 103.mkv", {
         "show_name": "Another Show",
         "season": None,
         "episode": 103,
         "crc32": None,
-        "confidence": 0.6,
-        "reasoning": "Regex pattern 4 matched"
+        "confidence": 0.6,  # Regex parsing confidence
+        "reasoning": "Regex pattern 4 matched",
+        "parsing_method": "regex"
     }),
     ("NoMatchHere.txt", {
         "show_name": "NoMatchHere",
         "season": None,
         "episode": None,
         "crc32": None,
-        "confidence": 0.1,
-        "reasoning": "No regex pattern matched"
+        "confidence": 0.1,  # Falls back to regex for unclear patterns
+        "reasoning": "No regex pattern matched",
+        "parsing_method": "regex"
     }),
     ("Show_with_underscores_S03E08.mkv", {
         "show_name": "Show with underscores",
         "season": 3,
         "episode": 8,
         "crc32": None,
-        "confidence": 0.6,
-        "reasoning": "Regex pattern 1 matched"
+        "confidence": 0.6,  # Regex parsing confidence
+        "reasoning": "Regex pattern 1 matched",
+        "parsing_method": "regex"
     }),
     ("[FanSub]_Show.Name_03_(720p).mkv", {
         "show_name": "Show Name",
         "season": None,
         "episode": 3,
         "crc32": None,
-        "confidence": 0.6,
-        "reasoning": "Regex pattern 4 matched"
+        "confidence": 0.6,  # Falls back to regex for this pattern
+        "reasoning": "Regex pattern 4 matched",
+        "parsing_method": "regex"
     }),
 ]
 

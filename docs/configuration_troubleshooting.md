@@ -168,7 +168,7 @@ model = gpt-4  # or gpt-3.5-turbo
 model = claude-3-sonnet-20240229  # or claude-3-haiku-20240307
 
 [ollama]
-model = qwen3:14b  # or llama2:7b, mistral:7b
+model = ministral-3:14b  # or ministral-3:8b, qwen2.5:7b, llama3.2:3b
 ```
 
 #### Invalid URLs
@@ -188,6 +188,7 @@ host = http://localhost:8080
 # ✅ Correct Ollama host
 [ollama]
 host = http://localhost:11434
+model = ministral-3:14b
 ```
 
 ### 5. Environment Variable Issues
@@ -199,11 +200,11 @@ host = http://localhost:11434
 ```bash
 # ❌ Wrong format
 export OPENAI_API_KEY=your_key
-export OLLAMA_MODEL=qwen3:14b
+export OLLAMA_MODEL=ministral-3:14b
 
 # ✅ Correct format
 export SYNC2NAS_OPENAI_API_KEY=your_key
-export SYNC2NAS_OLLAMA_MODEL=qwen3:14b
+export SYNC2NAS_OLLAMA_MODEL=ministral-3:14b
 ```
 
 #### Environment Variable Precedence
@@ -275,7 +276,7 @@ python sync2nas.py config-check --service anthropic
 
 ```bash
 # Install a model
-ollama pull qwen3:14b
+ollama pull ministral-3:14b
 
 # List installed models
 ollama list
@@ -318,7 +319,7 @@ api_key = your_tmdb_api_key_here
 service = ollama
 
 [ollama]
-model = qwen3:14b
+model = ministral-3:14b
 host = http://localhost:11434
 ```
 
@@ -365,11 +366,11 @@ python sync2nas.py config-check --verbose
 ```
 🚨 Configuration Issues Found:
   • [openai] api_key: Required key missing
-  • [ollama] model: Invalid model format 'llama' (should be 'llama2:7b')
+  • [ollama] model: Invalid model format 'llama' (should be 'ministral-3:14b')
 
 💡 Intelligent Suggestions:
   • Get OpenAI API key from: https://platform.openai.com/api-keys
-  • Install Ollama model: ollama pull llama2:7b
+  • Install Ollama model: ollama pull ministral-3:14b
   • Use environment variable: SYNC2NAS_OPENAI_API_KEY=your_key
 
 🔧 Potential Typos Detected:

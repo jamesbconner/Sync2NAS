@@ -22,6 +22,11 @@ class ConfigNormalizer:
     # Environment variable mapping: env_var -> (section, key)
     ENV_VAR_MAPPING = {
         'SYNC2NAS_LLM_SERVICE': ('llm', 'service'),
+        'SYNC2NAS_LLM_ENABLE_CACHE': ('llm', 'enable_cache'),
+        'SYNC2NAS_LLM_CACHE_PATH': ('llm', 'cache_path'),
+        'SYNC2NAS_LLM_ENABLE_TRACING': ('llm', 'enable_tracing'),
+        'SYNC2NAS_LLM_LANGSMITH_API_KEY': ('llm', 'langsmith_api_key'),
+        'SYNC2NAS_LLM_LANGSMITH_PROJECT': ('llm', 'langsmith_project'),
         'SYNC2NAS_OPENAI_API_KEY': ('openai', 'api_key'),
         'SYNC2NAS_OPENAI_MODEL': ('openai', 'model'),
         'SYNC2NAS_OPENAI_MAX_TOKENS': ('openai', 'max_tokens'),

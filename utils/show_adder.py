@@ -9,6 +9,7 @@ from models.episode import Episode
 from services.db_implementations.db_interface import DatabaseInterface
 from services.tmdb_service import TMDBService
 from utils.file_filters import sanitize_filename
+from services.llm.schemas import ShowMatch
 
 logger = logging.getLogger(__name__)
 
@@ -20,13 +21,13 @@ def add_show_interactively(
     anime_tv_path: str,
     dry_run: bool = False,
     override_dir: bool = False,
-    llm_service=None,
+    llm_chains=None,  # LLM chain service instance (from context)
     use_llm: bool = False,
     max_tmdb_results: int = 20,
     llm_confidence: float = 0.7
 ) -> dict:
     """
-    Add a show interactively, optionally using LLM to select the best TMDB match.
+    Add a show interactively, optionally using LLM chains to select the best TMDB match.
 
     Args:
         show_name (str): Name of the show to add.
@@ -36,8 +37,8 @@ def add_show_interactively(
         anime_tv_path (str): Base path for TV show directories.
         dry_run (bool): If True, simulate actions without writing to DB or filesystem.
         override_dir (bool): Use show_name directly for folder name.
-        llm_service: Optional LLM service for show selection.
-        use_llm (bool): Whether to use LLM for show selection.
+        llm_chains: LLM chain service instance (from context).
+        use_llm (bool): Whether to use LLM chains for show selection.
         max_tmdb_results (int): Max TMDB search results to consider for LLM selection.
         llm_confidence (float): Minimum confidence for LLM selection.
 
@@ -58,9 +59,15 @@ def add_show_interactively(
             #sys_name = details["info"]["name"] # original code
             sys_name = details["info"].get("name")
             
-        elif use_llm and llm_service:
-            logger.info("Using LLM branch")
-            # Use LLM to search for the show name
+        elif use_llm:
+            logger.info("Using LLM chains branch")
+            
+            # Validate that LLM chains service is available
+            if not llm_chains:
+                logger.error("LLM chains service not available but use_llm=True")
+                raise ValueError("LLM chains service not available. Ensure LLM service is properly configured.")
+            
+            # Use LLM chains to search for the show name
             # Pull all results from TMDB for the show name
             results = tmdb.search_show(show_name)
             if not results or not results.get("results"):
@@ -80,19 +87,42 @@ def add_show_interactively(
             if not detailed_results:
                 logger.exception(f"LLM Branch - No detailed TMDB results for show name: {show_name}")
                 raise ValueError(f"LLM Branch - No detailed TMDB results for show name: {show_name}")
-            logger.debug("Calling llm_service.suggest_show_name")
+            logger.debug("Calling LangChain match_show via LLM chains service")
 
-            # Use LLM to select best match and English name
-            llm_response = llm_service.suggest_show_name(show_name, detailed_results)
-            logger.debug(f"LLM Branch - LLM response: {llm_response}")
+            # Convert detailed results to the format expected by match_show
+            candidates_for_llm = []
+            for det in detailed_results:
+                info = det.get("info", {})
+                candidates_for_llm.append({
+                    "tmdb_id": info.get("id"),
+                    "name": info.get("name", ""),
+                    "original_name": info.get("original_name", ""),
+                    "first_air_date": info.get("first_air_date", ""),
+                    "overview": info.get("overview", "")
+                })
+
+            # Use LangChain to select best match and English name
+            try:
+                llm_response: ShowMatch = llm_chains.match_show(show_name, candidates_for_llm)
+                logger.debug(f"LLM Branch - LangChain response: {llm_response}")
+                
+                # Convert Pydantic model to dict for backward compatibility
+                llm_response_dict = {
+                    "tmdb_id": llm_response.tmdb_id,
+                    "show_name": llm_response.show_name,
+                    "confidence": llm_response.confidence
+                }
+            except Exception as e:
+                logger.exception(f"LLM Branch - LangChain match_show failed: {e}")
+                raise ValueError(f"LLM Branch - Could not determine the best show match: {e}")
 
             # If LLM could not determine the best show match, raise an error
-            if not llm_response or not llm_response.get("tmdb_id") or not llm_response.get("show_name"):
-                logger.exception(f"LLM Branch - LLM could not determine the best show match. Response: {llm_response}")
+            if not llm_response_dict or not llm_response_dict.get("tmdb_id") or not llm_response_dict.get("show_name"):
+                logger.exception(f"LLM Branch - LLM could not determine the best show match. Response: {llm_response_dict}")
                 raise ValueError("LLM Branch - Could not determine the best show match.")
             
             # If LLM confidence is below the threshold, raise an error
-            confidence_value = llm_response.get("confidence")
+            confidence_value = llm_response_dict.get("confidence")
             try:
                 confidence_float = float(confidence_value) if confidence_value is not None else 0.0
             except (TypeError, ValueError):
@@ -120,8 +150,8 @@ def add_show_interactively(
                 # Proceed with fallback path
             else:
                 # Use LLM to set the tmdb_id and sys_name vars
-                tmdb_id = llm_response["tmdb_id"]
-                sys_name = sanitize_filename(llm_response["show_name"])
+                tmdb_id = llm_response_dict["tmdb_id"]
+                sys_name = sanitize_filename(llm_response_dict["show_name"])
                 details = tmdb.get_show_details(tmdb_id)
                 
                 if not details or "info" not in details:

@@ -6,6 +6,7 @@ import os
 import pytest
 from unittest.mock import patch
 from configparser import ConfigParser
+from hypothesis import given, strategies as st, assume
 
 from utils.config.config_normalizer import ConfigNormalizer
 
@@ -245,3 +246,75 @@ class TestConfigNormalizer:
         
         # Should remain unchanged since SYNC2NAS_INVALID_VAR is not in mapping
         assert result == config
+
+    @given(
+        env_values=st.dictionaries(
+            st.sampled_from([
+                'SYNC2NAS_LLM_SERVICE',
+                'SYNC2NAS_LLM_ENABLE_CACHE',
+                'SYNC2NAS_LLM_CACHE_PATH',
+                'SYNC2NAS_LLM_ENABLE_TRACING',
+                'SYNC2NAS_LLM_LANGSMITH_API_KEY',
+                'SYNC2NAS_LLM_LANGSMITH_PROJECT',
+                'SYNC2NAS_OPENAI_API_KEY',
+                'SYNC2NAS_OPENAI_MODEL',
+                'SYNC2NAS_ANTHROPIC_API_KEY',
+                'SYNC2NAS_OLLAMA_HOST'
+            ]),
+            st.text(min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd', 'Pc', 'Pd'))).filter(lambda x: x.strip() and '\x00' not in x),
+            min_size=1,
+            max_size=5
+        )
+    )
+    def test_environment_variable_override_consistency_property(self, env_values):
+        """
+        Test that environment variables consistently override configuration values.
+        
+        For any set of valid environment variables with non-empty values,
+        the configuration override should consistently apply those values
+        to the correct sections and keys, regardless of the original
+        configuration content or the order of environment variables.
+        """
+        # Create a base configuration with some existing values
+        base_config = {
+            'llm': {'service': 'ollama'},
+            'openai': {'api_key': 'original_key', 'model': 'gpt-3.5-turbo'},
+            'anthropic': {'api_key': 'original_anthropic_key'},
+            'ollama': {'host': 'http://localhost:11434'}
+        }
+        
+        # Apply environment variable overrides
+        with patch.dict(os.environ, env_values, clear=False):
+            result = self.normalizer.apply_env_overrides(base_config.copy())
+            
+            # Verify that each environment variable was applied correctly
+            for env_var, env_value in env_values.items():
+                if env_var in self.normalizer.ENV_VAR_MAPPING:
+                    section, key = self.normalizer.ENV_VAR_MAPPING[env_var]
+                    
+                    # The section should exist in the result
+                    assert section in result, f"Section '{section}' should exist for env var {env_var}"
+                    
+                    # The key should have the environment variable value
+                    assert result[section][key] == env_value, f"Key '{key}' in section '{section}' should have value '{env_value}' from env var {env_var}"
+            
+            # Verify that non-overridden values are preserved
+            for section, section_data in base_config.items():
+                if section in result:
+                    for key, original_value in section_data.items():
+                        # Check if this key was overridden by any environment variable
+                        overridden = False
+                        for env_var in env_values:
+                            if env_var in self.normalizer.ENV_VAR_MAPPING:
+                                env_section, env_key = self.normalizer.ENV_VAR_MAPPING[env_var]
+                                if env_section == section and env_key == key:
+                                    overridden = True
+                                    break
+                        
+                        # If not overridden, original value should be preserved
+                        if not overridden:
+                            assert result[section][key] == original_value, f"Non-overridden key '{key}' in section '{section}' should preserve original value '{original_value}', got '{result[section][key]}'"
+            
+            # Verify consistency: applying the same overrides again should yield the same result
+            result2 = self.normalizer.apply_env_overrides(base_config.copy())
+            assert result == result2, "Environment variable overrides should be consistent across multiple applications"

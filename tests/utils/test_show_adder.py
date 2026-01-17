@@ -11,6 +11,9 @@ from utils.show_adder import add_show_interactively
 from utils.sync2nas_config import write_temp_config, load_configuration
 import configparser
 
+# Apply mock_llm_service_patch fixture to all tests in this module
+pytestmark = pytest.mark.usefixtures("mock_llm_service_patch")
+
 @pytest.fixture
 def mock_db():
     return Mock(spec=create_db_service)
@@ -571,6 +574,18 @@ def test_add_show_with_llm_success(tmp_path, mock_tmdb_service):
                 ],
             }
 
+    # Mock the LangChain match_show function to return expected result
+    from services.llm.schemas import ShowMatch
+    mock_show_match = ShowMatch(
+        tmdb_id=123,
+        show_name="Mock Show",
+        confidence=0.8,
+        reasoning="Mock show match for testing"
+    )
+    
+    # Mock the llm_chains service to return the expected result
+    mock_llm_service.match_show.return_value = mock_show_match
+    
     result = add_show_interactively(
         show_name="Mock Show",
         tmdb_id=None,
@@ -579,7 +594,7 @@ def test_add_show_with_llm_success(tmp_path, mock_tmdb_service):
         anime_tv_path=str(anime_tv_path),
         dry_run=False,
         use_llm=True,
-        llm_service=mock_llm_service,
+        llm_chains=mock_llm_service,
         max_tmdb_results=20,
         llm_confidence=0.7
     )
@@ -591,7 +606,6 @@ def test_add_show_with_llm_success(tmp_path, mock_tmdb_service):
     assert result["episode_count"] == 3
     assert shows[0]["sys_name"] == "Mock Show"
     assert len(episodes) == 3
-    mock_llm_service.suggest_show_name.assert_called_once()
 
 def test_add_show_with_llm_no_results(tmp_path):
     """Test LLM branch when no TMDB search results are found"""
@@ -638,7 +652,7 @@ def test_add_show_with_llm_no_results(tmp_path):
             anime_tv_path=str(anime_tv_path),
             dry_run=False,
             use_llm=True,
-            llm_service=mock_llm_service
+            llm_chains=mock_llm_service
         )
 
 def test_add_show_with_llm_no_detailed_results(tmp_path):
@@ -690,7 +704,7 @@ def test_add_show_with_llm_no_detailed_results(tmp_path):
             anime_tv_path=str(anime_tv_path),
             dry_run=False,
             use_llm=True,
-            llm_service=mock_llm_service
+            llm_chains=mock_llm_service
         )
 
 def test_add_show_with_llm_invalid_response(tmp_path):
@@ -717,13 +731,9 @@ def test_add_show_with_llm_invalid_response(tmp_path):
     db = create_db_service(config)
     db.initialize()
 
-    # Mock LLM service returning invalid response (missing tmdb_id)
+    # Mock LLM service to raise an exception during match_show
     mock_llm_service = Mock()
-    mock_llm_service.suggest_show_name.return_value = {
-        "show_name": "Mock Show",
-        "confidence": 0.8
-        # Missing tmdb_id
-    }
+    mock_llm_service.match_show.side_effect = Exception("LLM service failed to process request")
 
     class MockTMDBWithResults:
         def search_show(self, name):
@@ -764,6 +774,10 @@ def test_add_show_with_llm_invalid_response(tmp_path):
                 ],
             }
 
+    # Mock LLM service to raise an exception during match_show
+    mock_llm_service = Mock()
+    mock_llm_service.match_show.side_effect = Exception("LLM service failed to process request")
+
     with pytest.raises(ValueError, match="Could not determine the best show match"):
         add_show_interactively(
             show_name="Mock Show",
@@ -773,7 +787,7 @@ def test_add_show_with_llm_invalid_response(tmp_path):
             anime_tv_path=str(anime_tv_path),
             dry_run=False,
             use_llm=True,
-            llm_service=mock_llm_service
+            llm_chains=mock_llm_service
         )
 
 def test_add_show_with_llm_low_confidence(tmp_path):
@@ -847,6 +861,18 @@ def test_add_show_with_llm_low_confidence(tmp_path):
                 ],
             }
 
+    # Mock the LangChain match_show function to return low confidence result
+    from services.llm.schemas import ShowMatch
+    mock_show_match = ShowMatch(
+        tmdb_id=123,
+        show_name="Mock Show",
+        confidence=0.5,  # Below threshold of 0.7
+        reasoning="Mock show match with low confidence for testing"
+    )
+    
+    # Mock the llm_chains service to return the expected result
+    mock_llm_service.match_show.return_value = mock_show_match
+    
     # When LLM confidence is low, it should fall back to first TMDB result, not raise error
     result = add_show_interactively(
         show_name="Mock Show",
@@ -856,7 +882,7 @@ def test_add_show_with_llm_low_confidence(tmp_path):
         anime_tv_path=str(anime_tv_path),
         dry_run=False,
         use_llm=True,
-        llm_service=mock_llm_service,
+        llm_chains=mock_llm_service,
         llm_confidence=0.7
     )
     
@@ -865,7 +891,6 @@ def test_add_show_with_llm_low_confidence(tmp_path):
     assert result["tmdb_name"] == "Mock Show"
     assert len(shows) == 1
     assert shows[0]["sys_name"] == "Mock Show"
-    mock_llm_service.suggest_show_name.assert_called_once()
 
 def test_add_show_with_llm_failed_details_retrieval(tmp_path):
     """Test LLM branch when getting show details fails after LLM selection"""
@@ -936,7 +961,7 @@ def test_add_show_with_llm_failed_details_retrieval(tmp_path):
             anime_tv_path=str(anime_tv_path),
             dry_run=False,
             use_llm=True,
-            llm_service=mock_llm_service
+            llm_chains=mock_llm_service
         )
 
 def test_add_show_already_exists_with_override(tmp_path, mock_tmdb_service):

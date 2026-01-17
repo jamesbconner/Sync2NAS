@@ -195,12 +195,14 @@ Advanced configuration options for selecting configuration files and overriding 
 #### LLM Configuration Section
 - **LLM Service**: Choose between Ollama, OpenAI, or Anthropic
 - **Model**: Select appropriate model for the chosen service
-  - **Ollama Models**: qwen3:14b (default), gemma3:12b, mistral:latest, deepseek-r1:32b, llama3.2:latest
+  - **Ollama Models**: ministral-3:14b (default, recommended), ministral-3:8b, qwen2.5:7b, gemma3:12b, mistral:latest, deepseek-r1:32b, llama3.2:latest
   - **OpenAI Models**: gpt-3.5-turbo, gpt-4, gpt-4-turbo
   - **Anthropic Models**: claude-3-5-sonnet-20240620, claude-3-opus-20240229, claude-3-sonnet-20240229
 - **API Key**: Enter API key for cloud-based services (OpenAI/Anthropic)
 - **Max Tokens**: Maximum tokens for API responses
 - **Temperature**: Model temperature setting
+
+**Note**: Only JSON-optimized models are included in the Ollama list. Models like `gpt-oss` that don't properly support structured output have been removed.
 
 #### Path Overrides Section
 - **Incoming Path Override**: Override the incoming path from the config file

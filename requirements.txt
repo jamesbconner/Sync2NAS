@@ -16,3 +16,11 @@ openai>=1.93.0
 ollama==0.5.1
 anthropic==0.56.0
 ttkbootstrap==1.14.2
+# LangChain packages for LLM refactoring
+langchain-core>=0.1.0
+langchain-anthropic>=0.1.0
+langchain-openai>=0.1.0
+langchain-community>=0.0.10
+langchain-ollama>=0.1.0
+pydantic-settings>=2.0.0
+# Optional: langsmith for tracing (install with: pip install langsmith)

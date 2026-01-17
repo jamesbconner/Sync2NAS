@@ -51,8 +51,8 @@ def route_files(ctx: click.Context, incoming: str, use_llm: bool, llm_confidence
 
     click.secho(f"Scanning: {incoming_path}", fg="cyan")
 
-    # Initialize LLM service if requested
-    llm_service = ctx.obj["llm_service"] if use_llm else None
+    # Get LLM chains service if requested
+    llm_chains = ctx.obj["llm_chains"] if use_llm else None
 
     # Optionally auto-add missing shows before routing
     if auto_add:
@@ -67,7 +67,7 @@ def route_files(ctx: click.Context, incoming: str, use_llm: bool, llm_confidence
             db=db,
             tmdb=tmdb,
             dry_run=dry_run,
-            llm_service=llm_service,
+            llm_chains=llm_chains,
             llm_confidence_threshold=llm_confidence
         )
         logger.info("file_routing completed successfully")
@@ -141,9 +141,10 @@ def _auto_add_missing_shows(ctx: click.Context, incoming_path: str, ignore_files
             # If use_llm is True, use the LLM to parse the filename, otherwise use the regex parser.
             #   the llm parser will fall back to the regex parser if the confidence answer is 
             #   below the llm_confidence threshold.
+            llm_chains = ctx.obj["llm_chains"] if use_llm else None
             if use_llm:
                 logger.info(f"Using LLM to parse filename: {fname}")
-                metadata = parse_filename(fname, llm_service=llm_service, llm_confidence_threshold=llm_confidence)
+                metadata = parse_filename(fname, llm_chains=llm_chains, llm_confidence_threshold=llm_confidence)
             else:
                 logger.info(f"Using regex to parse filename: {fname}")
                 metadata = parse_filename(fname)

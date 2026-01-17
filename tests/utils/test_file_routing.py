@@ -9,6 +9,9 @@ from models.downloaded_file import DownloadedFile, FileStatus
 from models.show import Show
 from utils.filename_parser import parse_filename
 
+# Apply mock_llm_service_patch fixture to all tests in this module
+pytestmark = pytest.mark.usefixtures("mock_llm_service_patch")
+
 @pytest.fixture
 def setup_test_environment(tmp_path, mocker):
     incoming = tmp_path / "incoming"
@@ -199,7 +202,7 @@ def test_parse_filename_method3():
     """Test parsing filename with format: Show.Name.2000.S01E01"""
     filename = "Show.Name.2000.S01E01"
     result = parse_filename(filename)
-    assert result["show_name"] == "Show Name 2000"
+    assert result["show_name"] == "Show Name 2000"  # Regex includes year in show name
     assert result["episode"] == 1
     assert result["season"] == 1
 
@@ -795,7 +798,7 @@ def test_file_routing_insufficient_episode_metadata(tmp_path, mocker):
     assert test_file.exists()  # File should still be in incoming directory
 
 def test_file_routing_with_llm_service(tmp_path, mocker):
-    """Test file routing with LLM service integration"""
+    """Test file routing with LLM chains service integration"""
     incoming_path = tmp_path / "incoming"
     anime_tv_path = tmp_path / "anime_tv"
     incoming_path.mkdir()
@@ -805,10 +808,10 @@ def test_file_routing_with_llm_service(tmp_path, mocker):
     test_file = incoming_path / "Show Name - 1.mkv"
     test_file.write_text("test content")
 
-    # Mock LLM service
-    mock_llm_service = MagicMock()
+    # Mock LLM chains service
+    mock_llm_chains = MagicMock()
 
-    # Mock parse_filename to use LLM service
+    # Mock parse_filename to use LLM chains service
     mocker.patch('utils.file_routing.parse_filename', return_value={
         "show_name": "Show Name",
         "season": 1,
@@ -841,14 +844,14 @@ def test_file_routing_with_llm_service(tmp_path, mocker):
     }
     mock_db.get_episode_by_absolute_number.return_value = {"season": 1, "episode": 1}
 
-    # Run file routing with LLM service
+    # Run file routing with LLM chains service
     result = file_routing(
         str(incoming_path), 
         str(anime_tv_path), 
         mock_db, 
         dry_run=False, 
         tmdb=MagicMock(),
-        llm_service=mock_llm_service,
+        llm_chains=mock_llm_chains,
         llm_confidence_threshold=0.7
     )
 
@@ -949,20 +952,21 @@ parse_filename_cases = [
     ("Oyslrci Recoil - S01E01 [Bd 1080p Hevc 10ibt Aclf] [Audl-Oiaud].vkm", "Oyslrci Recoil", 1, 1),
     ("[Wohys] Ngoubtou on Nyoeaham - 12 Negdel fo Etaf Ayd 2000 [9Fca5879].vkm", "Ngoubtou on Nyoeaham", 12, None),
     ("[aclsmknokoe-srip]_Super_Eorsxh_S01_E02(02)_1080p_Av1_[6D9C7635].vkm", "Super Eorsxh", 2, 1),
-    ("[Seeasblups] Rd. Nsteo S4 - 05 (1080p) [D920835D].mkv", "Rd Nsteo", 5, 4),
+    ("[Seeasblups] Rd. Nsteo S4 - 05 (1080p) [D920835D].mkv", "Rd Nsteo", 5, 4),  # Regex extracts show name without season info
     ("Geaom Tlaed - S01E01 [Bd 1080p Cveh 10tib Lcfa] [Auld-Oauid].mkv", "Geaom Tlaed", 1, 1),
     ("[Kmui Gang] Het Erchali Rtxotfo - S02E05 (Db 1080p Hevc Aclf) [Auld-Iduao] [A0000000].mkv", "Het Erchali Rtxotfo", 5, 2),
     ("Blue.Lwoley.S01E10.All.Het.Thgin.Epkrac.1080p.Nf.Bew-Ld.Dpd5.1.H.264-Varyg.vkm", "Blue Lwoley", 10, 1),
     ("[a-s]_nonniyag_eltit_~russeioly_wyh_stelid~_-_01_-_cblka_stac_era_tno_rnuagdseo__rs2_[1080p_bd][60000000].mkv", "nonniyag eltit ~russeioly wyh stelid~", 1, None),
     ("[Rkasaua] Itsh si a show mnae 12 [Idpbr 1920x1080 x265 10bit Calf] [70000000].vkm", "Itsh si a show mnae", 12, None),
     ("[Ogciarlls]_Rdakre_tnha_my_slou_12_(1920x1080_Ulb-Rya_Calf)_[80000000].kmv", "Rdakre tnha my slou", 12, None),
-    ("[ThisIsATest] Thunderbolt Avengers S2 - 104 [1080p].mkv", "Thunderbolt Avengers", 104, 2),
+    ("[ThisIsATest] Thunderbolt Avengers S2 - 104 [1080p].mkv", "Thunderbolt Avengers", 104, 2),  # Regex extracts show name without season info
     ("Samurai.Golf.-.10.-.1080p.BlueBunnies.x264.DOD.mkv", "Samurai Golf", 10, None),
 ]
 
 @pytest.mark.parametrize("filename, expected_show_name, expected_episode, expected_season", parse_filename_cases)
 def test_parse_filename_expected(filename, expected_show_name, expected_episode, expected_season):
-    result = parse_filename(filename)
+    # Force regex parsing by setting very high confidence threshold
+    result = parse_filename(filename, llm_confidence_threshold=0.99)
     assert isinstance(result, dict)
     assert result["show_name"] == expected_show_name
     assert result["episode"] == expected_episode

@@ -18,7 +18,7 @@ from tests.utils.mock_service_factory import (
     MockTMDBService
 )
 from services.db_implementations.db_interface import DatabaseInterface
-from services.llm_implementations.llm_interface import LLMInterface
+from services.llm.schemas import ParsedFilename
 from models.show import Show
 from models.episode import Episode
 from models.downloaded_file import DownloadedFile, FileStatus
@@ -226,9 +226,14 @@ class TestMockLLMService:
     """Test the MockLLMService implementation."""
     
     def test_implements_llm_interface(self):
-        """Test that MockLLMService implements LLMInterface."""
+        """Test that MockLLMService implements expected interface."""
         mock_llm = MockLLMService()
-        assert isinstance(mock_llm, LLMInterface)
+        # Test that mock has expected methods instead of checking interface
+        assert hasattr(mock_llm, 'parse_filename')
+        assert hasattr(mock_llm, 'batch_parse_filenames')
+        assert hasattr(mock_llm, 'suggest_short_dirname')
+        assert hasattr(mock_llm, 'suggest_short_filename')
+        assert hasattr(mock_llm, 'suggest_show_name')
     
     def test_parse_filename_basic(self):
         """Test basic filename parsing."""
@@ -236,37 +241,37 @@ class TestMockLLMService:
         
         result = mock_llm.parse_filename("Show.Name.S01E05.mkv")
         
-        assert "show_name" in result
-        assert "season" in result
-        assert "episode" in result
-        assert "confidence" in result
-        assert "reasoning" in result
-        assert "filename" in result
+        # Test that result is a ParsedFilename object with expected attributes
+        assert hasattr(result, 'show_name')
+        assert hasattr(result, 'season')
+        assert hasattr(result, 'episode')
+        assert hasattr(result, 'confidence')
+        assert hasattr(result, 'reasoning')
         
-        assert result["season"] == 1
-        assert result["episode"] == 5
-        assert result["confidence"] > 0.9
-        assert result["filename"] == "Show.Name.S01E05.mkv"
+        assert result.season == 1
+        assert result.episode == 5
+        assert result.confidence > 0.9
     
     def test_parse_filename_custom_result(self):
         """Test setting custom parse results."""
         mock_llm = MockLLMService()
         
-        custom_result = {
-            "show_name": "Custom Show",
-            "season": 2,
-            "episode": 10,
-            "confidence": 0.8,
-            "reasoning": "Custom test result"
-        }
+        custom_result = ParsedFilename(
+            show_name="Custom Show",
+            season=2,
+            episode=10,
+            crc32=None,
+            confidence=0.8,
+            reasoning="Custom test result"
+        )
         
         mock_llm.set_parse_result("custom_file.mkv", custom_result)
         result = mock_llm.parse_filename("custom_file.mkv")
         
-        assert result["show_name"] == "Custom Show"
-        assert result["season"] == 2
-        assert result["episode"] == 10
-        assert result["confidence"] == 0.8
+        assert result.show_name == "Custom Show"
+        assert result.season == 2
+        assert result.episode == 10
+        assert result.confidence == 0.8
     
     def test_batch_parse_filenames(self):
         """Test batch filename parsing."""
@@ -276,11 +281,11 @@ class TestMockLLMService:
         results = mock_llm.batch_parse_filenames(filenames)
         
         assert len(results) == 3
-        assert all("show_name" in result for result in results)
-        assert results[0]["season"] == 1
-        assert results[0]["episode"] == 1
-        assert results[1]["season"] == 2
-        assert results[1]["episode"] == 3
+        assert all(hasattr(result, 'show_name') for result in results)
+        assert results[0].season == 1
+        assert results[0].episode == 1
+        assert results[1].season == 2
+        assert results[1].episode == 3
     
     def test_suggest_short_dirname(self):
         """Test directory name shortening."""
@@ -527,7 +532,8 @@ class TestMockServiceFactory:
         
         llm_service = MockServiceFactory.create_mock_llm_service(config)
         assert isinstance(llm_service, MockLLMService)
-        assert isinstance(llm_service, LLMInterface)
+        # Test that service has expected methods instead of checking interface
+        assert hasattr(llm_service, 'parse_filename')
         assert llm_service.config == config
     
     def test_create_mock_sftp_service(self):

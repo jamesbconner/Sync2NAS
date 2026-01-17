@@ -1,45 +1,54 @@
 """
 Filename parsing utilities for extracting show metadata from filenames.
 Supports both LLM-based and regex-based parsing methods for use in Sync2NAS.
+Uses context-based dependency injection for LLM chain service.
 """
 import logging
 from typing import Optional
-from services.llm_implementations.llm_interface import LLMInterface
+from services.llm.schemas import ParsedFilename
 
 logger = logging.getLogger(__name__)
 
-def parse_filename(filename: str, llm_service: Optional[LLMInterface] = None, llm_confidence_threshold: float = 0.7) -> dict:
+def parse_filename(filename: str, llm_chains=None, llm_confidence_threshold: float = 0.7) -> dict:
     """
-    Extract show metadata from a filename using LLM or fallback to regex.
+    Extract show metadata from a filename using LLM chains or fallback to regex.
 
     Args:
         filename (str): Raw filename (e.g., "Show.Name.S01E01.1080p.mkv").
-        llm_service (Optional[LLMInterface]): LLM service for intelligent parsing.
+        llm_chains: LLM chain service instance (from context).
         llm_confidence_threshold (float): Minimum confidence to accept LLM result.
 
     Returns:
-        dict: Parsed metadata with keys: show_name, season, episode, confidence, reasoning.
+        dict: Parsed metadata with keys: show_name, season, episode, confidence, reasoning, parsing_method.
     """
     logger.debug(f"Parsing filename: {filename}")
 
-    # Try LLM parsing first if available
-    if llm_service:
+    # Try LangChain parsing first if service is available
+    if llm_chains:
         try:
-            llm_result = llm_service.parse_filename(filename)
-            logger.debug(f"LLM result: {llm_result}")
+            chain_result: ParsedFilename = llm_chains.parse_filename(filename)
+            logger.debug(f"LangChain result: {chain_result}")
+            
+            # Convert Pydantic model to dict for backward compatibility
+            result_dict = chain_result.model_dump()
             
             # If LLM confidence is high enough, use it
-            if llm_result.get("confidence", 0.0) >= llm_confidence_threshold:
-                logger.info(f"Using LLM parsing (confidence: {llm_result['confidence']})")
-                return llm_result
+            if result_dict.get("confidence", 0.0) >= llm_confidence_threshold:
+                logger.info(f"Using LangChain parsing (confidence: {result_dict['confidence']})")
+                result_dict["parsing_method"] = "llm"  # Explicitly track which method was used
+                return result_dict
             else:
-                logger.info(f"LLM confidence too low ({llm_result['confidence']}), falling back to regex")
+                logger.info(f"LangChain confidence too low ({result_dict['confidence']}), falling back to regex")
         except Exception as e:
-            logger.exception(f"LLM parsing failed: {e}, falling back to regex")
+            logger.exception(f"LangChain parsing failed: {e}, falling back to regex")
+    else:
+        logger.debug("No LLM chains service available, using regex parsing")
 
     # Fallback to original regex parsing
     logger.debug(f"Using regex fallback parsing")
-    return _regex_parse_filename(filename)
+    result = _regex_parse_filename(filename)
+    result["parsing_method"] = "regex"  # Explicitly track which method was used
+    return result
 
 
 def _regex_parse_filename(filename: str) -> dict:

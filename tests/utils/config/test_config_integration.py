@@ -123,7 +123,7 @@ service = openai
         assert get_config_value(config, 'OpenAI', 'nonexistent', 'default') == 'default'
         assert get_config_value(config, 'nonexistent', 'key', 'fallback') == 'fallback'
     
-    @patch('services.llm_implementations.openai_implementation.openai.OpenAI')
+    @patch('langchain_openai.ChatOpenAI')
     def test_llm_factory_with_normalized_config(self, mock_openai):
         """Test LLM factory with normalized configuration."""
         # Mock OpenAI client
@@ -137,14 +137,17 @@ service = openai
         }
         
         # Create LLM service without health check to avoid network calls
-        service = create_llm_service(config, validate_health=False)
+        service = create_llm_service(config)
         
         # Should create OpenAI service with correct config
         assert service is not None
-        assert service.api_key == 'sk-' + 'x' * 49
-        assert service.model == 'qwen3:14b'  # Uses actual config value
+        # Verify the mock was called with correct parameters
+        mock_openai.assert_called_once()
+        call_kwargs = mock_openai.call_args[1]
+        assert call_kwargs['api_key'] == 'sk-' + 'x' * 49
+        assert call_kwargs['model'] == 'qwen3:14b'
     
-    @patch('services.llm_implementations.openai_implementation.openai.OpenAI')
+    @patch('langchain_openai.ChatOpenAI')
     def test_llm_factory_with_configparser(self, mock_openai):
         """Test LLM factory with ConfigParser."""
         # Mock OpenAI client
@@ -160,12 +163,15 @@ service = openai
         config.set('llm', 'service', 'openai')
         
         # Create LLM service without health check to avoid network calls
-        service = create_llm_service(config, validate_health=False)
+        service = create_llm_service(config)
         
         # Should create OpenAI service with correct config
         assert service is not None
-        assert service.api_key == 'sk-' + 'x' * 49
-        assert service.model == 'gpt-4'
+        # Verify the mock was called with correct parameters
+        mock_openai.assert_called_once()
+        call_kwargs = mock_openai.call_args[1]
+        assert call_kwargs['api_key'] == 'sk-' + 'x' * 49
+        assert call_kwargs['model'] == 'gpt-4'
     
     def test_case_insensitive_service_selection(self):
         """Test that LLM service selection is case insensitive."""
@@ -182,9 +188,13 @@ service = openai
             service_type = get_config_value(config, 'llm', 'service', 'ollama').lower()
             assert service_type in ['openai', 'ollama', 'anthropic']
     
-    @patch('services.llm_implementations.ollama_implementation.Client')
-    def test_ollama_with_normalized_config(self, mock_client):
+    @patch('langchain_ollama.ChatOllama')
+    def test_ollama_with_normalized_config(self, mock_ollama):
         """Test Ollama service creation with normalized config."""
+        # Mock Ollama client
+        mock_client = MagicMock()
+        mock_ollama.return_value = mock_client
+        
         config = {
             'ollama': {
                 'model': 'qwen3:14b',
@@ -197,9 +207,42 @@ service = openai
         service = create_llm_service(config)
         
         assert service is not None
-        assert service.model == 'qwen3:14b'  # Uses actual config value
-        assert service.num_ctx == 4096
-        mock_client.assert_called_with(host='http://localhost:11434')
+        # Verify the mock was called with correct parameters
+        mock_ollama.assert_called_once()
+        call_kwargs = mock_ollama.call_args[1]
+        assert call_kwargs['model'] == 'qwen3:14b'
+        assert call_kwargs['base_url'] == 'http://localhost:11434'
+        # num_ctx is optional and only passed if explicitly configured in the config file
+    
+    @patch('langchain_ollama.ChatOllama')
+    def test_ollama_with_num_ctx_configured(self, mock_ollama):
+        """Test Ollama service creation with num_ctx parameter configured."""
+        # Create config with num_ctx
+        config = {
+            'llm': {'service': 'ollama'},
+            'ollama': {
+                'model': 'ministral-3:14b',
+                'host': 'http://localhost:11434',
+                'temperature': '1.0',
+                'num_ctx': '8192'
+            }
+        }
+        
+        # Mock the ChatOllama instance
+        mock_instance = MagicMock()
+        mock_ollama.return_value = mock_instance
+        
+        # Create LLM service
+        from services.llm_factory import create_llm_service
+        llm = create_llm_service(config)
+        
+        # Verify the mock was called with num_ctx parameter
+        mock_ollama.assert_called_once()
+        call_kwargs = mock_ollama.call_args[1]
+        assert call_kwargs['model'] == 'ministral-3:14b'
+        assert call_kwargs['base_url'] == 'http://localhost:11434'
+        assert call_kwargs['temperature'] == 1.0
+        assert call_kwargs['num_ctx'] == 8192
     
     def test_config_normalizer_integration(self):
         """Test direct ConfigNormalizer integration."""
