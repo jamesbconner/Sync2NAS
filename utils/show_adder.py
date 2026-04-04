@@ -101,7 +101,7 @@ def add_show_interactively(
                     "overview": info.get("overview", "")
                 })
 
-            # Use LangChain to select best match and English name
+            # Use LangChain to select best TMDB match (folder name comes from TMDB details, not LLM show_name)
             try:
                 llm_response: ShowMatch = llm_chains.match_show(show_name, candidates_for_llm)
                 logger.debug(f"LLM Branch - LangChain response: {llm_response}")
@@ -145,18 +145,37 @@ def add_show_interactively(
                 if not details or "info" not in details:
                     logger.exception(f"LLM Branch Fallback - Failed to retrieve full details for TMDB ID {tmdb_id}")
                     raise ValueError(f"LLM Branch Fallback - Failed to retrieve full details for TMDB ID {tmdb_id}")
-                # Sanitize sys_name to keep consistency with the LLM success path
-                sys_name = sanitize_filename(show_name)
-                # Proceed with fallback path
+                # Folder name from TMDB localized title (same source as Show.tmdb_name), not user query —
+                # matches non-LLM branch when TMDB returns English titles for non-Latin originals.
+                fb_info = details["info"]
+                sys_name = (
+                    fb_info.get("name")
+                    or fb_info.get("original_name")
+                    or first_result.get("name", show_name)
+                )
+                logger.debug(
+                    f"LLM Branch Fallback - Using TMDB title '{sys_name}' for folder"
+                )
             else:
-                # Use LLM to set the tmdb_id and sys_name vars
                 tmdb_id = llm_response_dict["tmdb_id"]
-                sys_name = sanitize_filename(llm_response_dict["show_name"])
                 details = tmdb.get_show_details(tmdb_id)
-                
+
                 if not details or "info" not in details:
                     logger.exception(f"LLM Branch - Failed to retrieve full details for TMDB ID {tmdb_id}")
                     raise ValueError(f"LLM Branch - Failed to retrieve full details for TMDB ID {tmdb_id}")
+                # LLM picks tmdb_id; folder name follows TMDB localized title (info.name), not LLM show_name,
+                # so directories stay English when TMDB name is English but the model echoes original_language titles.
+                info = details["info"]
+                sys_name = (
+                    info.get("name")
+                    or info.get("original_name")
+                    or llm_response_dict.get("show_name")
+                    or show_name
+                )
+                logger.debug(
+                    f"LLM Branch - Using TMDB title '{sys_name}' for folder "
+                    f"(LLM show_name was '{llm_response_dict.get('show_name')}')"
+                )
             
         elif show_name:
             logger.info("Using show_name branch")
