@@ -151,7 +151,8 @@ def add_show_interactively(
                 sys_name = (
                     fb_info.get("name")
                     or fb_info.get("original_name")
-                    or first_result.get("name", show_name)
+                    or first_result.get("name")
+                    or show_name
                 )
                 logger.debug(
                     f"LLM Branch Fallback - Using TMDB title '{sys_name}' for folder"
