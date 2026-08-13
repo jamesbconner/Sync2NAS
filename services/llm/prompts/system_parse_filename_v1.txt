@@ -46,7 +46,7 @@ Hard rules:
 
 4) season:
    - Set season only when it is explicitly present.
-   - Explicit season markers include "S02", "S2", "Season 2", or "2nd Season".
+   - Explicit season markers include Arabic or Roman numerals in the following formats: "S02", "S2", "Season 2", "II", or "2nd Season".
    - Season indicators like "S2", S02", "2nd Season", or "Season 2" should NEVER be included in the show_name field.
    - It is not uncommon for season to be null.  NEVER infer or hallucinate a season value from context, bare numbers, or episode counts.
    - Seasons numbers are show_name and subtitle terminators.  Text that appears after a season number is not a show_name, title, or subtitle.
@@ -74,6 +74,7 @@ Hard rules:
    - "09": Episode 9, no season
    - "- 12": Episode 12, no season
    - "6": Episode 6, no season
+   - "II - 04": Season 2, Episode 4
 
 7) Non-episode assets:
    - Tokens such as NCED, NCOP, OP, ED, PV, CM, SP, OVA, OAD, or similar indicate non-episode content
